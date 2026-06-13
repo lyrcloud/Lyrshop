@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - Lyrshop</title>
+  <link rel="stylesheet" href="styles.css?v=20260517-4" />
+</head>
+<body>
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Admin dashboard</p>
+      <h1>Manage Lyrshop</h1>
+      <p>Create products, maintain customer users, and organize storefront categories.</p>
+    </div>
+    <div class="admin-cta">
+      <a href="index.html" class="button button-secondary">View storefront</a>
+      <a href="dashboard.html" class="button button-secondary">Account</a>
+    </div>
+  </header>
+
+  <main class="admin-page">
+    <section class="admin-overview" aria-label="Admin overview">
+      <article class="admin-stat">
+        <span id="admin-product-count">0</span>
+        <strong>Products</strong>
+      </article>
+      <article class="admin-stat">
+        <span id="admin-user-count">0</span>
+        <strong>Users</strong>
+      </article>
+      <article class="admin-stat">
+        <span id="admin-category-count">0</span>
+        <strong>Categories</strong>
+      </article>
+    </section>
+
+    <nav class="admin-tabs" aria-label="Admin sections">
+      <button class="admin-tab active" type="button" data-admin-section="products">Products</button>
+      <button class="admin-tab" type="button" data-admin-section="users">Users</button>
+      <button class="admin-tab" type="button" data-admin-section="categories">Categories</button>
+    </nav>
+
+    <section class="admin-panel admin-section active" id="admin-products-section">
+      <div class="panel-header">
+        <h2>Create a new product</h2>
+        <p>Products are added to the local backend when running the demo server.</p>
+      </div>
+      <form id="product-form">
+        <label>
+          Product name
+          <input type="text" id="product-name" placeholder="e.g. Wireless speaker" required />
+        </label>
+        <label>
+          Description
+          <textarea id="product-description" placeholder="A short product description."></textarea>
+        </label>
+        <label>
+          Price
+          <input type="number" id="product-price" min="0.01" step="0.01" placeholder="0.00" required />
+        </label>
+        <label>
+          Category
+          <input type="text" id="product-category" list="category-options" placeholder="Audio, Home, Lifestyle" />
+          <datalist id="category-options"></datalist>
+        </label>
+        <label>
+          Image URL
+          <input type="url" id="product-image" placeholder="https://example.com/photo.jpg" />
+        </label>
+        <button type="submit" class="button button-primary">Create Product</button>
+      </form>
+      <div class="admin-preview">
+        <h3>Live product preview</h3>
+        <div id="product-preview" class="preview-card"></div>
+      </div>
+      <div class="admin-products">
+        <h3>Current catalog</h3>
+        <div id="current-products" class="grid"></div>
+      </div>
+      <div id="message" class="admin-message"></div>
+    </section>
+
+    <section class="admin-panel admin-section" id="admin-users-section">
+      <div class="panel-header">
+        <h2>User CRUD</h2>
+        <p>Create, edit, and remove demo users stored in this browser.</p>
+      </div>
+      <form id="user-form" class="admin-crud-form">
+        <input type="hidden" id="user-edit-index" />
+        <label>
+          Full name
+          <input type="text" id="user-name" placeholder="Alex Morgan" required />
+        </label>
+        <label>
+          Email
+          <input type="email" id="user-email" placeholder="alex@example.com" required />
+        </label>
+        <label>
+          Password
+          <input type="text" id="user-password" minlength="6" placeholder="At least 6 characters" required />
+        </label>
+        <label>
+          Provider
+          <select id="user-provider">
+            <option>Email</option>
+            <option>Google</option>
+          </select>
+        </label>
+        <div class="admin-form-actions">
+          <button type="submit" id="user-submit" class="button button-primary">Create user</button>
+          <button type="button" id="user-cancel" class="button button-secondary">Cancel edit</button>
+        </div>
+      </form>
+      <div id="user-message" class="admin-message"></div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Provider</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="user-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-panel admin-section" id="admin-categories-section">
+      <div class="panel-header">
+        <h2>Category CRUD</h2>
+        <p>Maintain the category list used while creating products.</p>
+      </div>
+      <form id="category-form" class="admin-crud-form">
+        <input type="hidden" id="category-edit-index" />
+        <label>
+          Category name
+          <input type="text" id="category-name" placeholder="Electronics" required />
+        </label>
+        <label>
+          Display label
+          <input type="text" id="category-label" placeholder="Electronics" required />
+        </label>
+        <label>
+          Image URL
+          <input type="url" id="category-image" placeholder="https://example.com/category.jpg" />
+        </label>
+        <label>
+          Subcategories
+          <input type="text" id="category-subcategories" placeholder="Headphones, Speakers, Accessories" />
+        </label>
+        <div class="admin-form-actions">
+          <button type="submit" id="category-submit" class="button button-primary">Create category</button>
+          <button type="button" id="category-cancel" class="button button-secondary">Cancel edit</button>
+        </div>
+      </form>
+      <div id="category-message" class="admin-message"></div>
+      <div id="category-list" class="category-admin-list"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Back to <a href="index.html">store</a>.</p>
+  </footer>
+
+  <script src="admin.js?v=20260518-1"></script>
+</body>
+</html>

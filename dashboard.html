@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - Lyrshop</title>
+  <link rel="stylesheet" href="styles.css?v=20260517-6" />
+</head>
+<body>
+  <header class="page-header compact-header">
+    <a href="index.html" aria-label="Lyrshop home">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+        <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238">lyrshop</text>
+      </svg>
+    </a>
+    <div class="header-actions">
+      <a href="index.html" class="button button-secondary">Shop</a>
+      <a href="admin.html" class="button button-secondary">Seller</a>
+      <button id="logout-button" type="button" class="button button-primary">Logout</button>
+    </div>
+  </header>
+
+  <main class="dashboard-page">
+    <section class="dashboard-hero">
+      <div>
+        <p class="eyebrow">User dashboard</p>
+        <h1 id="dashboard-title">Your account</h1>
+        <p id="dashboard-email"></p>
+      </div>
+      <div class="dashboard-stat">
+        <span id="dashboard-order-count">0</span>
+        <small>Orders</small>
+      </div>
+    </section>
+
+    <section class="account-options" aria-label="Account actions">
+      <a href="index.html" class="option-tile">
+        <span class="option-icon" aria-hidden="true">$</span>
+        <span>
+          <strong>Shop products</strong>
+          <small>Browse deals, add items to cart, and checkout.</small>
+        </span>
+      </a>
+      <a href="admin.html" class="option-tile">
+        <span class="option-icon" aria-hidden="true">+</span>
+        <span>
+          <strong>Sell products</strong>
+          <small>Add catalog items and preview your seller listings.</small>
+        </span>
+      </a>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="dashboard-panel">
+        <div class="panel-header">
+          <h2>Profile</h2>
+          <p>Account details used for checkout and order updates.</p>
+        </div>
+        <dl class="profile-list">
+          <div>
+            <dt>Name</dt>
+            <dd id="profile-name"></dd>
+          </div>
+          <div>
+            <dt>Email</dt>
+            <dd id="profile-email"></dd>
+          </div>
+          <div>
+            <dt>Sign-in method</dt>
+            <dd id="profile-provider"></dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="dashboard-panel">
+        <div class="panel-header">
+          <h2>Recent orders</h2>
+          <p>Orders placed from this browser while signed in.</p>
+        </div>
+        <div id="order-list" class="order-list"></div>
+      </article>
+    </section>
+  </main>
+
+  <script src="auth.js?v=20260517-5"></script>
+  <script src="dashboard.js?v=20260517-6"></script>
+</body>
+</html>

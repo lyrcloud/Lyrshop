@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marketplace - Buy & Sell Online</title>
+  <link rel="stylesheet" href="styles.css?v=20260517-6" />
+</head>
+<body>
+  <header class="header">
+    <div class="utility-bar">
+      <div class="utility-inner">
+        <div class="utility-links">
+          <span>Hi! <a href="auth.html">Sign in</a> or <a href="auth.html">register</a></span>
+          <a href="#product-list">Deals</a>
+          <a href="admin.html">Sell</a>
+          <a href="dashboard.html">Help & Orders</a>
+        </div>
+        <div class="utility-links utility-right">
+          <a href="dashboard.html">Watchlist</a>
+          <a href="dashboard.html">My Lyrshop</a>
+          <a href="#cart-panel">Cart</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-top">
+      <a href="index.html" class="logo-link" aria-label="Lyrshop home">
+        <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+          <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238" letter-spacing="-2">lyrshop</text>
+        </svg>
+      </a>
+      <div class="category-menu-wrap">
+        <button class="category-menu" id="category-menu-button" type="button" aria-expanded="false" aria-controls="category-menu-panel">Shop by category</button>
+        <div class="category-menu-panel" id="category-menu-panel" hidden></div>
+      </div>
+      <form class="search-bar" id="search-form">
+        <input type="text" id="search-input" placeholder="Search for anything..." />
+        <select aria-label="Search category">
+          <option>All Categories</option>
+          <option>Electronics</option>
+          <option>Home & Garden</option>
+          <option>Fashion</option>
+          <option>Audio</option>
+          <option>Collectibles</option>
+        </select>
+        <button type="submit" class="search-button">Search</button>
+      </form>
+      <div class="header-actions">
+        <a href="dashboard.html" id="account-link" class="button button-secondary">Account</a>
+      </div>
+    </div>
+
+    <nav class="nav-categories">
+      <button class="nav-item active" data-category="All">All</button>
+      <button class="nav-item" data-category="Electronics">Electronics</button>
+      <button class="nav-item" data-category="Home">Home & Garden</button>
+      <button class="nav-item" data-category="Lifestyle">Fashion</button>
+      <button class="nav-item" data-category="Audio">Audio</button>
+      <button class="nav-item" data-category="Stationery">Collectibles</button>
+    </nav>
+  </header>
+
+  <main class="main">
+    <section class="market-hero">
+      <div class="market-hero-copy">
+        <p class="eyebrow">Featured deal</p>
+        <h1>Find everyday picks and rare scores in one place.</h1>
+        <p>Browse electronics, home upgrades, fashion, audio gear, and collectibles from Lyrshop sellers.</p>
+        <a href="#product-list" class="button button-dark">Shop now</a>
+      </div>
+      <div class="market-hero-visual" aria-hidden="true">
+        <img src="https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=70" alt="" />
+      </div>
+    </section>
+
+    <section class="category-showcase" aria-label="Popular categories">
+      <a href="#product-list" class="category-shortcut" data-shortcut-category="Electronics">
+        <span class="shortcut-image"><img src="https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=320&q=70" alt="" /></span>
+        <strong>Electronics</strong>
+      </a>
+      <a href="#product-list" class="category-shortcut" data-shortcut-category="Audio">
+        <span class="shortcut-image"><img src="https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=320&q=70" alt="" /></span>
+        <strong>Audio</strong>
+      </a>
+      <a href="#product-list" class="category-shortcut" data-shortcut-category="Home">
+        <span class="shortcut-image"><img src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=320&q=70" alt="" /></span>
+        <strong>Home</strong>
+      </a>
+      <a href="#product-list" class="category-shortcut" data-shortcut-category="Lifestyle">
+        <span class="shortcut-image"><img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=320&q=70" alt="" /></span>
+        <strong>Fashion</strong>
+      </a>
+      <a href="#product-list" class="category-shortcut" data-shortcut-category="Stationery">
+        <span class="shortcut-image"><img src="https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=320&q=70" alt="" /></span>
+        <strong>Collectibles</strong>
+      </a>
+    </section>
+
+    <div class="content-grid">
+      <section class="hero-deals">
+      <div class="deals-header">
+        <h2>Today's Deals</h2>
+        <p>Great savings on popular items</p>
+      </div>
+      <div id="product-list" class="product-grid"></div>
+      </section>
+
+      <aside class="sidebar-cart" id="cart-panel">
+      <div class="cart-widget">
+        <h3>Cart</h3>
+        <div id="cart-items" class="cart-items"></div>
+        <div class="checkout-options">
+          <fieldset>
+            <legend>Shipping carrier</legend>
+            <div class="shipping-quote">
+              <label for="shipping-zip">ZIP code</label>
+              <div>
+                <input id="shipping-zip" name="shipping-zip" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="10001" />
+                <button id="quote-shipping-button" class="small-button" type="button">Quote</button>
+              </div>
+              <button id="detect-location-button" class="location-button" type="button">Use my location</button>
+              <p id="shipping-status">Enter a ZIP code to compare USPS, UPS, and FedEx.</p>
+            </div>
+            <div id="shipping-rates" class="shipping-rates"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Payment</legend>
+            <label class="checkout-option">
+              <input type="radio" name="payment-method" value="stripe" checked />
+              <span>
+                <strong>Stripe Checkout</strong>
+                <small>Cards and wallet payments</small>
+              </span>
+            </label>
+          </fieldset>
+        </div>
+        <div class="cart-summary">
+          <div class="summary-row">
+            <span>Items</span>
+            <strong>$<span id="cart-subtotal">0.00</span></strong>
+          </div>
+          <div class="summary-row">
+            <span>Shipping</span>
+            <strong>$<span id="shipping-total">0.00</span></strong>
+          </div>
+          <div class="summary-row">
+            <span>Estimated tax</span>
+            <strong>$<span id="tax-total">0.00</span></strong>
+          </div>
+          <div class="total-row">
+            <span>Total</span>
+            <strong>$<span id="cart-total">0.00</span></strong>
+          </div>
+        </div>
+        <button id="checkout-button" class="button button-primary full-width" disabled>Checkout with Stripe</button>
+        <p id="checkout-status" class="checkout-status" aria-live="polite"></p>
+      </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Marketplace Demo. Powered by Lyrcloud.</p>
+  </footer>
+
+  <script src="auth.js?v=20260518-1"></script>
+  <script src="app.js?v=20260518-4"></script>
+  <script>
+    function renderLyrshopButton() {
+      const headerActions = document.querySelector(".header-actions");
+      if (!headerActions) return;
+
+      headerActions.innerHTML = `
+        <a href="dashboard.html" id="account-link" class="button button-secondary">Lyrshop</a>
+      `;
+    }
+
+    renderLyrshopButton();
+    window.addEventListener("load", renderLyrshopButton);
+  </script>
+</body>
+</html>

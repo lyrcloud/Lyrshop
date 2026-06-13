@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in - Lyrshop</title>
+  <link rel="stylesheet" href="styles.css?v=20260517-3" />
+</head>
+<body class="auth-body">
+  <header class="page-header compact-header">
+    <a href="index.html" aria-label="Lyrshop home">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+        <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238">lyrshop</text>
+      </svg>
+    </a>
+    <a href="index.html" class="button button-secondary">Back to store</a>
+  </header>
+
+  <main class="auth-page">
+    <section class="auth-hero" aria-label="Account benefits">
+      <p class="eyebrow">Lyrshop account</p>
+      <h1>Shop faster with your deals, cart, and orders in one account.</h1>
+      <div class="auth-showcase" aria-hidden="true">
+        <img
+          class="auth-showcase-main"
+          src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=70"
+          alt=""
+        />
+        <div class="auth-deal-card">
+          <span>Today</span>
+          <strong>$64.99</strong>
+          <small>Eco backpack saved</small>
+        </div>
+        <div class="auth-mini-products">
+          <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=240&q=70" alt="" />
+          <img src="https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=240&q=70" alt="" />
+        </div>
+      </div>
+      <div class="auth-benefits">
+        <span>Fast checkout</span>
+        <span>Order history</span>
+        <span>Saved watchlist</span>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <div class="auth-copy">
+        <p class="eyebrow">Customer account</p>
+        <h1 id="auth-title">Sign in to Lyrshop</h1>
+        <p>Track orders, save account details, and move faster through checkout.</p>
+      </div>
+
+      <div class="auth-tabs" role="tablist" aria-label="Account mode">
+        <button id="login-tab" class="auth-tab active" type="button" role="tab" aria-selected="true">Login</button>
+        <button id="signup-tab" class="auth-tab" type="button" role="tab" aria-selected="false">Sign up</button>
+      </div>
+
+      <form id="auth-form" class="auth-form">
+        <label id="name-field" class="hidden">
+          Full name
+          <input type="text" id="auth-name" autocomplete="name" placeholder="Alex Morgan" />
+        </label>
+        <label>
+          Email
+          <input type="email" id="auth-email" autocomplete="email" placeholder="you@example.com" required />
+        </label>
+        <label>
+          Password
+          <input type="password" id="auth-password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required />
+        </label>
+        <button id="auth-submit" type="submit" class="button button-primary full-width">Login</button>
+      </form>
+
+      <div class="auth-divider"><span>or</span></div>
+
+      <button id="google-auth" type="button" class="button google-button full-width">
+        <span class="google-mark" aria-hidden="true">G</span>
+        Continue with Google
+      </button>
+
+      <p id="auth-message" class="form-message" role="status"></p>
+      <p class="auth-terms">Protected demo account access for the Lyrshop marketplace.</p>
+    </section>
+  </main>
+
+  <script src="auth.js?v=20260517-5"></script>
+</body>
+</html>

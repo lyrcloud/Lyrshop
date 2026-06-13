@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Details - Lyrshop</title>
+  <link rel="stylesheet" href="styles.css?v=20260517-6" />
+</head>
+<body>
+  <header class="header">
+    <div class="utility-bar">
+      <div class="utility-inner">
+        <div class="utility-links">
+          <span>Hi! <a href="auth.html">Sign in</a> or <a href="auth.html">register</a></span>
+          <a href="index.html#product-list">Deals</a>
+          <a href="admin.html">Sell</a>
+          <a href="dashboard.html">Help & Orders</a>
+        </div>
+        <div class="utility-links utility-right">
+          <a href="dashboard.html">Watchlist</a>
+          <a href="dashboard.html">My Lyrshop</a>
+          <a href="index.html#cart-panel">Cart</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-top">
+      <a href="index.html" class="logo-link" aria-label="Lyrshop home">
+        <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+          <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238" letter-spacing="-2">lyrshop</text>
+        </svg>
+      </a>
+      <div class="category-menu-wrap">
+        <button class="category-menu" id="detail-category-menu-button" type="button" aria-expanded="false" aria-controls="detail-category-menu-panel">Shop by category</button>
+        <div class="category-menu-panel" id="detail-category-menu-panel" hidden></div>
+      </div>
+      <form class="search-bar" id="detail-search-form">
+        <input type="text" id="detail-search-input" placeholder="Search for anything..." />
+        <select aria-label="Search category">
+          <option>All Categories</option>
+          <option>Electronics</option>
+          <option>Home & Garden</option>
+          <option>Fashion</option>
+          <option>Audio</option>
+          <option>Collectibles</option>
+        </select>
+        <button type="submit" class="search-button">Search</button>
+      </form>
+      <div class="header-actions">
+        <a href="dashboard.html" class="button button-secondary">Account</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="product-detail-page">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html">Lyrshop</a>
+      <span>/</span>
+      <a href="index.html#product-list" id="breadcrumb-category">Products</a>
+      <span>/</span>
+      <span id="breadcrumb-product">Item</span>
+    </nav>
+
+    <section class="listing-shell" id="listing-shell">
+      <div class="gallery-panel">
+        <div class="main-product-image">
+          <img id="detail-image" alt="" />
+          <div class="image-badge">Featured item</div>
+        </div>
+      </div>
+
+      <section class="purchase-panel">
+        <div class="seller-strip">
+          <strong>Lyrshop seller</strong>
+          <span>99.7% positive feedback</span>
+        </div>
+        <h1 id="detail-title">Loading product...</h1>
+        <p class="detail-subtitle" id="detail-subtitle">Checking current listing details.</p>
+
+        <dl class="listing-facts">
+          <div>
+            <dt>Condition</dt>
+            <dd>New</dd>
+          </div>
+          <div>
+            <dt>Quantity</dt>
+            <dd>
+              <select id="quantity-select" aria-label="Quantity">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+              </select>
+              <span class="availability">More than 10 available</span>
+            </dd>
+          </div>
+        </dl>
+
+        <div class="price-block">
+          <span class="price-label">Price</span>
+          <strong id="detail-price">$0.00</strong>
+          <span id="detail-original-price" class="detail-original-price"></span>
+        </div>
+
+        <div class="purchase-actions">
+          <button class="button buy-now-button" id="buy-now-button" type="button">Buy It Now</button>
+          <button class="button detail-cart-button" id="detail-cart-button" type="button">Add to cart</button>
+          <button class="button watch-button" type="button">Add to Watchlist</button>
+        </div>
+
+        <div class="shipping-box">
+          <div>
+            <strong>Shipping</strong>
+            <span>Free standard shipping. Estimated delivery in 3-5 business days.</span>
+          </div>
+          <div>
+            <strong>Returns</strong>
+            <span>30 day returns. Buyer pays return shipping.</span>
+          </div>
+          <div>
+            <strong>Payments</strong>
+            <span>Secure checkout powered by Lyrshop.</span>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="detail-lower-grid">
+      <section class="detail-section">
+        <h2>About this item</h2>
+        <dl class="specifics-grid" id="specifics-grid"></dl>
+      </section>
+
+      <aside class="seller-card">
+        <h2>Seller information</h2>
+        <strong>Lyrshop Deals</strong>
+        <span>Top rated seller</span>
+        <p>Ships quickly and keeps order history available in your dashboard.</p>
+        <a href="dashboard.html" class="button button-secondary full-width">Visit account</a>
+      </aside>
+    </section>
+
+    <section class="detail-section description-section">
+      <h2>Item description from the seller</h2>
+      <p id="detail-description"></p>
+      <ul class="description-list">
+        <li>Inspected by the seller before shipping.</li>
+        <li>Packaged for safe delivery with tracking included.</li>
+        <li>Covered by the Lyrshop checkout record in your account dashboard.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Marketplace Demo. Powered by Lyrcloud.</p>
+  </footer>
+
+  <script src="auth.js?v=20260517-5"></script>
+  <script src="product.js?v=20260518-1"></script>
+</body>
+</html>
