@@ -49,7 +49,8 @@ fi
 aws s3 sync . "s3://$BUCKET_NAME" \
   --region "$REGION" \
   --delete \
-  --exclude "deploy.sh"
+  --exclude "deploy.sh" \
+  --exclude ".git/*"
 
 if [ -n "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
   aws cloudfront create-invalidation \

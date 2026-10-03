@@ -146,14 +146,39 @@ function initAuthPage() {
     window.location.href = getAuthReturnTo();
   });
 
-  googleButton.addEventListener("click", () => {
-    upsertUser({
-      name: "Google User",
-      email: "google.user@example.com",
-      provider: "Google",
+  function onGoogleCredential(response) {
+    try {
+      const payload = JSON.parse(atob(response.credential.split(".")[1]));
+      upsertUser({
+        name: payload.name || payload.email.split("@")[0],
+        email: payload.email,
+        provider: "Google",
+      });
+      window.location.href = getAuthReturnTo();
+    } catch {
+      message.textContent = "Google sign-in failed. Please try again.";
+    }
+  }
+
+  function initGoogle() {
+    if (!window.google) return;
+    google.accounts.id.initialize({
+      client_id: "238394195869-ohu6m0qm43k069a3r2sb3mak0r4g9obs.apps.googleusercontent.com",
+      callback: onGoogleCredential,
     });
-    window.location.href = getAuthReturnTo();
-  });
+    google.accounts.id.renderButton(googleButton, {
+      theme: "outline",
+      size: "large",
+      width: googleButton.offsetWidth || 340,
+      text: "continue_with",
+    });
+  }
+
+  if (window.google) {
+    initGoogle();
+  } else {
+    window.addEventListener("load", initGoogle);
+  }
 }
 
 initAuthPage();

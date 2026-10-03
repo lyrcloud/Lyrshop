@@ -12,71 +12,10 @@ const detailCategories = [
   { name: "Stationery", label: "Collectibles", subcategories: ["Pens", "Notebooks", "Art supplies", "Memorabilia"] },
 ];
 
-const detailProducts = [
-  {
-    id: "demo-1",
-    name: "Premium Wireless Headphones",
-    description: "Noise-canceling, 30-hour battery.",
-    price: 79.99,
-    original_price: 129.99,
-    category: "Electronics",
-    image_url: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=70",
-    rating: 4.8,
-  },
-  {
-    id: "demo-2",
-    name: "Portable Bluetooth Speaker",
-    description: "Rich bass, waterproof design.",
-    price: 49.99,
-    original_price: 79.99,
-    category: "Audio",
-    image_url: "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=900&q=70",
-    rating: 4.6,
-  },
-  {
-    id: "demo-3",
-    name: "Modern Desk Lamp LED",
-    description: "Eye-care, adjustable brightness.",
-    price: 39.99,
-    original_price: 69.99,
-    category: "Home",
-    image_url: "https://images.unsplash.com/photo-1565636192335-14a8df713be0?auto=format&fit=crop&w=900&q=70",
-    rating: 4.7,
-  },
-  {
-    id: "demo-4",
-    name: "Smart Digital Pen",
-    description: "Cloud-synced notes and sketches.",
-    price: 22.99,
-    original_price: 39.99,
-    category: "Stationery",
-    image_url: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=900&q=70",
-    rating: 4.5,
-  },
-  {
-    id: "demo-5",
-    name: "Sustainable Eco Backpack",
-    description: "Durable, weather-resistant fabric.",
-    price: 64.99,
-    original_price: 129.99,
-    category: "Lifestyle",
-    image_url: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=70",
-    rating: 4.9,
-  },
-  {
-    id: "demo-6",
-    name: "Ultra-Thin Wireless Mouse",
-    description: "Precision tracking, long battery.",
-    price: 27.99,
-    original_price: 49.99,
-    category: "Electronics",
-    image_url: "https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=900&q=70",
-    rating: 4.4,
-  },
-];
+const DETAIL_PLACEHOLDER_IMAGE_URL = "logo.svg";
 
 const params = new URLSearchParams(window.location.search);
-const requestedId = params.get("id") || "demo-1";
+const requestedId = params.get("id") || "";
 
 function readCart() {
   try {
@@ -100,7 +39,7 @@ function normalizeProduct(product) {
     price,
     original_price: Number(product.original_price) || price * 1.5,
     rating: Number(product.rating) || 4,
-    image_url: product.image_url || detailProducts[0].image_url,
+    image_url: product.image_url || DETAIL_PLACEHOLDER_IMAGE_URL,
   };
 }
 
@@ -175,10 +114,10 @@ async function fetchProducts() {
     if (!response.ok) throw new Error(`Product request failed with ${response.status}`);
     const json = await response.json();
     const products = (json.products || []).map(normalizeProduct).filter(Boolean);
-    return products.length ? products : detailProducts;
+    return products;
   } catch (error) {
-    console.warn("Local backend unavailable, displaying demo product details.", error);
-    return detailProducts;
+    console.warn("Product request failed.", error);
+    return [];
   } finally {
     window.clearTimeout(timeoutId);
   }
@@ -250,6 +189,10 @@ async function initProductDetail() {
   bindCategoryMenu();
   const products = await fetchProducts();
   const product = products.find((item) => String(item.id) === requestedId) || products[0];
+  if (!product) {
+    document.getElementById("detail-title").textContent = "Product not found.";
+    return;
+  }
   renderProduct(product);
   bindActions(product);
 }

@@ -4,7 +4,6 @@ const API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.locat
 const USERS_KEY = "lyrshopUsers";
 const SESSION_KEY = "lyrshopSession";
 const CATEGORIES_KEY = "lyrshopCategories";
-const ADMIN_EMAIL = "lyrclouds@gmail.com";
 
 const defaultCategories = [
   {
@@ -47,7 +46,11 @@ const nameInput = document.getElementById("product-name");
 const descriptionInput = document.getElementById("product-description");
 const priceInput = document.getElementById("product-price");
 const categoryInput = document.getElementById("product-category");
+const subcategoryInput = document.getElementById("product-subcategory");
 const imageInput = document.getElementById("product-image");
+const productEditId = document.getElementById("product-edit-id");
+const productSubmit = document.getElementById("product-submit");
+const productCancel = document.getElementById("product-cancel");
 const productCount = document.getElementById("admin-product-count");
 const userCount = document.getElementById("admin-user-count");
 const categoryCount = document.getElementById("admin-category-count");
@@ -74,6 +77,7 @@ const categoryCancel = document.getElementById("category-cancel");
 const categoryMessage = document.getElementById("category-message");
 const categoryList = document.getElementById("category-list");
 const categoryOptions = document.getElementById("category-options");
+const subcategoryOptions = document.getElementById("subcategory-options");
 
 function escapeHtml(value) {
   return String(value || "")
@@ -99,10 +103,7 @@ function getRoleForEmail(email) {
 }
 
 function withResolvedUserRole(user) {
-  return {
-    ...user,
-    role: getRoleForEmail(user.email),
-  };
+  return { ...user, role: getRoleForEmail(user.email) };
 }
 
 function readUsers() {
@@ -122,14 +123,14 @@ function saveSession(user) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(withResolvedUserRole(user)));
 }
 
-function requireAdmin() {
+function requireUser() {
   const session = readSession();
-  if (!session || session.role !== "admin") {
+  if (!session) {
     window.location.href = "auth.html";
-    return false;
+    return null;
   }
   saveSession(session);
-  return true;
+  return session;
 }
 
 function readCategories() {
@@ -160,13 +161,24 @@ function showMessage(element, text, isError = false) {
 
 function updateStats(productTotal = null) {
   if (productTotal !== null) productCount.textContent = productTotal;
-  userCount.textContent = readUsers().length;
+  if (userCount) userCount.textContent = readUsers().length;
   categoryCount.textContent = readCategories().length;
 }
 
 function renderCategoryOptions() {
-  categoryOptions.innerHTML = readCategories()
-    .map((category) => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.label)}</option>`)
+  const categories = readCategories();
+  categoryOptions.innerHTML = categories
+    .map((cat) => `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.label)}</option>`)
+    .join("");
+}
+
+function updateSubcategoryOptions() {
+  const selectedName = categoryInput.value.trim();
+  const category = readCategories().find(
+    (cat) => cat.name.toLowerCase() === selectedName.toLowerCase() || cat.label.toLowerCase() === selectedName.toLowerCase()
+  );
+  subcategoryOptions.innerHTML = (category?.subcategories || [])
+    .map((sub) => `<option value="${escapeHtml(sub)}">${escapeHtml(sub)}</option>`)
     .join("");
 }
 
@@ -196,18 +208,23 @@ function renderPreview() {
   `;
 }
 
-function renderProducts(products) {
+function canEditProduct(product, session) {
+  return session.role === "admin" || (product.seller_email && product.seller_email.toLowerCase() === session.email.toLowerCase());
+}
+
+function renderProducts(products, session) {
   currentProducts.innerHTML = "";
   updateStats(products.length);
 
   if (!products.length) {
-    currentProducts.innerHTML = "<p>No products available yet.</p>";
+    currentProducts.innerHTML = "<p>No products yet. Use the form above to add your first listing.</p>";
     return;
   }
 
   products.forEach((product) => {
     const card = document.createElement("div");
     const imageUrl = product.image_url || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80";
+    const editable = canEditProduct(product, session);
     card.className = "card";
     card.innerHTML = `
       <img class="product-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name)}" />
@@ -215,60 +232,150 @@ function renderProducts(products) {
         <div>
           <h3>${escapeHtml(product.name)}</h3>
           <p>${escapeHtml(product.description || "No description.")}</p>
+          ${product.seller_name ? `<small>by ${escapeHtml(product.seller_name)}</small>` : ""}
         </div>
       </div>
       <div class="card-footer">
-        <span class="meta-pill">${escapeHtml(product.category || "Demo")}</span>
+        <span class="meta-pill">${escapeHtml(product.category || "")}</span>
         <span class="price">$${Number(product.price).toFixed(2)}</span>
       </div>
+      ${editable ? `
+      <div class="table-actions" style="padding:0.5rem 1rem 1rem">
+        <button class="button button-secondary" type="button" data-product-action="edit" data-product-id="${escapeHtml(product.id)}">Edit</button>
+        <button class="button danger-button" type="button" data-product-action="delete" data-product-id="${escapeHtml(product.id)}">Delete</button>
+      </div>` : ""}
     `;
     currentProducts.appendChild(card);
   });
 }
 
-async function loadCurrentProducts() {
+async function loadCurrentProducts(session) {
+  const url = session.role === "admin"
+    ? `${API_BASE_URL}/products`
+    : `${API_BASE_URL}/products?seller=${encodeURIComponent(session.email)}`;
   try {
-    const response = await fetch(`${API_BASE_URL}/products`);
-    const json = await response.json();
-    renderProducts(json.products || []);
-  } catch (error) {
-    currentProducts.innerHTML = "<p>Unable to load current products from the local backend.</p>";
+    const res = await fetch(url);
+    const json = await res.json();
+    renderProducts(json.products || [], session);
+  } catch {
+    currentProducts.innerHTML = "<p>Unable to load products. Make sure the backend is running.</p>";
     updateStats(0);
   }
 }
 
+function startEditProduct(product) {
+  productEditId.value = product.id;
+  nameInput.value = product.name || "";
+  descriptionInput.value = product.description || "";
+  priceInput.value = product.price || "";
+  categoryInput.value = product.category || "";
+  updateSubcategoryOptions();
+  subcategoryInput.value = product.subcategory || "";
+  imageInput.value = product.image_url || "";
+  productSubmit.textContent = "Update product";
+  productCancel.hidden = false;
+  document.getElementById("product-form-title").textContent = "Edit product";
+  renderPreview();
+  form.scrollIntoView({ behavior: "smooth" });
+}
+
+function cancelProductEdit() {
+  form.reset();
+  productEditId.value = "";
+  productSubmit.textContent = "List Product";
+  productCancel.hidden = true;
+  document.getElementById("product-form-title").textContent = "List a new product";
+  renderPreview();
+  showMessage(message, "");
+}
+
 async function submitProduct(event) {
   event.preventDefault();
+  const session = readSession();
+  if (!session) return;
 
+  const editId = productEditId.value;
   const product = {
-    name: nameInput.value,
-    description: descriptionInput.value,
+    name: nameInput.value.trim(),
+    description: descriptionInput.value.trim(),
     price: parseFloat(priceInput.value),
-    category: categoryInput.value,
-    image_url: imageInput.value,
+    category: categoryInput.value.trim(),
+    subcategory: subcategoryInput.value.trim(),
+    image_url: imageInput.value.trim(),
+    seller_email: session.email,
+    seller_name: session.name,
   };
 
   try {
-    const response = await fetch(`${API_BASE_URL}/products`, {
-      method: "POST",
+    const url = editId ? `${API_BASE_URL}/products/${editId}` : `${API_BASE_URL}/products`;
+    const method = editId ? "PUT" : "POST";
+    const res = await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(product),
     });
 
-    if (response.ok) {
-      showMessage(message, "Product created successfully.");
-      form.reset();
-      renderPreview();
-      loadCurrentProducts();
+    if (res.ok) {
+      showMessage(message, editId ? "Product updated." : "Product listed successfully.");
+      cancelProductEdit();
+      loadCurrentProducts(session);
       return;
     }
 
-    const error = await response.json();
-    showMessage(message, `Error: ${error.message || "Unable to create product."}`, true);
-  } catch (error) {
-    showMessage(message, "Unable to create product because the local backend is not running.", true);
+    const error = await res.json();
+    showMessage(message, `Error: ${error.message || "Unable to save product."}`, true);
+  } catch {
+    showMessage(message, "Unable to reach the backend. Make sure it is running.", true);
   }
 }
+
+async function deleteProduct(productId, session) {
+  if (!confirm("Delete this product? This cannot be undone.")) return;
+  try {
+    const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requester_email: session.email }),
+    });
+
+    if (res.ok) {
+      showMessage(message, "Product deleted.");
+      loadCurrentProducts(session);
+      return;
+    }
+
+    const error = await res.json();
+    showMessage(message, `Error: ${error.message || "Unable to delete product."}`, true);
+  } catch {
+    showMessage(message, "Unable to reach the backend.", true);
+  }
+}
+
+function handleProductActions(event) {
+  const button = event.target.closest("[data-product-action]");
+  if (!button) return;
+  const session = readSession();
+  if (!session) return;
+
+  const productId = button.dataset.productId;
+  if (button.dataset.productAction === "delete") {
+    deleteProduct(productId, session);
+    return;
+  }
+
+  if (button.dataset.productAction === "edit") {
+    // find the product data from the rendered cards — re-fetch to get full data
+    fetch(`${API_BASE_URL}/products`)
+      .then((r) => r.json())
+      .then((json) => {
+        const product = (json.products || []).find((p) => p.id === productId);
+        if (product) startEditProduct(product);
+      })
+      .catch(() => showMessage(message, "Unable to load product for editing.", true));
+  }
+}
+
+// ── User management ────────────────────────────────────────────────────────────
 
 function resetUserForm() {
   userForm.reset();
@@ -328,12 +435,8 @@ function saveUser(event) {
     const previousEmail = users[editIndex]?.email;
     users[editIndex] = nextUser;
     const session = readSession();
-    if (session && session.email && previousEmail && session.email.toLowerCase() === previousEmail.toLowerCase()) {
-      saveSession({
-        name: nextUser.name,
-        email: nextUser.email,
-        provider: nextUser.provider,
-      });
+    if (session?.email?.toLowerCase() === previousEmail?.toLowerCase()) {
+      saveSession({ name: nextUser.name, email: nextUser.email, provider: nextUser.provider });
     }
     showMessage(userMessage, "User updated.");
   } else {
@@ -369,13 +472,15 @@ function handleUserTableClick(event) {
   users.splice(index, 1);
   saveUsers(users);
   const session = readSession();
-  if (session && session.email && session.email.toLowerCase() === user.email.toLowerCase()) {
+  if (session?.email?.toLowerCase() === user.email.toLowerCase()) {
     localStorage.removeItem(SESSION_KEY);
   }
   resetUserForm();
   renderUsers();
   showMessage(userMessage, "User deleted.");
 }
+
+// ── Category management ────────────────────────────────────────────────────────
 
 function resetCategoryForm() {
   categoryForm.reset();
@@ -417,7 +522,7 @@ function saveCategory(event) {
   const categories = readCategories();
   const editIndex = categoryEditIndex.value === "" ? -1 : Number(categoryEditIndex.value);
   const name = categoryName.value.trim();
-  const duplicateIndex = categories.findIndex((category, index) => category.name.toLowerCase() === name.toLowerCase() && index !== editIndex);
+  const duplicateIndex = categories.findIndex((cat, index) => cat.name.toLowerCase() === name.toLowerCase() && index !== editIndex);
 
   if (duplicateIndex >= 0) {
     showMessage(categoryMessage, "A category with that name already exists.", true);
@@ -430,7 +535,7 @@ function saveCategory(event) {
     image_url: categoryImage.value.trim() || defaultCategories[0].image_url,
     subcategories: categorySubcategories.value
       .split(",")
-      .map((subcategory) => subcategory.trim())
+      .map((sub) => sub.trim())
       .filter(Boolean),
   };
 
@@ -474,22 +579,28 @@ function handleCategoryClick(event) {
   showMessage(categoryMessage, "Category deleted.");
 }
 
+// ── Tabs ───────────────────────────────────────────────────────────────────────
+
 function initTabs() {
   document.querySelectorAll(".admin-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      document.querySelectorAll(".admin-tab").forEach((item) => item.classList.remove("active"));
-      document.querySelectorAll(".admin-section").forEach((section) => section.classList.remove("active"));
+      document.querySelectorAll(".admin-tab").forEach((t) => t.classList.remove("active"));
+      document.querySelectorAll(".admin-section").forEach((s) => s.classList.remove("active"));
       tab.classList.add("active");
       document.getElementById(`admin-${tab.dataset.adminSection}-section`).classList.add("active");
     });
   });
 }
 
+// ── Init ───────────────────────────────────────────────────────────────────────
+
 form.addEventListener("submit", submitProduct);
+productCancel.addEventListener("click", cancelProductEdit);
+currentProducts.addEventListener("click", handleProductActions);
 nameInput.addEventListener("input", renderPreview);
 descriptionInput.addEventListener("input", renderPreview);
 priceInput.addEventListener("input", renderPreview);
-categoryInput.addEventListener("input", renderPreview);
+categoryInput.addEventListener("input", () => { updateSubcategoryOptions(); renderPreview(); });
 imageInput.addEventListener("input", renderPreview);
 userForm.addEventListener("submit", saveUser);
 userCancel.addEventListener("click", resetUserForm);
@@ -498,10 +609,35 @@ categoryForm.addEventListener("submit", saveCategory);
 categoryCancel.addEventListener("click", resetCategoryForm);
 categoryList.addEventListener("click", handleCategoryClick);
 
-if (requireAdmin()) {
+const session = requireUser();
+if (session) {
+  const isAdmin = session.role === "admin";
+
+  // Show/hide admin-only elements
+  document.querySelectorAll(".admin-only").forEach((el) => {
+    el.hidden = !isAdmin;
+  });
+
+  // Update header for non-admin
+  if (!isAdmin) {
+    document.getElementById("admin-eyebrow").textContent = "Seller hub";
+    document.getElementById("admin-title").textContent = `Welcome, ${session.name}`;
+    document.getElementById("admin-subtitle").textContent = "Manage your product listings on Lyrshop.";
+    document.querySelector("[data-admin-section='products']").textContent = "My Products";
+  } else {
+    document.getElementById("admin-eyebrow").textContent = "Admin dashboard";
+    document.getElementById("admin-title").textContent = "Manage Lyrshop";
+    document.getElementById("admin-subtitle").textContent = "Manage products, users, and categories.";
+  }
+
   initTabs();
   renderPreview();
-  renderUsers();
-  renderCategories();
-  loadCurrentProducts();
+  renderCategoryOptions();
+  updateSubcategoryOptions();
+  loadCurrentProducts(session);
+
+  if (isAdmin) {
+    renderUsers();
+    renderCategories();
+  }
 }

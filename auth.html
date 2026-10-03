@@ -73,16 +73,14 @@
 
       <div class="auth-divider"><span>or</span></div>
 
-      <button id="google-auth" type="button" class="button google-button full-width">
-        <span class="google-mark" aria-hidden="true">G</span>
-        Continue with Google
-      </button>
+      <div id="google-auth" class="google-signin-container"></div>
 
       <p id="auth-message" class="form-message" role="status"></p>
       <p class="auth-terms">Protected demo account access for the Lyrshop marketplace.</p>
     </section>
   </main>
 
-  <script src="auth.js?v=20260517-5"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="auth.js?v=20260618-1"></script>
 </body>
 </html>

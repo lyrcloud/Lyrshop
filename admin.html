@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin - Lyrshop</title>
+  <title>Seller Hub - Lyrshop</title>
   <link rel="stylesheet" href="styles.css?v=20260517-4" />
 </head>
 <body>
   <header class="page-header">
     <div>
-      <p class="eyebrow">Admin dashboard</p>
-      <h1>Manage Lyrshop</h1>
-      <p>Create products, maintain customer users, and organize storefront categories.</p>
+      <p class="eyebrow" id="admin-eyebrow">Seller hub</p>
+      <h1 id="admin-title">Manage your listings</h1>
+      <p id="admin-subtitle">Create, edit, and remove your products on Lyrshop.</p>
     </div>
     <div class="admin-cta">
       <a href="index.html" class="button button-secondary">View storefront</a>
@@ -20,12 +20,12 @@
   </header>
 
   <main class="admin-page">
-    <section class="admin-overview" aria-label="Admin overview">
+    <section class="admin-overview" aria-label="Overview">
       <article class="admin-stat">
         <span id="admin-product-count">0</span>
         <strong>Products</strong>
       </article>
-      <article class="admin-stat">
+      <article class="admin-stat admin-only" id="stat-users">
         <span id="admin-user-count">0</span>
         <strong>Users</strong>
       </article>
@@ -35,18 +35,19 @@
       </article>
     </section>
 
-    <nav class="admin-tabs" aria-label="Admin sections">
-      <button class="admin-tab active" type="button" data-admin-section="products">Products</button>
-      <button class="admin-tab" type="button" data-admin-section="users">Users</button>
-      <button class="admin-tab" type="button" data-admin-section="categories">Categories</button>
+    <nav class="admin-tabs" aria-label="Sections">
+      <button class="admin-tab active" type="button" data-admin-section="products">My Products</button>
+      <button class="admin-tab admin-only" type="button" data-admin-section="users">Users</button>
+      <button class="admin-tab admin-only" type="button" data-admin-section="categories">Categories</button>
     </nav>
 
     <section class="admin-panel admin-section active" id="admin-products-section">
       <div class="panel-header">
-        <h2>Create a new product</h2>
-        <p>Products are added to the local backend when running the demo server.</p>
+        <h2 id="product-form-title">List a new product</h2>
+        <p>Fill in the details and your product will appear in the storefront.</p>
       </div>
       <form id="product-form">
+        <input type="hidden" id="product-edit-id" />
         <label>
           Product name
           <input type="text" id="product-name" placeholder="e.g. Wireless speaker" required />
@@ -65,23 +66,31 @@
           <datalist id="category-options"></datalist>
         </label>
         <label>
+          Subcategory
+          <input type="text" id="product-subcategory" list="subcategory-options" placeholder="Select a subcategory" />
+          <datalist id="subcategory-options"></datalist>
+        </label>
+        <label>
           Image URL
           <input type="url" id="product-image" placeholder="https://example.com/photo.jpg" />
         </label>
-        <button type="submit" class="button button-primary">Create Product</button>
+        <div class="admin-form-actions">
+          <button type="submit" id="product-submit" class="button button-primary">List Product</button>
+          <button type="button" id="product-cancel" class="button button-secondary" hidden>Cancel edit</button>
+        </div>
       </form>
       <div class="admin-preview">
         <h3>Live product preview</h3>
         <div id="product-preview" class="preview-card"></div>
       </div>
       <div class="admin-products">
-        <h3>Current catalog</h3>
+        <h3>Your listings</h3>
         <div id="current-products" class="grid"></div>
       </div>
       <div id="message" class="admin-message"></div>
     </section>
 
-    <section class="admin-panel admin-section" id="admin-users-section">
+    <section class="admin-panel admin-section admin-only" id="admin-users-section">
       <div class="panel-header">
         <h2>User CRUD</h2>
         <p>Create, edit, and remove demo users stored in this browser.</p>
@@ -129,7 +138,7 @@
       </div>
     </section>
 
-    <section class="admin-panel admin-section" id="admin-categories-section">
+    <section class="admin-panel admin-section admin-only" id="admin-categories-section">
       <div class="panel-header">
         <h2>Category CRUD</h2>
         <p>Maintain the category list used while creating products.</p>
@@ -166,6 +175,7 @@
     <p>Back to <a href="index.html">store</a>.</p>
   </footer>
 
-  <script src="admin.js?v=20260518-1"></script>
+  <script src="auth.js?v=20260518-1"></script>
+  <script src="admin.js?v=20260615-2"></script>
 </body>
 </html>
