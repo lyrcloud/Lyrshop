@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Seller Hub - Lyrshop</title>
-  <link rel="stylesheet" href="styles.css?v=20260517-4" />
+  <link rel="stylesheet" href="styles.css?v=20261003-1" />
 </head>
 <body>
   <header class="page-header">
@@ -70,10 +70,18 @@
           <input type="text" id="product-subcategory" list="subcategory-options" placeholder="Select a subcategory" />
           <datalist id="subcategory-options"></datalist>
         </label>
+        <div class="image-field">
         <label>
           Image URL
           <input type="url" id="product-image" placeholder="https://example.com/photo.jpg" />
         </label>
+        <div class="image-picker" data-image-target="product-image">
+          <button type="button" class="button button-secondary" data-image-source="device">Browse computer</button>
+          <button type="button" class="button button-secondary" data-image-source="drive">Google Drive</button>
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+          <p class="image-picker-status" role="status"></p>
+        </div>
+        </div>
         <div class="admin-form-actions">
           <button type="submit" id="product-submit" class="button button-primary">List Product</button>
           <button type="button" id="product-cancel" class="button button-secondary" hidden>Cancel edit</button>
@@ -153,10 +161,18 @@
           Display label
           <input type="text" id="category-label" placeholder="Electronics" required />
         </label>
+        <div class="image-field">
         <label>
           Image URL
           <input type="url" id="category-image" placeholder="https://example.com/category.jpg" />
         </label>
+        <div class="image-picker" data-image-target="category-image">
+          <button type="button" class="button button-secondary" data-image-source="device">Browse computer</button>
+          <button type="button" class="button button-secondary" data-image-source="drive">Google Drive</button>
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+          <p class="image-picker-status" role="status"></p>
+        </div>
+        </div>
         <label>
           Subcategories
           <input type="text" id="category-subcategories" placeholder="Headphones, Speakers, Accessories" />
@@ -176,6 +192,6 @@
   </footer>
 
   <script src="auth.js?v=20260518-1"></script>
-  <script src="admin.js?v=20260615-2"></script>
+  <script src="admin.js?v=20261003-1"></script>
 </body>
 </html>

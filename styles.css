@@ -1314,6 +1314,33 @@ textarea {
   background: #fbfbfb;
 }
 
+.image-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.5rem 0 1rem;
+}
+
+.image-picker .button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.image-picker-status {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.875rem;
+  color: #555555;
+}
+
+.image-picker-status:empty {
+  display: none;
+}
+
+.image-picker-status.is-error {
+  color: #b91c1c;
+}
+
 .admin-crud-form .admin-form-actions {
   align-self: end;
   margin-bottom: 1rem;

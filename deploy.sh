@@ -50,6 +50,7 @@ aws s3 sync . "s3://$BUCKET_NAME" \
   --region "$REGION" \
   --delete \
   --exclude "deploy.sh" \
+  --exclude "uploads/*" \
   --exclude ".git/*"
 
 if [ -n "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then

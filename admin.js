@@ -592,6 +592,163 @@ function initTabs() {
   });
 }
 
+// ── Image uploads ──────────────────────────────────────────────────────────────
+
+const UPLOAD_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+// Same OAuth client as Google sign-in in auth.js; its JavaScript origins must include this site.
+const GOOGLE_CLIENT_ID = "238394195869-ohu6m0qm43k069a3r2sb3mak0r4g9obs.apps.googleusercontent.com";
+// Google Cloud API key with the Google Picker API enabled. Drive import stays off until it is set.
+const GOOGLE_PICKER_API_KEY = "";
+const GOOGLE_APP_ID = "238394195869";
+const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+
+const scriptLoads = {};
+let driveToken = null;
+
+function loadScript(src) {
+  if (!scriptLoads[src]) {
+    scriptLoads[src] = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = src;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = () => {
+        delete scriptLoads[src];
+        reject(new Error(`Could not load ${src}`));
+      };
+      document.head.appendChild(script);
+    });
+  }
+  return scriptLoads[src];
+}
+
+async function uploadImage(blob, filename) {
+  if (!UPLOAD_CONTENT_TYPES.includes(blob.type)) {
+    throw new Error("Choose a JPEG, PNG, WebP, or GIF image.");
+  }
+  if (blob.size > UPLOAD_MAX_BYTES) {
+    throw new Error("Images must be 10 MB or smaller.");
+  }
+
+  const signRes = await fetch(`${API_BASE_URL}/media/upload-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content_type: blob.type, filename }),
+  });
+  const sign = await signRes.json().catch(() => ({}));
+  if (!signRes.ok) throw new Error(sign.message || "Could not start the upload.");
+
+  const body = new FormData();
+  Object.entries(sign.fields || {}).forEach(([key, value]) => body.append(key, value));
+  body.append("file", blob, filename);
+  const uploadRes = await fetch(sign.url, { method: "POST", body });
+  if (!uploadRes.ok) throw new Error("Upload failed. Please try again.");
+
+  return new URL(sign.public_url, window.location.origin).href;
+}
+
+function getDriveToken() {
+  if (driveToken && driveToken.expiresAt > Date.now()) return Promise.resolve(driveToken.value);
+  return new Promise((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GOOGLE_DRIVE_SCOPE,
+      callback: (res) => {
+        if (res.error) {
+          reject(new Error("Google Drive access was not granted."));
+          return;
+        }
+        driveToken = { value: res.access_token, expiresAt: Date.now() + (Number(res.expires_in) - 60) * 1000 };
+        resolve(res.access_token);
+      },
+      error_callback: () => reject(new Error("Google Drive sign-in was closed.")),
+    });
+    client.requestAccessToken({ prompt: "" });
+  });
+}
+
+async function pickDriveImage() {
+  await Promise.all([
+    loadScript("https://accounts.google.com/gsi/client"),
+    loadScript("https://apis.google.com/js/api.js"),
+  ]);
+  await new Promise((resolve) => gapi.load("picker", resolve));
+  const token = await getDriveToken();
+
+  const doc = await new Promise((resolve) => {
+    const view = new google.picker.DocsView(google.picker.ViewId.DOCS_IMAGES)
+      .setMimeTypes(UPLOAD_CONTENT_TYPES.join(","));
+    new google.picker.PickerBuilder()
+      .addView(view)
+      .setOAuthToken(token)
+      .setDeveloperKey(GOOGLE_PICKER_API_KEY)
+      .setAppId(GOOGLE_APP_ID)
+      .setCallback((data) => {
+        if (data.action === google.picker.Action.PICKED) resolve(data.docs[0]);
+        if (data.action === google.picker.Action.CANCEL) resolve(null);
+      })
+      .build()
+      .setVisible(true);
+  });
+  if (!doc) return null;
+
+  const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(doc.id)}?alt=media`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!fileRes.ok) throw new Error("Could not download the image from Google Drive.");
+  const data = await fileRes.blob();
+  return { blob: new Blob([data], { type: doc.mimeType }), name: doc.name };
+}
+
+function initImagePickers() {
+  document.querySelectorAll(".image-picker").forEach((picker) => {
+    const target = document.getElementById(picker.dataset.imageTarget);
+    const fileInput = picker.querySelector("input[type='file']");
+    const status = picker.querySelector(".image-picker-status");
+    const buttons = picker.querySelectorAll("button");
+
+    const setStatus = (text, isError = false) => {
+      status.textContent = text;
+      status.classList.toggle("is-error", isError);
+    };
+
+    const run = async (getImage) => {
+      buttons.forEach((button) => { button.disabled = true; });
+      try {
+        const image = await getImage();
+        if (!image) {
+          setStatus("");
+          return;
+        }
+        setStatus("Uploading…");
+        target.value = await uploadImage(image.blob, image.name);
+        target.dispatchEvent(new Event("input", { bubbles: true }));
+        setStatus("Image uploaded.");
+      } catch (error) {
+        setStatus(error.message || "Image upload failed.", true);
+      } finally {
+        buttons.forEach((button) => { button.disabled = false; });
+      }
+    };
+
+    picker.querySelector("[data-image-source='device']").addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      fileInput.value = "";
+      if (file) run(async () => ({ blob: file, name: file.name }));
+    });
+
+    picker.querySelector("[data-image-source='drive']").addEventListener("click", () => {
+      if (!GOOGLE_PICKER_API_KEY) {
+        setStatus("Google Drive import isn't set up yet: a Google Picker API key is required.", true);
+        return;
+      }
+      run(pickDriveImage);
+    });
+  });
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────────
 
 form.addEventListener("submit", submitProduct);
@@ -608,6 +765,7 @@ userTableBody.addEventListener("click", handleUserTableClick);
 categoryForm.addEventListener("submit", saveCategory);
 categoryCancel.addEventListener("click", resetCategoryForm);
 categoryList.addEventListener("click", handleCategoryClick);
+initImagePickers();
 
 const session = requireUser();
 if (session) {
