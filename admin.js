@@ -88,6 +88,11 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+// CloudFront answers API 403/404s with index.html and a 200, so only a JSON body counts as success.
+function isApiSuccess(res) {
+  return res.ok && (res.headers.get("Content-Type") || "").includes("application/json");
+}
+
 function readJson(key, fallback) {
   try {
     const value = JSON.parse(localStorage.getItem(key) || "null");
@@ -315,14 +320,14 @@ async function submitProduct(event) {
       body: JSON.stringify(product),
     });
 
-    if (res.ok) {
+    if (isApiSuccess(res)) {
       showMessage(message, editId ? "Product updated." : "Product listed successfully.");
       cancelProductEdit();
       loadCurrentProducts(session);
       return;
     }
 
-    const error = await res.json();
+    const error = await res.json().catch(() => ({}));
     showMessage(message, `Error: ${error.message || "Unable to save product."}`, true);
   } catch {
     showMessage(message, "Unable to reach the backend. Make sure it is running.", true);
@@ -338,13 +343,13 @@ async function deleteProduct(productId, session) {
       body: JSON.stringify({ requester_email: session.email }),
     });
 
-    if (res.ok) {
+    if (isApiSuccess(res)) {
       showMessage(message, "Product deleted.");
       loadCurrentProducts(session);
       return;
     }
 
-    const error = await res.json();
+    const error = await res.json().catch(() => ({}));
     showMessage(message, `Error: ${error.message || "Unable to delete product."}`, true);
   } catch {
     showMessage(message, "Unable to reach the backend.", true);
@@ -637,7 +642,7 @@ async function uploadImage(blob, filename) {
     body: JSON.stringify({ content_type: blob.type, filename }),
   });
   const sign = await signRes.json().catch(() => ({}));
-  if (!signRes.ok) throw new Error(sign.message || "Could not start the upload.");
+  if (!isApiSuccess(signRes)) throw new Error(sign.message || "Could not start the upload.");
 
   const body = new FormData();
   Object.entries(sign.fields || {}).forEach(([key, value]) => body.append(key, value));
