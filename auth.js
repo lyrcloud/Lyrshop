@@ -2,6 +2,23 @@ const AUTH_USERS_KEY = "lyrshopUsers";
 const AUTH_SESSION_KEY = "lyrshopSession";
 const AUTH_ORDERS_KEY = "lyrshopOrders";
 const ADMIN_EMAIL = "lyrclouds@gmail.com";
+// Named apart from app.js/admin.js API_BASE_URL, which share this page scope.
+const AUTH_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname)
+  ? "http://127.0.0.1:5000"
+  : "";
+
+async function postAuthApi(path, body) {
+  const response = await fetch(`${AUTH_API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Something went wrong. Please try again.");
+  }
+  return data;
+}
 
 function getRoleForEmail(email) {
   return String(email || "").trim().toLowerCase() === ADMIN_EMAIL ? "admin" : "user";
@@ -90,7 +107,42 @@ function initAuthPage() {
   const submitButton = document.getElementById("auth-submit");
   const googleButton = document.getElementById("google-auth");
   const message = document.getElementById("auth-message");
+  const tabs = document.querySelector(".auth-tabs");
+  const verifyForm = document.getElementById("verify-form");
+  const verifyCopy = document.getElementById("verify-copy");
+  const verifyCodeInput = document.getElementById("verify-code");
+  const verifyResend = document.getElementById("verify-resend");
+  const verifyBack = document.getElementById("verify-back");
   let mode = "login";
+  let pendingSignup = null;
+
+  function showVerifyStep(show) {
+    form.classList.toggle("hidden", show);
+    tabs.classList.toggle("hidden", show);
+    verifyForm.classList.toggle("hidden", !show);
+    if (show) {
+      verifyCopy.textContent = `We sent a 6-digit code to ${pendingSignup.email}. It expires in 10 minutes.`;
+      verifyCodeInput.value = "";
+      verifyCodeInput.focus();
+    }
+  }
+
+  async function sendCode() {
+    await postAuthApi("/auth/verify/send", { email: pendingSignup.email });
+  }
+
+  async function startVerification(signup) {
+    pendingSignup = signup;
+    message.textContent = "Sending verification code...";
+    try {
+      await sendCode();
+      message.textContent = "";
+      showVerifyStep(true);
+    } catch (error) {
+      pendingSignup = null;
+      message.textContent = error.message;
+    }
+  }
 
   function setMode(nextMode) {
     mode = nextMode;
@@ -109,7 +161,7 @@ function initAuthPage() {
   loginTab.addEventListener("click", () => setMode("login"));
   signupTab.addEventListener("click", () => setMode("signup"));
 
-  form.addEventListener("submit", (event) => {
+  form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const email = emailInput.value.trim().toLowerCase();
     const password = passwordInput.value;
@@ -121,14 +173,15 @@ function initAuthPage() {
         message.textContent = "An account already exists for that email.";
         return;
       }
-      upsertUser({
+      submitButton.disabled = true;
+      await startVerification({
         name: nameInput.value.trim() || email.split("@")[0],
         email,
         password,
         provider: "Email",
         role: getRoleForEmail(email),
       });
-      window.location.href = getAuthReturnTo();
+      submitButton.disabled = false;
       return;
     }
 
@@ -146,18 +199,69 @@ function initAuthPage() {
     window.location.href = getAuthReturnTo();
   });
 
+  verifyForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!pendingSignup) return;
+    const verifyButton = verifyForm.querySelector('button[type="submit"]');
+    verifyButton.disabled = true;
+    message.textContent = "Checking code...";
+    try {
+      await postAuthApi("/auth/verify/confirm", {
+        email: pendingSignup.email,
+        code: verifyCodeInput.value.trim(),
+      });
+      upsertUser({ ...pendingSignup, emailVerified: true });
+      window.location.href = getAuthReturnTo();
+    } catch (error) {
+      message.textContent = error.message;
+    } finally {
+      verifyButton.disabled = false;
+    }
+  });
+
+  verifyResend.addEventListener("click", async () => {
+    if (!pendingSignup) return;
+    verifyResend.disabled = true;
+    try {
+      await sendCode();
+      message.textContent = "A new code is on its way.";
+    } catch (error) {
+      message.textContent = error.message;
+    } finally {
+      verifyResend.disabled = false;
+    }
+  });
+
+  verifyBack.addEventListener("click", () => {
+    pendingSignup = null;
+    message.textContent = "";
+    showVerifyStep(false);
+    emailInput.focus();
+  });
+
   function onGoogleCredential(response) {
+    let googleUser;
     try {
       const payload = JSON.parse(atob(response.credential.split(".")[1]));
-      upsertUser({
-        name: payload.name || payload.email.split("@")[0],
-        email: payload.email,
+      const email = payload.email.toLowerCase();
+      googleUser = {
+        name: payload.name || email.split("@")[0],
+        email,
         provider: "Google",
-      });
-      window.location.href = getAuthReturnTo();
+        role: getRoleForEmail(email),
+      };
     } catch {
       message.textContent = "Google sign-in failed. Please try again.";
+      return;
     }
+
+    const isNewUser = !getUsers().some((user) => user.email.toLowerCase() === googleUser.email);
+    if (isNewUser) {
+      startVerification(googleUser);
+      return;
+    }
+    upsertUser(googleUser);
+    window.location.href = getAuthReturnTo();
   }
 
   function initGoogle() {
