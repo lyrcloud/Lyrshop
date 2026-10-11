@@ -2,6 +2,9 @@ const AUTH_USERS_KEY = "lyrshopUsers";
 const AUTH_SESSION_KEY = "lyrshopSession";
 const AUTH_ORDERS_KEY = "lyrshopOrders";
 const ADMIN_EMAIL = "lyrclouds@gmail.com";
+// Mobile sign-up/login needs Twilio able to text any number (account upgraded from trial). Flip to true then.
+const MOBILE_SIGNUP_ENABLED = false;
+
 // Named apart from app.js/admin.js API_BASE_URL, which share this page scope.
 const AUTH_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname)
   ? "http://127.0.0.1:5000"
@@ -180,6 +183,10 @@ function initAuthPage() {
     .map(([iso, name, dial]) => `<option value="${iso}">${countryFlag(iso)} +${dial} ${name}</option>`)
     .join("");
   countrySelect.value = guessCountry();
+  if (!MOBILE_SIGNUP_ENABLED) {
+    contactEmailButton.parentElement.classList.add("hidden");
+    document.querySelector(".auth-terms").textContent = "New accounts are verified with a code sent to your email.";
+  }
 
   function setContactKind(kind) {
     contactKind = kind;
