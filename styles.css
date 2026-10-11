@@ -2473,3 +2473,27 @@ footer p {
 #product-show-more[hidden] {
   display: none;
 }
+
+/* Keep the price visible when a long category/subcategory pill shares the footer. */
+.card-footer .price {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.card-footer .meta-pill {
+  min-width: 0;
+}
+
+/* Listings without a photo fall back to the logo; show it whole instead of cropped. */
+img[src="logo.svg"].product-image,
+.card-image img[src="logo.svg"] {
+  object-fit: contain;
+  padding: 1.5rem;
+  background: #f6f6f6;
+}
+
+/* Let listing cards shrink to their grid column so long pills can't push the price out of view. */
+.grid > .card {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
