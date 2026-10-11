@@ -366,21 +366,8 @@ function renderCategoryMenu(categories) {
 
 function renderStorefrontCategories() {
   const categories = readStorefrontCategories();
-  const nav = document.querySelector(".nav-categories");
   const showcase = document.querySelector(".category-showcase");
   const searchSelect = document.querySelector(".search-bar select");
-
-  if (nav) {
-    nav.innerHTML = `
-      <button class="nav-item ${activeCategory === "All" && !activeView ? "active" : ""}" data-category="All">All</button>
-      <button class="nav-item nav-item-special ${activeView === "deals" ? "active" : ""}" data-view="deals">Seasonal Sales & Events</button>
-      <button class="nav-item nav-item-special ${activeView === "brands" ? "active" : ""}" data-view="brands">All Brands</button>
-      ${categories.map((category) => `
-        <button class="nav-item ${activeCategory === category.name && !activeView ? "active" : ""}" data-category="${escapeHtml(category.name)}">${escapeHtml(category.label)}</button>
-      `).join("")}
-    `;
-    navItems = document.querySelectorAll(".nav-item");
-  }
 
   if (showcase) {
     showcase.innerHTML = categories.filter((category) => category.featured !== false).map((category) => `
