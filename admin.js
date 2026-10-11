@@ -402,7 +402,7 @@ function renderUsers() {
     .map((user, index) => `
       <tr>
         <td>${escapeHtml(user.name)}</td>
-        <td>${escapeHtml(user.email)}</td>
+        <td>${escapeHtml(user.email || user.phone)}</td>
         <td>${escapeHtml(user.role)}</td>
         <td>${escapeHtml(user.provider || "Email")}</td>
         <td>
@@ -421,7 +421,7 @@ function saveUser(event) {
   const users = readUsers();
   const editIndex = userEditIndex.value === "" ? -1 : Number(userEditIndex.value);
   const email = userEmail.value.trim().toLowerCase();
-  const duplicateIndex = users.findIndex((user, index) => user.email.toLowerCase() === email && index !== editIndex);
+  const duplicateIndex = users.findIndex((user, index) => String(user.email || "").toLowerCase() === email && index !== editIndex);
 
   if (duplicateIndex >= 0) {
     showMessage(userMessage, "A user with that email already exists.", true);
@@ -477,7 +477,7 @@ function handleUserTableClick(event) {
   users.splice(index, 1);
   saveUsers(users);
   const session = readSession();
-  if (session?.email?.toLowerCase() === user.email.toLowerCase()) {
+  if (session && getAccountId(session) === getAccountId(user)) {
     localStorage.removeItem(SESSION_KEY);
   }
   resetUserForm();

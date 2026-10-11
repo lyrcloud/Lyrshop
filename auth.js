@@ -20,6 +20,21 @@ async function postAuthApi(path, body) {
   return data;
 }
 
+// Accounts sign up with an email or an E.164 mobile number; this is whichever one they used.
+function getAccountId(user) {
+  return String(user?.email || "").toLowerCase() || user?.phone || "";
+}
+
+function getAccountContact(user) {
+  return user?.email || user?.phone || "";
+}
+
+function findUserByContact(users, contact) {
+  return users.find((user) => (contact.kind === "phone"
+    ? user.phone === contact.value
+    : String(user.email || "").toLowerCase() === contact.value));
+}
+
 function getRoleForEmail(email) {
   return String(email || "").trim().toLowerCase() === ADMIN_EMAIL ? "admin" : "user";
 }
@@ -58,9 +73,9 @@ function getAuthReturnTo() {
   return returnTo || "dashboard.html";
 }
 
-function getOrdersForUser(email) {
+function getOrdersForUser(accountId) {
   const orders = JSON.parse(localStorage.getItem(AUTH_ORDERS_KEY) || "[]");
-  return orders.filter((order) => order.userEmail === email);
+  return orders.filter((order) => order.userEmail === accountId);
 }
 
 function saveOrderForCurrentUser(order) {
@@ -71,7 +86,7 @@ function saveOrderForCurrentUser(order) {
   orders.unshift({
     ...order,
     id: order.id || `local-${Date.now()}`,
-    userEmail: user.email,
+    userEmail: getAccountId(user),
     createdAt: new Date().toISOString(),
   });
   localStorage.setItem(AUTH_ORDERS_KEY, JSON.stringify(orders));
@@ -79,19 +94,56 @@ function saveOrderForCurrentUser(order) {
 
 function upsertUser(user) {
   const users = getUsers();
-  const index = users.findIndex((storedUser) => storedUser.email.toLowerCase() === user.email.toLowerCase());
+  const index = users.findIndex((storedUser) => getAccountId(storedUser) === getAccountId(user));
   if (index >= 0) {
     users[index] = { ...users[index], ...user };
   } else {
     users.push(user);
   }
   saveUsers(users);
-      setCurrentUser({
-        name: user.name,
-        email: user.email,
-        provider: user.provider,
-        role: getRoleForEmail(user.email),
-      });
+  setCurrentUser({
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    provider: user.provider,
+    role: getRoleForEmail(user.email),
+  });
+}
+
+// [ISO code, name, dial code]; US/Canada and other +1 countries share a dial code, so options are keyed by ISO.
+const PHONE_COUNTRIES = [
+  ["AF", "Afghanistan", "93"], ["DZ", "Algeria", "213"], ["AR", "Argentina", "54"], ["AU", "Australia", "61"],
+  ["AT", "Austria", "43"], ["BH", "Bahrain", "973"], ["BD", "Bangladesh", "880"], ["BE", "Belgium", "32"],
+  ["BR", "Brazil", "55"], ["CA", "Canada", "1"], ["CL", "Chile", "56"], ["CN", "China", "86"],
+  ["CO", "Colombia", "57"], ["CZ", "Czechia", "420"], ["DK", "Denmark", "45"], ["DO", "Dominican Republic", "1"],
+  ["EC", "Ecuador", "593"], ["EG", "Egypt", "20"], ["ET", "Ethiopia", "251"], ["FI", "Finland", "358"],
+  ["FR", "France", "33"], ["DE", "Germany", "49"], ["GH", "Ghana", "233"], ["GR", "Greece", "30"],
+  ["HK", "Hong Kong", "852"], ["HU", "Hungary", "36"], ["IN", "India", "91"], ["ID", "Indonesia", "62"],
+  ["IQ", "Iraq", "964"], ["IE", "Ireland", "353"], ["IL", "Israel", "972"], ["IT", "Italy", "39"],
+  ["JM", "Jamaica", "1"], ["JP", "Japan", "81"], ["JO", "Jordan", "962"], ["KZ", "Kazakhstan", "7"],
+  ["KE", "Kenya", "254"], ["KW", "Kuwait", "965"], ["LB", "Lebanon", "961"], ["MY", "Malaysia", "60"],
+  ["MX", "Mexico", "52"], ["MA", "Morocco", "212"], ["NP", "Nepal", "977"], ["NL", "Netherlands", "31"],
+  ["NZ", "New Zealand", "64"], ["NG", "Nigeria", "234"], ["NO", "Norway", "47"], ["OM", "Oman", "968"],
+  ["PK", "Pakistan", "92"], ["PS", "Palestine", "970"], ["PE", "Peru", "51"], ["PH", "Philippines", "63"],
+  ["PL", "Poland", "48"], ["PT", "Portugal", "351"], ["PR", "Puerto Rico", "1"], ["QA", "Qatar", "974"],
+  ["RO", "Romania", "40"], ["RU", "Russia", "7"], ["SA", "Saudi Arabia", "966"], ["SG", "Singapore", "65"],
+  ["ZA", "South Africa", "27"], ["KR", "South Korea", "82"], ["ES", "Spain", "34"], ["LK", "Sri Lanka", "94"],
+  ["SD", "Sudan", "249"], ["SE", "Sweden", "46"], ["CH", "Switzerland", "41"], ["SY", "Syria", "963"],
+  ["TW", "Taiwan", "886"], ["TZ", "Tanzania", "255"], ["TH", "Thailand", "66"], ["TN", "Tunisia", "216"],
+  ["TR", "Türkiye", "90"], ["UG", "Uganda", "256"], ["UA", "Ukraine", "380"], ["AE", "United Arab Emirates", "971"],
+  ["GB", "United Kingdom", "44"], ["US", "United States", "1"], ["VE", "Venezuela", "58"], ["VN", "Vietnam", "84"],
+  ["YE", "Yemen", "967"],
+];
+
+function countryFlag(iso) {
+  return String.fromCodePoint(...[...iso].map((letter) => 0x1f1a5 + letter.charCodeAt(0)));
+}
+
+function guessCountry() {
+  const region = (navigator.languages || [navigator.language || ""])
+    .map((tag) => tag.split("-")[1])
+    .find((part) => part && PHONE_COUNTRIES.some(([iso]) => iso === part.toUpperCase()));
+  return region ? region.toUpperCase() : "US";
 }
 
 function initAuthPage() {
@@ -102,7 +154,13 @@ function initAuthPage() {
   const signupTab = document.getElementById("signup-tab");
   const nameField = document.getElementById("name-field");
   const nameInput = document.getElementById("auth-name");
+  const contactEmailButton = document.getElementById("contact-email");
+  const contactPhoneButton = document.getElementById("contact-phone");
+  const emailField = document.getElementById("email-field");
   const emailInput = document.getElementById("auth-email");
+  const phoneField = document.getElementById("phone-field");
+  const countrySelect = document.getElementById("auth-country");
+  const phoneInput = document.getElementById("auth-phone");
   const passwordInput = document.getElementById("auth-password");
   const submitButton = document.getElementById("auth-submit");
   const googleButton = document.getElementById("google-auth");
@@ -115,10 +173,54 @@ function initAuthPage() {
   const verifyResend = document.getElementById("verify-resend");
   const verifyBack = document.getElementById("verify-back");
   let mode = "login";
+  let contactKind = "email";
   let pendingSignup = null;
 
+  countrySelect.innerHTML = PHONE_COUNTRIES
+    .map(([iso, name, dial]) => `<option value="${iso}">${countryFlag(iso)} +${dial} ${name}</option>`)
+    .join("");
+  countrySelect.value = guessCountry();
+
+  function setContactKind(kind) {
+    contactKind = kind;
+    const isPhone = kind === "phone";
+    contactEmailButton.classList.toggle("active", !isPhone);
+    contactPhoneButton.classList.toggle("active", isPhone);
+    contactEmailButton.setAttribute("aria-pressed", String(!isPhone));
+    contactPhoneButton.setAttribute("aria-pressed", String(isPhone));
+    emailField.classList.toggle("hidden", isPhone);
+    phoneField.classList.toggle("hidden", !isPhone);
+    emailInput.required = !isPhone;
+    phoneInput.required = isPhone;
+    message.textContent = "";
+  }
+
+  contactEmailButton.addEventListener("click", () => setContactKind("email"));
+  contactPhoneButton.addEventListener("click", () => setContactKind("phone"));
+
+  // Returns { kind, value } with value normalised (lowercase email or E.164 phone), or null if invalid.
+  function readContact() {
+    if (contactKind === "email") {
+      const email = emailInput.value.trim().toLowerCase();
+      return email ? { kind: "email", value: email } : null;
+    }
+    const raw = phoneInput.value.trim();
+    let phone;
+    if (raw.startsWith("+")) {
+      phone = `+${raw.replace(/\D/g, "")}`;
+    } else {
+      const dial = PHONE_COUNTRIES.find(([iso]) => iso === countrySelect.value)[2];
+      // Drop the national trunk prefix (the leading 0 many countries use for local dialling).
+      phone = `+${dial}${raw.replace(/\D/g, "").replace(/^0+/, "")}`;
+    }
+    return /^\+[1-9]\d{7,14}$/.test(phone) ? { kind: "phone", value: phone } : null;
+  }
+
   function openVerifyDialog() {
-    verifyCopy.textContent = `We sent a 6-digit code to ${pendingSignup.email}. It expires in 10 minutes.`;
+    const sentTo = getAccountContact(pendingSignup);
+    verifyCopy.textContent = pendingSignup.phone
+      ? `We texted a 6-digit code to ${sentTo}. It expires in 10 minutes.`
+      : `We sent a 6-digit code to ${sentTo}. It expires in 10 minutes.`;
     verifyCodeInput.value = "";
     verifyMessage.textContent = "";
     verifyDialog.showModal();
@@ -130,8 +232,12 @@ function initAuthPage() {
     pendingSignup = null;
   });
 
+  function verificationTarget() {
+    return pendingSignup.phone ? { phone: pendingSignup.phone } : { email: pendingSignup.email };
+  }
+
   async function sendCode() {
-    await postAuthApi("/auth/verify/send", { email: pendingSignup.email });
+    await postAuthApi("/auth/verify/send", verificationTarget());
   }
 
   async function startVerification(signup) {
@@ -166,36 +272,45 @@ function initAuthPage() {
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const email = emailInput.value.trim().toLowerCase();
+    const contact = readContact();
+    if (!contact) {
+      message.textContent = contactKind === "phone"
+        ? "Enter a valid mobile number for the selected country."
+        : "Enter a valid email address.";
+      return;
+    }
     const password = passwordInput.value;
-    const users = getUsers();
-    const existingUser = users.find((user) => user.email.toLowerCase() === email);
+    const existingUser = findUserByContact(getUsers(), contact);
+    const contactLabel = contact.kind === "phone" ? "mobile number" : "email";
 
     if (mode === "signup") {
       if (existingUser) {
-        message.textContent = "An account already exists for that email.";
+        message.textContent = `An account already exists for that ${contactLabel}.`;
         return;
       }
       submitButton.disabled = true;
       await startVerification({
-        name: nameInput.value.trim() || email.split("@")[0],
-        email,
+        name: nameInput.value.trim() || (contact.kind === "email" ? contact.value.split("@")[0] : contact.value),
+        [contact.kind]: contact.value,
         password,
-        provider: "Email",
-        role: getRoleForEmail(email),
+        provider: contact.kind === "phone" ? "Mobile" : "Email",
+        role: contact.kind === "email" ? getRoleForEmail(contact.value) : "user",
       });
       submitButton.disabled = false;
       return;
     }
 
     if (!existingUser || existingUser.password !== password) {
-      message.textContent = "Email or password is incorrect.";
+      message.textContent = contact.kind === "phone"
+        ? "Mobile number or password is incorrect."
+        : "Email or password is incorrect.";
       return;
     }
 
     setCurrentUser({
       name: existingUser.name,
       email: existingUser.email,
+      phone: existingUser.phone,
       provider: existingUser.provider || "Email",
       role: getRoleForEmail(existingUser.email),
     });
@@ -210,10 +325,10 @@ function initAuthPage() {
     verifyMessage.textContent = "Checking code...";
     try {
       await postAuthApi("/auth/verify/confirm", {
-        email: pendingSignup.email,
+        ...verificationTarget(),
         code: verifyCodeInput.value.trim(),
       });
-      upsertUser({ ...pendingSignup, emailVerified: true });
+      upsertUser({ ...pendingSignup, [pendingSignup.phone ? "phoneVerified" : "emailVerified"]: true });
       window.location.href = getAuthReturnTo();
     } catch (error) {
       verifyMessage.textContent = error.message;
@@ -237,7 +352,7 @@ function initAuthPage() {
 
   verifyBack.addEventListener("click", () => {
     verifyDialog.close();
-    emailInput.focus();
+    (contactKind === "phone" ? phoneInput : emailInput).focus();
   });
 
   function onGoogleCredential(response) {
@@ -256,7 +371,7 @@ function initAuthPage() {
       return;
     }
 
-    const isNewUser = !getUsers().some((user) => user.email.toLowerCase() === googleUser.email);
+    const isNewUser = !findUserByContact(getUsers(), { kind: "email", value: googleUser.email });
     if (isNewUser) {
       startVerification(googleUser);
       return;

@@ -3,12 +3,12 @@ const user = getCurrentUser();
 if (!user) {
   window.location.href = "auth.html";
 } else {
-  const orders = getOrdersForUser(user.email);
+  const orders = getOrdersForUser(getAccountId(user));
   document.getElementById("dashboard-title").textContent = `Welcome, ${user.name}`;
-  document.getElementById("dashboard-email").textContent = user.email;
+  document.getElementById("dashboard-email").textContent = getAccountContact(user);
   document.getElementById("dashboard-order-count").textContent = orders.length;
   document.getElementById("profile-name").textContent = user.name;
-  document.getElementById("profile-email").textContent = user.email;
+  document.getElementById("profile-email").textContent = getAccountContact(user);
   document.getElementById("profile-provider").textContent = user.provider;
 
   const orderList = document.getElementById("order-list");
