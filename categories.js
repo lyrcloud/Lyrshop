@@ -1,60 +1,63 @@
 // Shared storefront category tree, loaded before app.js, admin.js and product.js.
 // `name` is the stable key saved on products; `label` is what shoppers see. Keep existing names unchanged.
 // `featured` categories get an image tile on the home page; the rest still appear in menus and filters.
-const LYRSHOP_CATEGORIES_VERSION = 2;
+const LYRSHOP_CATEGORIES_VERSION = 3;
 const LYRSHOP_CATEGORIES_VERSION_KEY = "lyrshopCategoriesVersion";
 const LYRSHOP_IMAGE = (id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=320&q=70`;
 
 const LYRSHOP_DEFAULT_CATEGORIES = [
+  {
+    name: "Motors",
+    label: "Motors",
+    featured: true,
+    image_url: LYRSHOP_IMAGE("1492144534655-ae79c964c9d7"),
+    subcategories: [
+      "Parts & accessories", "Cars & trucks", "Motorcycles", "Other vehicles", "Car & truck parts",
+      "Motorcycle parts", "Tires & wheels", "Car care & detailing", "Interior accessories", "Exterior accessories",
+      "Lighting & lamps", "Performance parts", "Oils & fluids", "Garage tools", "Boat parts",
+    ],
+  },
+  {
+    name: "Lifestyle",
+    label: "Clothing & Accessories",
+    featured: true,
+    image_url: LYRSHOP_IMAGE("1542291026-7eec264c27ff"),
+    subcategories: [
+      "Women", "Men", "Handbags", "Collectible sneakers", "Shoes", "Bags", "Accessories", "Activewear",
+      "Kids' clothing", "Outerwear", "Swimwear", "Sunglasses", "Hats", "Belts & wallets", "Vintage clothing",
+    ],
+  },
+  {
+    name: "Sports",
+    label: "Sporting Goods",
+    featured: true,
+    image_url: LYRSHOP_IMAGE("1517649763962-0c623066013b"),
+    subcategories: [
+      "Hunting equipment", "Golf equipment", "Outdoor sports", "Cycling equipment", "Fitness equipment",
+      "Camping & hiking", "Fishing", "Team sports", "Water sports", "Winter sports", "Tennis & racquet sports",
+      "Running", "Yoga", "Boxing & martial arts",
+    ],
+  },
   {
     name: "Electronics",
     label: "Electronics",
     featured: true,
     image_url: LYRSHOP_IMAGE("1517336714731-489689fd1ca8"),
     subcategories: [
-      "Computers & tablets", "Phones", "Cameras", "Accessories", "Laptops", "Monitors", "Networking",
-      "Printers & scanners", "TV & home theater", "Smart home", "Wearables & smartwatches", "Drones",
-      "Batteries & chargers", "Car electronics", "Virtual reality",
+      "Computers, tablets & network hardware", "Cell phones, smart watches & accessories",
+      "Video games & consoles", "Cameras & photo", "Accessories", "Laptops", "Monitors", "Printers & scanners",
+      "TV & home theater", "Smart home", "Drones", "Batteries & chargers", "Car electronics", "Virtual reality",
     ],
   },
   {
-    name: "Audio",
-    label: "Audio",
-    featured: true,
-    image_url: LYRSHOP_IMAGE("1545454675-3531b543be5d"),
+    name: "Business",
+    label: "Business & Industrial",
+    featured: false,
     subcategories: [
-      "Headphones", "Speakers", "Microphones", "Home audio", "Earbuds", "Turntables & record players",
-      "Amplifiers & receivers", "Portable audio", "Pro audio", "Car audio",
-    ],
-  },
-  {
-    name: "Home",
-    label: "Home & Garden",
-    featured: true,
-    image_url: LYRSHOP_IMAGE("1505693416388-ac5ce068fe85"),
-    subcategories: [
-      "Lighting", "Kitchen", "Furniture", "Garden", "Home décor", "Bedding", "Bath", "Storage & organization",
-      "Appliances", "Tools & workshop", "Cleaning supplies", "Outdoor living", "Home improvement",
-    ],
-  },
-  {
-    name: "Lifestyle",
-    label: "Fashion",
-    featured: true,
-    image_url: LYRSHOP_IMAGE("1542291026-7eec264c27ff"),
-    subcategories: [
-      "Bags", "Shoes", "Accessories", "Activewear", "Women's clothing", "Men's clothing", "Kids' clothing",
-      "Outerwear", "Swimwear", "Sunglasses", "Hats", "Belts & wallets", "Vintage clothing",
-    ],
-  },
-  {
-    name: "VideoGames",
-    label: "Video Games & Consoles",
-    featured: true,
-    image_url: LYRSHOP_IMAGE("1606144042614-b2417e99c4e3"),
-    subcategories: [
-      "Consoles", "Video games", "Controllers & attachments", "Gaming headsets", "PC gaming", "Retro gaming",
-      "Gaming chairs", "Gift & prepaid cards",
+      "Modular & pre-fabricated buildings", "Test, measurement & inspection equipment",
+      "Heavy equipment, parts & attachments", "Restaurant & food service", "Office equipment",
+      "Office furniture", "Retail & shop fixtures", "Packing & shipping supplies", "Electrical equipment",
+      "Healthcare & lab", "Printing & graphic arts", "Safety & PPE", "Industrial tools",
     ],
   },
   {
@@ -63,18 +66,40 @@ const LYRSHOP_DEFAULT_CATEGORIES = [
     featured: true,
     image_url: LYRSHOP_IMAGE("1515562141207-7a88fb7ce338"),
     subcategories: [
-      "Watches", "Fine jewelry", "Fashion jewelry", "Rings", "Necklaces & pendants", "Earrings", "Bracelets",
-      "Men's jewelry", "Loose gemstones", "Watch parts & accessories",
+      "Luxury watches", "Wristwatches", "Fashion jewelry", "Fine jewelry", "Rings", "Necklaces & pendants",
+      "Earrings", "Bracelets", "Men's jewelry", "Loose gemstones", "Watch parts & accessories",
     ],
   },
   {
-    name: "Beauty",
-    label: "Health & Beauty",
+    name: "Stationery",
+    label: "Collectibles & Art",
     featured: true,
-    image_url: LYRSHOP_IMAGE("1522335789203-aabd1fc54bc9"),
+    image_url: LYRSHOP_IMAGE("1579783902614-a3fb3927b6a5"),
     subcategories: [
-      "Makeup", "Skin care", "Hair care", "Fragrances", "Nail care", "Bath & body", "Shaving & grooming",
-      "Oral care", "Vitamins & supplements", "Health care", "Massage & wellness",
+      "Trading cards", "Collectibles", "Coins & paper money", "Sports memorabilia", "Memorabilia", "Stamps",
+      "Antiques", "Autographs", "Paintings", "Prints & posters", "Sculptures", "Art supplies", "Pens",
+      "Notebooks",
+    ],
+  },
+  {
+    name: "Home",
+    label: "Home & Garden",
+    featured: true,
+    image_url: LYRSHOP_IMAGE("1505693416388-ac5ce068fe85"),
+    subcategories: [
+      "Yard, garden & outdoor living items", "Tools & workshop equipment", "Home improvement",
+      "Kitchen, dining & bar supplies", "Lighting", "Furniture", "Home décor", "Bedding", "Bath",
+      "Storage & organization", "Appliances", "Cleaning supplies",
+    ],
+  },
+  {
+    name: "Media",
+    label: "Books, Movies & Music",
+    featured: false,
+    image_url: LYRSHOP_IMAGE("1512820790803-83ca734da794"),
+    subcategories: [
+      "Books", "Textbooks", "Comics & graphic novels", "Magazines", "Audiobooks", "Movies & TV",
+      "Vinyl records", "CDs",
     ],
   },
   {
@@ -89,33 +114,43 @@ const LYRSHOP_DEFAULT_CATEGORIES = [
     ],
   },
   {
-    name: "Sports",
-    label: "Sporting Goods",
+    name: "Beauty",
+    label: "Health & Beauty",
     featured: true,
-    image_url: LYRSHOP_IMAGE("1517649763962-0c623066013b"),
+    image_url: LYRSHOP_IMAGE("1522335789203-aabd1fc54bc9"),
     subcategories: [
-      "Fitness equipment", "Cycling", "Camping & hiking", "Fishing", "Golf", "Team sports", "Water sports",
-      "Winter sports", "Tennis & racquet sports", "Running", "Yoga", "Boxing & martial arts", "Hunting",
+      "Makeup", "Skin care", "Hair care", "Fragrances", "Nail care", "Bath & body", "Shaving & grooming",
+      "Oral care", "Vitamins & supplements", "Health care", "Massage & wellness",
     ],
   },
   {
-    name: "Stationery",
-    label: "Collectibles & Art",
-    featured: true,
-    image_url: LYRSHOP_IMAGE("1579783902614-a3fb3927b6a5"),
-    subcategories: [
-      "Pens", "Notebooks", "Art supplies", "Memorabilia", "Trading cards", "Sports memorabilia",
-      "Coins & paper money", "Stamps", "Antiques", "Autographs", "Paintings", "Prints & posters", "Sculptures",
-    ],
-  },
-  {
-    name: "Media",
-    label: "Books, Movies & Music",
+    name: "Baby",
+    label: "Baby Essentials",
     featured: false,
-    image_url: LYRSHOP_IMAGE("1512820790803-83ca734da794"),
+    image_url: LYRSHOP_IMAGE("1515488042361-ee00e0ddd4e4"),
     subcategories: [
-      "Books", "Textbooks", "Comics & graphic novels", "Magazines", "Audiobooks", "Movies & TV",
-      "Vinyl records", "CDs",
+      "Strollers", "Car seats", "Nursery furniture", "Feeding", "Diapering", "Baby clothing", "Baby gear",
+      "Baby toys", "Bathing & grooming", "Baby safety",
+    ],
+  },
+  {
+    name: "VideoGames",
+    label: "Video Games & Consoles",
+    featured: true,
+    image_url: LYRSHOP_IMAGE("1606144042614-b2417e99c4e3"),
+    subcategories: [
+      "Consoles", "Video games", "Controllers & attachments", "Gaming headsets", "PC gaming", "Retro gaming",
+      "Gaming chairs", "Gift & prepaid cards",
+    ],
+  },
+  {
+    name: "Audio",
+    label: "Audio",
+    featured: false,
+    image_url: LYRSHOP_IMAGE("1545454675-3531b543be5d"),
+    subcategories: [
+      "Headphones", "Speakers", "Microphones", "Home audio", "Earbuds", "Turntables & record players",
+      "Amplifiers & receivers", "Portable audio", "Pro audio", "Car audio",
     ],
   },
   {
@@ -126,16 +161,6 @@ const LYRSHOP_DEFAULT_CATEGORIES = [
       "Guitars & basses", "Keyboards & pianos", "Drums & percussion", "String instruments",
       "Wind & woodwind", "Brass", "DJ equipment", "Recording equipment", "Amplifiers", "Effects pedals",
       "Instrument accessories",
-    ],
-  },
-  {
-    name: "Baby",
-    label: "Baby",
-    featured: false,
-    image_url: LYRSHOP_IMAGE("1515488042361-ee00e0ddd4e4"),
-    subcategories: [
-      "Strollers", "Car seats", "Nursery furniture", "Feeding", "Diapering", "Baby clothing", "Baby gear",
-      "Baby toys", "Bathing & grooming", "Baby safety",
     ],
   },
   {
@@ -156,27 +181,6 @@ const LYRSHOP_DEFAULT_CATEGORIES = [
     subcategories: [
       "Sewing", "Fabric", "Knitting & crochet", "Scrapbooking & paper crafts", "Beading & jewelry making",
       "Candle & soap making", "Woodworking", "Glass & mosaics", "Craft kits",
-    ],
-  },
-  {
-    name: "Motors",
-    label: "Auto Parts & Accessories",
-    featured: false,
-    image_url: LYRSHOP_IMAGE("1492144534655-ae79c964c9d7"),
-    subcategories: [
-      "Car & truck parts", "Motorcycle parts", "Tires & wheels", "Car care & detailing",
-      "Interior accessories", "Exterior accessories", "Lighting & lamps", "Performance parts",
-      "Oils & fluids", "Garage tools", "Boat parts",
-    ],
-  },
-  {
-    name: "Business",
-    label: "Business & Industrial",
-    featured: false,
-    subcategories: [
-      "Office equipment", "Office furniture", "Restaurant & food service", "Retail & shop fixtures",
-      "Packing & shipping supplies", "Test & measurement", "Electrical equipment", "Heavy equipment",
-      "Healthcare & lab", "Printing & graphic arts", "Safety & PPE", "Industrial tools",
     ],
   },
   {
