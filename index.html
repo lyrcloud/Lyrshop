@@ -4,7 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Marketplace - Buy & Sell Online</title>
-  <link rel="stylesheet" href="styles.css?v=20261011-9" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=20261012-2" />
 </head>
 <body>
   <header class="header">
@@ -18,9 +21,9 @@
           <a href="dashboard.html">Help & Orders</a>
         </div>
         <div class="utility-links utility-right">
-          <a href="dashboard.html">Watchlist</a>
+          <a href="index.html?view=watchlist#product-list">Watchlist <span class="count-badge" data-count="watchlist" hidden></span></a>
           <a href="dashboard.html">My Lyrshop</a>
-          <a href="#cart-panel">Cart</a>
+          <a href="#cart-panel">Cart <span class="count-badge" data-count="cart" hidden></span></a>
         </div>
       </div>
     </div>
@@ -35,17 +38,17 @@
         <button class="category-menu" id="category-menu-button" type="button" aria-expanded="false" aria-controls="category-menu-panel">Shop by category</button>
         <div class="category-menu-panel" id="category-menu-panel" hidden></div>
       </div>
-      <form class="search-bar" id="search-form">
-        <input type="text" id="search-input" placeholder="Search for anything..." />
-        <select aria-label="Search category">
-          <option>All Categories</option>
-          <option>Electronics</option>
-          <option>Home & Garden</option>
-          <option>Fashion</option>
-          <option>Audio</option>
-          <option>Collectibles</option>
+      <form class="search-bar" id="search-form" role="search">
+        <div class="search-field">
+          <input type="text" id="search-input" placeholder="Search for anything..." autocomplete="off" role="combobox" aria-expanded="false" aria-controls="search-suggestions" aria-autocomplete="list" aria-label="Search products" />
+          <button type="button" class="search-clear" aria-label="Clear search" hidden>&times;</button>
+          <kbd class="search-hint" aria-hidden="true">/</kbd>
+        </div>
+        <select class="search-category" aria-label="Search category">
+          <option value="">All Categories</option>
         </select>
         <button type="submit" class="search-button">Search</button>
+        <ul class="search-suggestions" id="search-suggestions" role="listbox" hidden></ul>
       </form>
       <div class="header-actions">
         <a href="dashboard.html" id="account-link" class="button button-secondary">Account</a>
@@ -92,6 +95,20 @@
         <p id="listing-subtitle">Great savings on popular items</p>
       </div>
       <div id="listing-filters" class="listing-filters" hidden></div>
+      <div class="listing-toolbar">
+        <p id="listing-count" class="listing-count" aria-live="polite"></p>
+        <div id="active-filters" class="active-filters"></div>
+        <label class="sort-control">
+          <span>Sort by</span>
+          <select id="sort-select">
+            <option value="featured">Featured</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+            <option value="discount">Biggest discount</option>
+            <option value="name">Name: A to Z</option>
+          </select>
+        </label>
+      </div>
       <div id="product-list" class="product-grid"></div>
       </section>
 
@@ -156,19 +173,7 @@
 
   <script src="auth.js?v=20261011-5"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="app.js?v=20261011-4"></script>
-  <script>
-    function renderLyrshopButton() {
-      const headerActions = document.querySelector(".header-actions");
-      if (!headerActions) return;
-
-      headerActions.innerHTML = `
-        <a href="dashboard.html" id="account-link" class="button button-secondary">Lyrshop</a>
-      `;
-    }
-
-    renderLyrshopButton();
-    window.addEventListener("load", renderLyrshopButton);
-  </script>
+  <script src="ui.js?v=20261011-1"></script>
+  <script src="app.js?v=20261012-1"></script>
 </body>
 </html>

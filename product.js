@@ -23,6 +23,7 @@ function readCart() {
 
 function saveCart(cart) {
   localStorage.setItem("shopCart", JSON.stringify(cart));
+  updateHeaderCounts();
 }
 
 function normalizeProduct(product) {
@@ -170,11 +171,33 @@ function renderProduct(product) {
   renderSpecifics(product);
 }
 
+function renderWatchButton(button, product) {
+  const watched = isWatched(product.id);
+  button.classList.toggle("is-watched", watched);
+  button.setAttribute("aria-pressed", String(watched));
+  button.innerHTML = watched ? "&#9829; On your watchlist" : "&#9825; Add to Watchlist";
+}
+
 function bindActions(product) {
   const quantitySelect = document.getElementById("quantity-select");
-  document.getElementById("detail-cart-button").addEventListener("click", () => {
-    addProductToCart(product, Number(quantitySelect.value));
-    alert("Item added to cart.");
+  const cartButton = document.getElementById("detail-cart-button");
+  cartButton.addEventListener("click", () => {
+    const quantity = Number(quantitySelect.value);
+    addProductToCart(product, quantity);
+    cartButton.classList.add("is-added");
+    cartButton.textContent = "Added \u2713";
+    window.setTimeout(() => { cartButton.classList.remove("is-added"); cartButton.textContent = "Add to cart"; }, 1400);
+    showToast(`${quantity > 1 ? `${quantity} \u00d7 ` : ""}${product.name} added to your cart`,
+      { actionLabel: "Go to cart", actionHref: "index.html#cart-panel" });
+  });
+
+  const watchButton = document.querySelector(".watch-button");
+  renderWatchButton(watchButton, product);
+  watchButton.addEventListener("click", () => {
+    const watched = toggleWatchlist(product.id);
+    renderWatchButton(watchButton, product);
+    showToast(watched ? "Saved to your watchlist" : "Removed from your watchlist",
+      watched ? { actionLabel: "View watchlist", actionHref: "index.html?view=watchlist#product-list" } : {});
   });
 
   document.getElementById("buy-now-button").addEventListener("click", () => {
@@ -182,16 +205,27 @@ function bindActions(product) {
     window.location.href = getCurrentUser() ? "dashboard.html" : "auth.html";
   });
 
-  document.getElementById("detail-search-form").addEventListener("submit", (event) => {
-    event.preventDefault();
-    const query = document.getElementById("detail-search-input").value.trim();
-    window.location.href = query ? `index.html?search=${encodeURIComponent(query)}#product-list` : "index.html#product-list";
+}
+
+function bindSearch(products) {
+  initSearchBox({
+    form: document.getElementById("detail-search-form"),
+    getProducts: () => products,
+    getCategories: readDetailCategories,
+    onSubmit: (query, category) => {
+      const params = new URLSearchParams();
+      if (query) params.set("search", query);
+      if (category) params.set("category", category);
+      const search = params.toString();
+      window.location.href = `index.html${search ? `?${search}` : ""}#product-list`;
+    },
   });
 }
 
 async function initProductDetail() {
   bindCategoryMenu();
   const products = await fetchProducts();
+  bindSearch(products);
   const product = products.find((item) => String(item.id) === requestedId) || products[0];
   if (!product) {
     document.getElementById("detail-title").textContent = "Product not found.";

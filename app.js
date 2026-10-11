@@ -12,7 +12,6 @@ const cartTotal = document.getElementById("cart-total");
 const checkoutButton = document.getElementById("checkout-button");
 const checkoutStatus = document.getElementById("checkout-status");
 const searchForm = document.getElementById("search-form");
-const searchInput = document.getElementById("search-input");
 const categoryMenuButton = document.getElementById("category-menu-button");
 const categoryMenuPanel = document.getElementById("category-menu-panel");
 let shippingMethodInputs = document.querySelectorAll('input[name="shipping-method"]');
@@ -83,14 +82,22 @@ let searchQuery = pageParams.get("search") || "";
 let activeView = pageParams.get("view") || "";
 let activeBrand = pageParams.get("brand") || "";
 let activeEvent = pageParams.get("event") || "";
+let activeSort = pageParams.get("sort") || "featured";
+let productsLoaded = false;
+let searchBox = null;
 let checkoutInProgress = false;
 
-if (searchInput && searchQuery) {
-  searchInput.value = searchQuery;
-}
+const SORTS = {
+  featured: { label: "Featured", compare: null },
+  "price-asc": { label: "Price: low to high", compare: (a, b) => a.price - b.price },
+  "price-desc": { label: "Price: high to low", compare: (a, b) => b.price - a.price },
+  discount: { label: "Biggest discount", compare: (a, b) => getDiscountPercent(b.original_price, b.price) - getDiscountPercent(a.original_price, a.price) },
+  name: { label: "Name: A to Z", compare: (a, b) => a.name.localeCompare(b.name) },
+};
 
 function saveCart() {
   localStorage.setItem("shopCart", JSON.stringify(cart));
+  updateHeaderCounts();
 }
 
 function getSelectedRadioValue(inputs, fallback) {
@@ -325,6 +332,7 @@ function setActiveCategory(categoryName, subcategory = "") {
   activeView = "";
   activeBrand = "";
   activeEvent = "";
+  searchBox?.setCategory(activeCategory === "All" ? "" : activeCategory);
   updateNavActive();
   refreshListing();
 }
@@ -367,7 +375,6 @@ function renderCategoryMenu(categories) {
 function renderStorefrontCategories() {
   const categories = readStorefrontCategories();
   const showcase = document.querySelector(".category-showcase");
-  const searchSelect = document.querySelector(".search-bar select");
 
   if (showcase) {
     showcase.innerHTML = categories.filter((category) => category.featured !== false).map((category) => `
@@ -379,12 +386,6 @@ function renderStorefrontCategories() {
     categoryShortcuts = document.querySelectorAll(".category-shortcut");
   }
 
-  if (searchSelect) {
-    searchSelect.innerHTML = `
-      <option>All Categories</option>
-      ${categories.map((category) => `<option>${escapeHtml(category.label)}</option>`).join("")}
-    `;
-  }
 
   renderCategoryMenu(categories);
 }
@@ -400,7 +401,7 @@ function renderCart() {
       const row = document.createElement("div");
       row.className = "cart-item";
       row.innerHTML = `
-        <span>${item.name}</span>
+        <span>${escapeHtml(item.name)}</span>
         <span>$${item.price.toFixed(2)}</span>
         <button class="small-button" data-index="${index}">Remove</button>
       `;
@@ -436,6 +437,10 @@ function getFilteredProducts() {
     filtered = filtered.filter((p) => !p.subcategory || p.subcategory === activeSubcategory);
   }
 
+  if (activeView === "watchlist") {
+    filtered = filtered.filter((p) => isWatched(p.id));
+  }
+
   if (activeView === "deals") {
     filtered = filtered.filter(isOnSale);
     if (activeEvent) filtered = filtered.filter((p) => (p.sale_event || "") === activeEvent);
@@ -451,7 +456,8 @@ function getFilteredProducts() {
       .some((field) => String(field || "").toLowerCase().includes(q)));
   }
 
-  return filtered;
+  const sort = SORTS[activeSort] || SORTS.featured;
+  return sort.compare ? [...filtered].sort(sort.compare) : filtered;
 }
 
 function isOnSale(product) {
@@ -486,7 +492,11 @@ function renderListingControls() {
   const filters = document.getElementById("listing-filters");
   if (!heading || !filters) return;
 
-  if (activeView === "deals") {
+  if (activeView === "watchlist") {
+    heading.textContent = "Your Watchlist";
+    subheading.textContent = "Items you saved with the heart button";
+    filters.innerHTML = "";
+  } else if (activeView === "deals") {
     heading.textContent = "Seasonal Sales & Events";
     subheading.textContent = "Marked-down items from current sales and events";
     filters.innerHTML = renderChips(countBy(allProducts.filter(isOnSale), "sale_event"), activeEvent,
@@ -496,12 +506,73 @@ function renderListingControls() {
     subheading.textContent = activeBrand ? `Everything from ${activeBrand}` : "Shop by brand, A to Z";
     filters.innerHTML = renderChips(countBy(allProducts, "brand"), activeBrand,
       "All brands", "brand", "Brands will appear here as sellers add them.");
+  } else if (searchQuery) {
+    heading.textContent = `Results for "${searchQuery}"`;
+    subheading.textContent = "Matching names, brands and descriptions";
+    filters.innerHTML = "";
+  } else if (activeCategory !== "All") {
+    heading.textContent = categoryLabel(activeCategory);
+    subheading.textContent = activeSubcategory || "Everything in this category";
+    filters.innerHTML = "";
   } else {
     heading.textContent = "Today's Deals";
     subheading.textContent = "Great savings on popular items";
     filters.innerHTML = "";
   }
   filters.hidden = !filters.innerHTML;
+  renderListingToolbar();
+}
+
+function categoryLabel(name) {
+  return readStorefrontCategories().find((category) => category.name === name)?.label || name;
+}
+
+// Result count, removable chips for each active filter, and the sort menu.
+function renderListingToolbar() {
+  const count = document.getElementById("listing-count");
+  const active = document.getElementById("active-filters");
+  const sortSelect = document.getElementById("sort-select");
+  if (!count || !active || !sortSelect) return;
+
+  const total = getFilteredProducts().length;
+  count.textContent = productsLoaded ? `${total} ${total === 1 ? "item" : "items"}` : "Loading items...";
+  const chips = [
+    searchQuery && { key: "search", label: `"${searchQuery}"` },
+    activeCategory !== "All" && { key: "category", label: categoryLabel(activeCategory) },
+    activeSubcategory && { key: "subcategory", label: activeSubcategory },
+    activeBrand && { key: "brand", label: activeBrand },
+    activeEvent && { key: "event", label: activeEvent },
+  ].filter(Boolean);
+  active.innerHTML = chips.map((chip) => `
+    <button type="button" class="active-filter" data-clear="${chip.key}" aria-label="Remove filter ${escapeHtml(chip.label)}">
+      ${escapeHtml(chip.label)} <span aria-hidden="true">&times;</span>
+    </button>`).join("")
+    + (chips.length > 1 ? `<button type="button" class="active-filter-reset" data-clear="all">Clear all</button>` : "");
+  sortSelect.value = SORTS[activeSort] ? activeSort : "featured";
+}
+
+function clearFilter(key) {
+  if (key === "search" || key === "all") { searchQuery = ""; searchBox?.setQuery(""); }
+  if (key === "category" || key === "all") { activeCategory = "All"; activeSubcategory = ""; searchBox?.setCategory(""); }
+  if (key === "subcategory") activeSubcategory = "";
+  if (key === "brand" || key === "all") activeBrand = "";
+  if (key === "event" || key === "all") activeEvent = "";
+  if (key === "all") activeView = "";
+  refreshListing();
+}
+
+// Keep the address bar in step with the listing so it can be shared or bookmarked.
+function syncListingUrl() {
+  const params = new URLSearchParams();
+  if (searchQuery) params.set("search", searchQuery);
+  if (activeCategory !== "All") params.set("category", activeCategory);
+  if (activeSubcategory) params.set("subcategory", activeSubcategory);
+  if (activeView) params.set("view", activeView);
+  if (activeBrand) params.set("brand", activeBrand);
+  if (activeEvent) params.set("event", activeEvent);
+  if (activeSort !== "featured") params.set("sort", activeSort);
+  const query = params.toString();
+  history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
 }
 
 // ── Hero slider ─────────────────────────────────────────────────────────────
@@ -631,6 +702,7 @@ function bindHeroSlider() {
 function refreshListing() {
   renderListingControls();
   renderProductCards(getFilteredProducts());
+  syncListingUrl();
 }
 
 function renderStars(score) {
@@ -648,45 +720,112 @@ function getDiscountPercent(original, current) {
   return Math.round(((original - current) / original) * 100);
 }
 
-function renderProductCards(products) {
-  productList.innerHTML = "";
+function renderSkeletonCards(count = 8) {
+  productList.innerHTML = Array.from({ length: count }, () => `
+    <div class="product-card skeleton-card" aria-hidden="true">
+      <div class="skeleton skeleton-image"></div>
+      <div class="card-content">
+        <div class="skeleton skeleton-line short"></div>
+        <div class="skeleton skeleton-line"></div>
+        <div class="skeleton skeleton-line"></div>
+        <div class="skeleton skeleton-line price"></div>
+      </div>
+    </div>`).join("");
+  productList.setAttribute("aria-busy", "true");
+}
 
+function renderEmptyState() {
+  const watchlist = activeView === "watchlist";
+  productList.innerHTML = `
+    <div class="empty-state">
+      <span class="empty-icon" aria-hidden="true">${watchlist ? "&#9825;" : "&#128269;"}</span>
+      <h3>${watchlist ? "Your watchlist is empty" : "No items match"}</h3>
+      <p>${watchlist ? "Tap the heart on any item to save it here." : "Try a different search or clear your filters."}</p>
+      <button type="button" class="button button-primary" data-clear="all">${watchlist ? "Browse all items" : "Clear filters"}</button>
+    </div>`;
+}
+
+function renderProductCards(products) {
+  productList.removeAttribute("aria-busy");
+  if (!productsLoaded) {
+    renderSkeletonCards();
+    return;
+  }
   if (products.length === 0) {
-    productList.innerHTML = "<p style='grid-column: 1/-1; text-align: center; color: #666;'>No products found.</p>";
+    renderEmptyState();
     return;
   }
 
-  products.forEach((product) => {
+  productList.innerHTML = products.map((product) => {
     const discount = getDiscountPercent(product.original_price, product.price);
     const productUrl = `product.html?id=${encodeURIComponent(product.id)}`;
-    const card = document.createElement("div");
-    card.className = "product-card";
-    card.innerHTML = `
-      <a class="card-image product-card-link" href="${productUrl}" aria-label="View ${escapeHtml(product.name)}">
-        <img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" />
-        ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ""}
-      </a>
-      <div class="card-content">
-        ${product.brand ? `<p class="product-brand">${escapeHtml(product.brand)}</p>` : ""}
-        <h3 class="product-name"><a href="${productUrl}">${escapeHtml(product.name)}</a></h3>
-        <p class="product-desc">${escapeHtml(product.description)}</p>
-        ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
-        <div class="product-rating">${renderStars(product.rating || 4)}</div>
-        <div class="product-pricing">
-          <span class="current-price">$${product.price.toFixed(2)}</span>
-          ${isOnSale(product) ? `<span class="original-price">$${product.original_price.toFixed(2)}</span>` : ""}
+    const watched = isWatched(product.id);
+    return `
+      <article class="product-card" data-product-id="${escapeHtml(product.id)}">
+        <a class="card-image product-card-link" href="${productUrl}" aria-label="View ${escapeHtml(product.name)}">
+          <img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy" />
+          ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ""}
+        </a>
+        <button type="button" class="watch-toggle${watched ? " is-watched" : ""}" data-watch="${escapeHtml(product.id)}"
+          aria-pressed="${watched}" aria-label="${watched ? "Remove from" : "Add to"} watchlist: ${escapeHtml(product.name)}">${watched ? "&#9829;" : "&#9825;"}</button>
+        <div class="card-content">
+          ${product.brand ? `<p class="product-brand">${escapeHtml(product.brand)}</p>` : ""}
+          <h3 class="product-name"><a href="${productUrl}">${escapeHtml(product.name)}</a></h3>
+          <p class="product-desc">${escapeHtml(product.description)}</p>
+          ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
+          <div class="product-rating" aria-label="Rated ${Math.round(product.rating || 4)} out of 5">${renderStars(product.rating || 4)}</div>
+          <div class="product-pricing">
+            <span class="current-price">$${product.price.toFixed(2)}</span>
+            ${isOnSale(product) ? `<span class="original-price">$${product.original_price.toFixed(2)}</span>` : ""}
+          </div>
+          <button type="button" class="button button-primary add-cart-btn" data-add="${escapeHtml(product.id)}">Add to Cart</button>
         </div>
-        <button class="button button-primary add-cart-btn" data-product-id="${product.id}">Add to Cart</button>
-      </div>
-    `;
+      </article>`;
+  }).join("");
+}
 
-    card.querySelector(".add-cart-btn").addEventListener("click", () => {
+// One delegated handler for every card: add to cart, watchlist hearts, and empty-state reset.
+function bindProductListActions() {
+  productList.addEventListener("click", (event) => {
+    const addButton = event.target.closest("[data-add]");
+    if (addButton) {
+      const product = allProducts.find((item) => String(item.id) === addButton.dataset.add);
+      if (!product) return;
       cart.push({ id: product.id, name: product.name, price: product.price });
       saveCart();
       renderCart();
-    });
+      addButton.classList.add("is-added");
+      addButton.textContent = "Added \u2713";
+      window.setTimeout(() => { addButton.classList.remove("is-added"); addButton.textContent = "Add to Cart"; }, 1400);
+      showToast(`${product.name} added to your cart`, { actionLabel: "View cart", actionHref: "#cart-panel" });
+      return;
+    }
+    const heart = event.target.closest("[data-watch]");
+    if (heart) {
+      const watched = toggleWatchlist(heart.dataset.watch);
+      const product = allProducts.find((item) => String(item.id) === heart.dataset.watch);
+      if (activeView === "watchlist" && !watched) {
+        refreshListing();
+      } else {
+        heart.classList.toggle("is-watched", watched);
+        heart.setAttribute("aria-pressed", String(watched));
+        heart.innerHTML = watched ? "&#9829;" : "&#9825;";
+        heart.setAttribute("aria-label", `${watched ? "Remove from" : "Add to"} watchlist: ${product?.name || ""}`);
+      }
+      showToast(watched ? "Saved to your watchlist" : "Removed from your watchlist",
+        watched ? { actionLabel: "View watchlist", actionHref: "index.html?view=watchlist#product-list" } : {});
+      return;
+    }
+    if (event.target.closest("[data-clear]")) clearFilter("all");
+  });
 
-    productList.appendChild(card);
+  document.getElementById("active-filters")?.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-clear]");
+    if (chip) clearFilter(chip.dataset.clear);
+  });
+  document.getElementById("sort-select")?.addEventListener("change", (event) => {
+    activeSort = event.target.value;
+    refreshListing();
   });
 }
 
@@ -717,9 +856,11 @@ async function loadProducts() {
       .filter(Boolean);
 
     allProducts = products;
+    productsLoaded = true;
   } catch (error) {
     console.warn("Product request failed.", error);
     allProducts = [];
+    productsLoaded = true;
   } finally {
     refreshListing();
     // Rebuild once products arrive so real sale events get their own slides.
@@ -826,12 +967,12 @@ async function checkout() {
 function renderAccountState() {
   const user = getCurrentUser();
   if (user) {
-    accountLink.textContent = "Lyrshop";
+    accountLink.textContent = `Hi, ${String(user.name || "there").split(" ")[0]}`;
     accountLink.href = "dashboard.html";
     return;
   }
 
-  accountLink.textContent = "Lyrshop";
+  accountLink.textContent = "Sign in";
   accountLink.href = "auth.html";
 }
 
@@ -900,12 +1041,22 @@ function bindCategoryMenu() {
   });
 }
 
-// Search form event listener
-searchForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  searchQuery = searchInput.value;
+function applySearch(query, category) {
+  searchQuery = query;
+  const nextCategory = category || "All";
+  if (nextCategory !== activeCategory) {
+    activeCategory = nextCategory;
+    activeSubcategory = "";
+  }
+  // Searching from a special view (deals, brands, watchlist) searches the whole store.
+  if (query && activeView) {
+    activeView = "";
+    activeBrand = "";
+    activeEvent = "";
+  }
+  updateNavActive();
   refreshListing();
-});
+}
 
 function bindListingFilters() {
   const filters = document.getElementById("listing-filters");
@@ -926,6 +1077,20 @@ function initStorefront() {
   bindCategoryMenu();
   bindHeroSlider();
   renderHeroSlider();
+  bindProductListActions();
+  searchBox = initSearchBox({
+    form: searchForm,
+    getProducts: () => allProducts,
+    getCategories: readStorefrontCategories,
+    onChange: applySearch,
+    onSubmit: (query, category) => {
+      applySearch(query, category);
+      document.getElementById("product-list").scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    initialQuery: searchQuery,
+    initialCategory: activeCategory === "All" ? "" : activeCategory,
+  });
+  refreshListing();
   renderAccountState();
   if (shippingZipInput) shippingZipInput.value = getStoredZip();
   renderShippingRates();
