@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Seller Hub - Lyrshop</title>
-  <link rel="stylesheet" href="styles.css?v=20261011-2" />
+  <link rel="stylesheet" href="styles.css?v=20261011-3" />
 </head>
 <body>
   <header class="page-header">
@@ -53,12 +53,39 @@
           <input type="text" id="product-name" placeholder="e.g. Wireless speaker" required />
         </label>
         <label>
+          Brand
+          <input type="text" id="product-brand" list="brand-options" placeholder="e.g. Sony (optional)" />
+          <datalist id="brand-options"></datalist>
+        </label>
+        <label>
           Description
           <textarea id="product-description" placeholder="A short product description."></textarea>
         </label>
         <label>
           Price
           <input type="number" id="product-price" min="0.01" step="0.01" placeholder="0.00" required />
+        </label>
+        <label>
+          Was price (optional)
+          <input type="number" id="product-compare-price" min="0.01" step="0.01" placeholder="Original price, shown crossed out" />
+        </label>
+        <label>
+          Sale event (optional)
+          <input type="text" id="product-sale-event" list="sale-event-options" placeholder="e.g. Black Friday" />
+          <datalist id="sale-event-options">
+            <option value="Black Friday"></option>
+            <option value="Cyber Monday"></option>
+            <option value="Holiday Sale"></option>
+            <option value="New Year Sale"></option>
+            <option value="Valentine's Day"></option>
+            <option value="Spring Sale"></option>
+            <option value="Mother's Day"></option>
+            <option value="Father's Day"></option>
+            <option value="Summer Sale"></option>
+            <option value="Back to School"></option>
+            <option value="Halloween"></option>
+            <option value="Clearance"></option>
+          </datalist>
         </label>
         <label>
           Category
@@ -193,6 +220,6 @@
 
   <script src="auth.js?v=20261011-2"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261011-2"></script>
+  <script src="admin.js?v=20261011-3"></script>
 </body>
 </html>

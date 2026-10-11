@@ -79,6 +79,10 @@ const pageParams = new URLSearchParams(window.location.search);
 let activeCategory = pageParams.get("category") || "All";
 let activeSubcategory = pageParams.get("subcategory") || "";
 let searchQuery = pageParams.get("search") || "";
+// "deals" lists Seasonal Sales & Events; "brands" lists All Brands. Empty is the normal category listing.
+let activeView = pageParams.get("view") || "";
+let activeBrand = pageParams.get("brand") || "";
+let activeEvent = pageParams.get("event") || "";
 let checkoutInProgress = false;
 
 if (searchInput && searchQuery) {
@@ -307,13 +311,32 @@ function normalizeCategories(categories) {
   });
 }
 
+function updateNavActive() {
+  navItems.forEach((item) => {
+    item.classList.toggle("active", activeView
+      ? item.dataset.view === activeView
+      : !item.dataset.view && item.dataset.category === activeCategory);
+  });
+}
+
 function setActiveCategory(categoryName, subcategory = "") {
   activeCategory = categoryName || "All";
   activeSubcategory = subcategory;
-  navItems.forEach((item) => {
-    item.classList.toggle("active", item.dataset.category === activeCategory);
-  });
-  renderProductCards(getFilteredProducts());
+  activeView = "";
+  activeBrand = "";
+  activeEvent = "";
+  updateNavActive();
+  refreshListing();
+}
+
+function setActiveView(view) {
+  activeView = view;
+  activeCategory = "All";
+  activeSubcategory = "";
+  activeBrand = "";
+  activeEvent = "";
+  updateNavActive();
+  refreshListing();
 }
 
 // Mega menus show the first few subcategories per group; "See all" opens the whole category.
@@ -349,9 +372,11 @@ function renderStorefrontCategories() {
 
   if (nav) {
     nav.innerHTML = `
-      <button class="nav-item ${activeCategory === "All" ? "active" : ""}" data-category="All">All</button>
+      <button class="nav-item ${activeCategory === "All" && !activeView ? "active" : ""}" data-category="All">All</button>
+      <button class="nav-item nav-item-special ${activeView === "deals" ? "active" : ""}" data-view="deals">Seasonal Sales & Events</button>
+      <button class="nav-item nav-item-special ${activeView === "brands" ? "active" : ""}" data-view="brands">All Brands</button>
       ${categories.map((category) => `
-        <button class="nav-item ${activeCategory === category.name ? "active" : ""}" data-category="${escapeHtml(category.name)}">${escapeHtml(category.label)}</button>
+        <button class="nav-item ${activeCategory === category.name && !activeView ? "active" : ""}" data-category="${escapeHtml(category.name)}">${escapeHtml(category.label)}</button>
       `).join("")}
     `;
     navItems = document.querySelectorAll(".nav-item");
@@ -424,12 +449,77 @@ function getFilteredProducts() {
     filtered = filtered.filter((p) => !p.subcategory || p.subcategory === activeSubcategory);
   }
 
+  if (activeView === "deals") {
+    filtered = filtered.filter(isOnSale);
+    if (activeEvent) filtered = filtered.filter((p) => (p.sale_event || "") === activeEvent);
+  }
+
+  if (activeBrand) {
+    filtered = filtered.filter((p) => (p.brand || "").toLowerCase() === activeBrand.toLowerCase());
+  }
+
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase();
-    filtered = filtered.filter((p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
+    filtered = filtered.filter((p) => [p.name, p.description, p.brand]
+      .some((field) => String(field || "").toLowerCase().includes(q)));
   }
 
   return filtered;
+}
+
+function isOnSale(product) {
+  return product.original_price > product.price;
+}
+
+function countBy(products, key) {
+  const counts = new Map();
+  products.forEach((product) => {
+    const value = (product[key] || "").trim();
+    if (value) counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+function renderChips(entries, selected, allLabel, dataKey, emptyText) {
+  if (!entries.length) return `<p class="listing-empty">${emptyText}</p>`;
+  return `
+    <button type="button" class="filter-chip ${selected ? "" : "active"}" data-${dataKey}="">${allLabel}</button>
+    ${entries.map(([value, count]) => `
+      <button type="button" class="filter-chip ${value === selected ? "active" : ""}" data-${dataKey}="${escapeHtml(value)}">
+        ${escapeHtml(value)} <span>${count}</span>
+      </button>
+    `).join("")}
+  `;
+}
+
+// Sets the listing heading and, for the deals/brands views, the event or brand chips above the grid.
+function renderListingControls() {
+  const heading = document.getElementById("listing-title");
+  const subheading = document.getElementById("listing-subtitle");
+  const filters = document.getElementById("listing-filters");
+  if (!heading || !filters) return;
+
+  if (activeView === "deals") {
+    heading.textContent = "Seasonal Sales & Events";
+    subheading.textContent = "Marked-down items from current sales and events";
+    filters.innerHTML = renderChips(countBy(allProducts.filter(isOnSale), "sale_event"), activeEvent,
+      "All deals", "event", "Sale events will appear here as sellers add them.");
+  } else if (activeView === "brands") {
+    heading.textContent = activeBrand ? activeBrand : "All Brands";
+    subheading.textContent = activeBrand ? `Everything from ${activeBrand}` : "Shop by brand, A to Z";
+    filters.innerHTML = renderChips(countBy(allProducts, "brand"), activeBrand,
+      "All brands", "brand", "Brands will appear here as sellers add them.");
+  } else {
+    heading.textContent = "Today's Deals";
+    subheading.textContent = "Great savings on popular items";
+    filters.innerHTML = "";
+  }
+  filters.hidden = !filters.innerHTML;
+}
+
+function refreshListing() {
+  renderListingControls();
+  renderProductCards(getFilteredProducts());
 }
 
 function renderStars(score) {
@@ -457,20 +547,23 @@ function renderProductCards(products) {
 
   products.forEach((product) => {
     const discount = getDiscountPercent(product.original_price, product.price);
+    const productUrl = `product.html?id=${encodeURIComponent(product.id)}`;
     const card = document.createElement("div");
     card.className = "product-card";
     card.innerHTML = `
-      <a class="card-image product-card-link" href="product.html?id=${encodeURIComponent(product.id)}" aria-label="View ${product.name}">
-        <img src="${product.image_url}" alt="${product.name}" />
+      <a class="card-image product-card-link" href="${productUrl}" aria-label="View ${escapeHtml(product.name)}">
+        <img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" />
         ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ""}
       </a>
       <div class="card-content">
-        <h3 class="product-name"><a href="product.html?id=${encodeURIComponent(product.id)}">${product.name}</a></h3>
-        <p class="product-desc">${product.description}</p>
+        ${product.brand ? `<p class="product-brand">${escapeHtml(product.brand)}</p>` : ""}
+        <h3 class="product-name"><a href="${productUrl}">${escapeHtml(product.name)}</a></h3>
+        <p class="product-desc">${escapeHtml(product.description)}</p>
+        ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
         <div class="product-rating">${renderStars(product.rating || 4)}</div>
         <div class="product-pricing">
           <span class="current-price">$${product.price.toFixed(2)}</span>
-          ${product.original_price && product.original_price > product.price ? `<span class="original-price">$${product.original_price.toFixed(2)}</span>` : ""}
+          ${isOnSale(product) ? `<span class="original-price">$${product.original_price.toFixed(2)}</span>` : ""}
         </div>
         <button class="button button-primary add-cart-btn" data-product-id="${product.id}">Add to Cart</button>
       </div>
@@ -504,7 +597,8 @@ async function loadProducts() {
         return {
           ...p,
           price,
-          original_price: Number(p.original_price) || price * 1.5,
+          // Only a real seller-set "was" price is shown; never invent a discount.
+          original_price: Number(p.compare_at_price) || 0,
           rating: Number(p.rating) || 4,
           image_url: p.image_url || PLACEHOLDER_IMAGE_URL,
         };
@@ -516,7 +610,7 @@ async function loadProducts() {
     console.warn("Product request failed.", error);
     allProducts = [];
   } finally {
-    renderProductCards(getFilteredProducts());
+    refreshListing();
     window.clearTimeout(timeoutId);
   }
 }
@@ -651,10 +745,11 @@ paymentMethodInputs.forEach((input) => input.addEventListener("change", renderCa
 function bindCategoryFilters() {
   navItems.forEach((item) => {
     item.addEventListener("click", () => {
-      navItems.forEach((i) => i.classList.remove("active"));
-      item.classList.add("active");
-      activeCategory = item.dataset.category;
-      renderProductCards(getFilteredProducts());
+      if (item.dataset.view) {
+        setActiveView(item.dataset.view);
+      } else {
+        setActiveCategory(item.dataset.category);
+      }
     });
   });
 
@@ -696,12 +791,25 @@ function bindCategoryMenu() {
 searchForm.addEventListener("submit", (e) => {
   e.preventDefault();
   searchQuery = searchInput.value;
-  renderProductCards(getFilteredProducts());
+  refreshListing();
 });
+
+function bindListingFilters() {
+  const filters = document.getElementById("listing-filters");
+  if (!filters) return;
+  filters.addEventListener("click", (event) => {
+    const chip = event.target.closest(".filter-chip");
+    if (!chip) return;
+    if ("event" in chip.dataset) activeEvent = chip.dataset.event;
+    if ("brand" in chip.dataset) activeBrand = chip.dataset.brand;
+    refreshListing();
+  });
+}
 
 function initStorefront() {
   renderStorefrontCategories();
   bindCategoryFilters();
+  bindListingFilters();
   bindCategoryMenu();
   renderAccountState();
   if (shippingZipInput) shippingZipInput.value = getStoredZip();

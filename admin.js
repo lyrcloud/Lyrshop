@@ -14,6 +14,10 @@ const currentProducts = document.getElementById("current-products");
 const nameInput = document.getElementById("product-name");
 const descriptionInput = document.getElementById("product-description");
 const priceInput = document.getElementById("product-price");
+const brandInput = document.getElementById("product-brand");
+const brandOptions = document.getElementById("brand-options");
+const comparePriceInput = document.getElementById("product-compare-price");
+const saleEventInput = document.getElementById("product-sale-event");
 const categoryInput = document.getElementById("product-category");
 const subcategoryInput = document.getElementById("product-subcategory");
 const imageInput = document.getElementById("product-image");
@@ -163,6 +167,9 @@ function renderPreview() {
     name: nameInput.value || "Product name",
     description: descriptionInput.value || "Add a description to show here.",
     price: parseFloat(priceInput.value) || 0.0,
+    compare_at_price: parseFloat(comparePriceInput.value) || 0,
+    brand: brandInput.value.trim(),
+    sale_event: saleEventInput.value.trim(),
     category: categoryInput.value || "Demo",
     image_url: imageInput.value || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80",
   };
@@ -172,20 +179,24 @@ function renderPreview() {
       <img class="product-image" src="${escapeHtml(preview.image_url)}" alt="${escapeHtml(preview.name)}" />
       <div class="card-body">
         <div>
+          ${preview.brand ? `<small class="product-brand">${escapeHtml(preview.brand)}</small>` : ""}
           <h3>${escapeHtml(preview.name)}</h3>
           <p>${escapeHtml(preview.description)}</p>
         </div>
       </div>
       <div class="card-footer">
-        <span class="meta-pill">${escapeHtml(preview.category)}</span>
-        <span class="price">$${preview.price.toFixed(2)}</span>
+        <span class="meta-pill">${escapeHtml(preview.sale_event || preview.category)}</span>
+        <span class="price">
+          ${preview.compare_at_price > preview.price ? `<s class="was-price">$${preview.compare_at_price.toFixed(2)}</s>` : ""}
+          $${preview.price.toFixed(2)}
+        </span>
       </div>
     </div>
   `;
 }
 
 function canEditProduct(product, session) {
-  return session.role === "admin" || (product.seller_email && product.seller_email.toLowerCase() === session.email.toLowerCase());
+  return session.role === "admin" || (product.seller_email && product.seller_email.toLowerCase() === String(session.email || "").toLowerCase());
 }
 
 function renderProducts(products, session) {
@@ -212,8 +223,11 @@ function renderProducts(products, session) {
         </div>
       </div>
       <div class="card-footer">
-        <span class="meta-pill">${escapeHtml(product.category || "")}</span>
-        <span class="price">$${Number(product.price).toFixed(2)}</span>
+        <span class="meta-pill">${escapeHtml(product.sale_event || product.category || "")}</span>
+        <span class="price">
+          ${Number(product.compare_at_price) > Number(product.price) ? `<s class="was-price">$${Number(product.compare_at_price).toFixed(2)}</s>` : ""}
+          $${Number(product.price).toFixed(2)}
+        </span>
       </div>
       ${editable ? `
       <div class="table-actions" style="padding:0.5rem 1rem 1rem">
@@ -233,10 +247,16 @@ async function loadCurrentProducts(session) {
     const res = await fetch(url);
     const json = await res.json();
     renderProducts(json.products || [], session);
+    renderBrandOptions(json.products || []);
   } catch {
     currentProducts.innerHTML = "<p>Unable to load products. Make sure the backend is running.</p>";
     updateStats(0);
   }
+}
+
+function renderBrandOptions(products) {
+  const brands = [...new Set(products.map((product) => (product.brand || "").trim()).filter(Boolean))].sort();
+  brandOptions.innerHTML = brands.map((brand) => `<option value="${escapeHtml(brand)}"></option>`).join("");
 }
 
 function startEditProduct(product) {
@@ -244,6 +264,9 @@ function startEditProduct(product) {
   nameInput.value = product.name || "";
   descriptionInput.value = product.description || "";
   priceInput.value = product.price || "";
+  brandInput.value = product.brand || "";
+  comparePriceInput.value = product.compare_at_price || "";
+  saleEventInput.value = product.sale_event || "";
   categoryInput.value = product.category || "";
   updateSubcategoryOptions();
   subcategoryInput.value = product.subcategory || "";
@@ -271,10 +294,18 @@ async function submitProduct(event) {
   if (!session) return;
 
   const editId = productEditId.value;
+  const comparePrice = comparePriceInput.value === "" ? "" : parseFloat(comparePriceInput.value);
+  if (comparePrice !== "" && !(comparePrice > parseFloat(priceInput.value))) {
+    showMessage(message, "The was price must be higher than the price.", true);
+    return;
+  }
   const product = {
     name: nameInput.value.trim(),
     description: descriptionInput.value.trim(),
     price: parseFloat(priceInput.value),
+    compare_at_price: comparePrice,
+    brand: brandInput.value.trim(),
+    sale_event: saleEventInput.value.trim(),
     category: categoryInput.value.trim(),
     subcategory: subcategoryInput.value.trim(),
     image_url: imageInput.value.trim(),
@@ -734,6 +765,7 @@ currentProducts.addEventListener("click", handleProductActions);
 nameInput.addEventListener("input", renderPreview);
 descriptionInput.addEventListener("input", renderPreview);
 priceInput.addEventListener("input", renderPreview);
+[brandInput, comparePriceInput, saleEventInput].forEach((input) => input.addEventListener("input", renderPreview));
 categoryInput.addEventListener("input", () => { updateSubcategoryOptions(); renderPreview(); });
 imageInput.addEventListener("input", renderPreview);
 userForm.addEventListener("submit", saveUser);

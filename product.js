@@ -31,7 +31,8 @@ function normalizeProduct(product) {
   return {
     ...product,
     price,
-    original_price: Number(product.original_price) || price * 1.5,
+    // Only a real seller-set "was" price is shown; never invent a discount.
+    original_price: Number(product.compare_at_price) || 0,
     rating: Number(product.rating) || 4,
     image_url: product.image_url || DETAIL_PLACEHOLDER_IMAGE_URL,
   };
@@ -126,9 +127,11 @@ async function fetchProducts() {
 function renderSpecifics(product) {
   const specifics = [
     ["Condition", "New"],
-    ["Brand", "Lyrshop"],
-    ["Category", product.category],
-    ["Model", product.id.toUpperCase()],
+    ["Brand", product.brand
+      ? `<a href="index.html?view=brands&brand=${encodeURIComponent(product.brand)}#product-list">${escapeHtml(product.brand)}</a>`
+      : "Unbranded"],
+    ["Category", escapeHtml(product.category)],
+    ["Model", escapeHtml(product.id.toUpperCase())],
     ["Item location", "United States"],
     ["Returns", "30 days"],
   ];
@@ -157,7 +160,8 @@ function renderProduct(product) {
   document.getElementById("detail-description").textContent = product.description;
 
   const originalPrice = document.getElementById("detail-original-price");
-  originalPrice.textContent = product.original_price > product.price ? `Was $${product.original_price.toFixed(2)}` : "";
+  const wasPrice = product.original_price > product.price ? `Was $${product.original_price.toFixed(2)}` : "";
+  originalPrice.textContent = [wasPrice, wasPrice && product.sale_event].filter(Boolean).join(" · ");
 
   const detailImage = document.getElementById("detail-image");
   detailImage.src = product.image_url;
