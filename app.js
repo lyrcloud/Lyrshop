@@ -756,12 +756,12 @@ function renderProductCards(products) {
     return;
   }
 
-  productList.innerHTML = products.map((product) => {
+  productList.innerHTML = products.map((product, index) => {
     const discount = getDiscountPercent(product.original_price, product.price);
     const productUrl = `product.html?id=${encodeURIComponent(product.id)}`;
     const watched = isWatched(product.id);
     return `
-      <article class="product-card" data-product-id="${escapeHtml(product.id)}">
+      <article class="product-card" data-product-id="${escapeHtml(product.id)}" style="--i: ${Math.min(index, 12)}">
         <a class="card-image product-card-link" href="${productUrl}" aria-label="View ${escapeHtml(product.name)}">
           <img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy" />
           ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ""}

@@ -151,11 +151,10 @@ function addProductToCart(product, quantity) {
 }
 
 function renderProduct(product) {
-  const title = `${product.name} - ${product.description}`;
   document.title = `${product.name} - Lyrshop`;
   document.getElementById("breadcrumb-category").textContent = product.category;
   document.getElementById("breadcrumb-product").textContent = product.name;
-  document.getElementById("detail-title").textContent = title;
+  document.getElementById("detail-title").textContent = product.name;
   document.getElementById("detail-subtitle").textContent = `${product.rating.toFixed(1)} out of 5 seller rating | ${product.category}`;
   document.getElementById("detail-price").textContent = `$${product.price.toFixed(2)}`;
   document.getElementById("detail-description").textContent = product.description;
