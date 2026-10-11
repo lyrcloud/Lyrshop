@@ -504,6 +504,130 @@ function renderListingControls() {
   filters.hidden = !filters.innerHTML;
 }
 
+// ── Hero slider ─────────────────────────────────────────────────────────────
+// Sale slides come only from products with a real was price; the rest are category and brand promos.
+const HERO_IMAGE = (id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&h=520&q=70`;
+const HERO_AUTOPLAY_MS = 6000;
+const HERO_PROMOS = [
+  { eyebrow: "Welcome to Lyrshop", title: "Everyday picks and rare scores", text: "Browse 20 categories from Lyrshop sellers.",
+    cta: "Shop now", href: "#product-list", image: "1550009158-9ebf69173e03", tone: "#f7d7c4" },
+  { eyebrow: "Motors", title: "Gear up your ride", text: "Parts, accessories, tires and garage tools.",
+    cta: "Shop Motors", href: "index.html?category=Motors#product-list", image: "1492144534655-ae79c964c9d7", tone: "#dfe6f0" },
+  { eyebrow: "Electronics", title: "Tech for every day", text: "Laptops, phones, cameras and smart home.",
+    cta: "Shop Electronics", href: "index.html?category=Electronics#product-list", image: "1517336714731-489689fd1ca8", tone: "#e6e1f7" },
+  { eyebrow: "Clothing & Accessories", title: "Style that fits", text: "Clothing, handbags and collectible sneakers.",
+    cta: "Shop fashion", href: "index.html?category=Lifestyle#product-list", image: "1483985988355-763728e1935b", tone: "#f3e3e8" },
+  { eyebrow: "Home & Garden", title: "Refresh your space", text: "Furniture, kitchen, bedding and garden.",
+    cta: "Shop Home & Garden", href: "index.html?category=Home#product-list", image: "1505693416388-ac5ce068fe85", tone: "#ece6dc" },
+  { eyebrow: "All Brands", title: "Shop by brand", text: "Find your favorite makers, A to Z.",
+    cta: "Browse brands", href: "index.html?view=brands#product-list", image: "1441986300917-64674bd600d8", tone: "#e3efe6" },
+];
+let heroSlides = [];
+let heroIndex = 0;
+let heroTimer = null;
+
+function buildHeroSlides() {
+  const events = new Map();
+  allProducts.filter(isOnSale).forEach((product) => {
+    const name = product.sale_event || "Sale";
+    const event = events.get(name) || { count: 0, best: 0 };
+    event.count += 1;
+    event.best = Math.max(event.best, getDiscountPercent(product.original_price, product.price));
+    events.set(name, event);
+  });
+  const saleSlides = [...events.entries()]
+    .sort(([, a], [, b]) => b.count - a.count)
+    .map(([name, { count, best }]) => ({
+      eyebrow: "Sale event",
+      title: best ? `${name}: up to ${best}% off` : name,
+      text: `${count} marked-down ${count === 1 ? "item" : "items"} from Lyrshop sellers.`,
+      cta: "Shop the sale",
+      href: `index.html?view=deals${name === "Sale" ? "" : `&event=${encodeURIComponent(name)}`}#product-list`,
+      image: "1607082348824-0a96f2a4b9da",
+      tone: "#fde2e1",
+    }));
+  return [...saleSlides, ...HERO_PROMOS];
+}
+
+function goToHeroSlide(index) {
+  const track = document.getElementById("hero-track");
+  if (!track || !heroSlides.length) return;
+  heroIndex = (index + heroSlides.length) % heroSlides.length;
+  track.style.transform = `translateX(-${heroIndex * 100}%)`;
+  track.querySelectorAll(".hero-slide").forEach((slide, i) => {
+    const current = i === heroIndex;
+    slide.setAttribute("aria-hidden", String(!current));
+    slide.inert = !current;
+  });
+  document.querySelectorAll("#hero-dots button").forEach((dot, i) => {
+    dot.setAttribute("aria-selected", String(i === heroIndex));
+  });
+}
+
+function stopHeroAutoplay() {
+  window.clearInterval(heroTimer);
+  heroTimer = null;
+}
+
+function startHeroAutoplay() {
+  stopHeroAutoplay();
+  if (heroSlides.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  heroTimer = window.setInterval(() => goToHeroSlide(heroIndex + 1), HERO_AUTOPLAY_MS);
+}
+
+function renderHeroSlider() {
+  const track = document.getElementById("hero-track");
+  const dots = document.getElementById("hero-dots");
+  if (!track || !dots) return;
+  heroSlides = buildHeroSlides();
+  track.innerHTML = heroSlides.map((slide, i) => `
+    <article class="market-hero hero-slide" style="--hero-tone: ${slide.tone}" aria-roledescription="slide" aria-label="${i + 1} of ${heroSlides.length}">
+      <div class="market-hero-copy">
+        <p class="eyebrow">${escapeHtml(slide.eyebrow)}</p>
+        <h2>${escapeHtml(slide.title)}</h2>
+        <p>${escapeHtml(slide.text)}</p>
+        <a href="${escapeHtml(slide.href)}" class="button button-dark">${escapeHtml(slide.cta)}</a>
+      </div>
+      <div class="market-hero-visual" aria-hidden="true">
+        <img src="${HERO_IMAGE(slide.image)}" alt="" ${i === 0 ? "" : 'loading="lazy"'} />
+      </div>
+    </article>
+  `).join("");
+  dots.innerHTML = heroSlides.map((slide, i) => `
+    <button type="button" role="tab" aria-label="Slide ${i + 1}: ${escapeHtml(slide.title)}" data-slide="${i}"></button>
+  `).join("");
+  goToHeroSlide(0);
+  startHeroAutoplay();
+}
+
+function bindHeroSlider() {
+  const slider = document.getElementById("hero-slider");
+  if (!slider) return;
+  document.getElementById("hero-prev").addEventListener("click", () => { goToHeroSlide(heroIndex - 1); startHeroAutoplay(); });
+  document.getElementById("hero-next").addEventListener("click", () => { goToHeroSlide(heroIndex + 1); startHeroAutoplay(); });
+  document.getElementById("hero-dots").addEventListener("click", (event) => {
+    const dot = event.target.closest("[data-slide]");
+    if (!dot) return;
+    goToHeroSlide(Number(dot.dataset.slide));
+    startHeroAutoplay();
+  });
+  slider.addEventListener("mouseenter", stopHeroAutoplay);
+  slider.addEventListener("mouseleave", startHeroAutoplay);
+  slider.addEventListener("focusin", stopHeroAutoplay);
+  slider.addEventListener("focusout", startHeroAutoplay);
+
+  let touchStartX = null;
+  slider.addEventListener("touchstart", (event) => { touchStartX = event.touches[0].clientX; }, { passive: true });
+  slider.addEventListener("touchend", (event) => {
+    if (touchStartX === null) return;
+    const deltaX = event.changedTouches[0].clientX - touchStartX;
+    touchStartX = null;
+    if (Math.abs(deltaX) < 40) return;
+    goToHeroSlide(heroIndex + (deltaX < 0 ? 1 : -1));
+    startHeroAutoplay();
+  });
+}
+
 function refreshListing() {
   renderListingControls();
   renderProductCards(getFilteredProducts());
@@ -598,6 +722,8 @@ async function loadProducts() {
     allProducts = [];
   } finally {
     refreshListing();
+    // Rebuild once products arrive so real sale events get their own slides.
+    if (allProducts.some(isOnSale)) renderHeroSlider();
     window.clearTimeout(timeoutId);
   }
 }
@@ -798,6 +924,8 @@ function initStorefront() {
   bindCategoryFilters();
   bindListingFilters();
   bindCategoryMenu();
+  bindHeroSlider();
+  renderHeroSlider();
   renderAccountState();
   if (shippingZipInput) shippingZipInput.value = getStoredZip();
   renderShippingRates();

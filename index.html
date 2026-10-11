@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Marketplace - Buy & Sell Online</title>
-  <link rel="stylesheet" href="styles.css?v=20261011-7" />
+  <link rel="stylesheet" href="styles.css?v=20261011-9" />
 </head>
 <body>
   <header class="header">
@@ -55,16 +55,11 @@
   </header>
 
   <main class="main">
-    <section class="market-hero">
-      <div class="market-hero-copy">
-        <p class="eyebrow">Featured deal</p>
-        <h1>Find everyday picks and rare scores in one place.</h1>
-        <p>Browse electronics, home upgrades, fashion, audio gear, and collectibles from Lyrshop sellers.</p>
-        <a href="#product-list" class="button button-dark">Shop now</a>
-      </div>
-      <div class="market-hero-visual" aria-hidden="true">
-        <img src="https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=900&q=70" alt="" />
-      </div>
+    <section class="hero-slider" id="hero-slider" aria-roledescription="carousel" aria-label="Featured offers">
+      <div class="hero-track" id="hero-track"></div>
+      <button type="button" class="hero-arrow hero-arrow-prev" id="hero-prev" aria-label="Previous slide">&#8249;</button>
+      <button type="button" class="hero-arrow hero-arrow-next" id="hero-next" aria-label="Next slide">&#8250;</button>
+      <div class="hero-dots" id="hero-dots" role="tablist" aria-label="Choose slide"></div>
     </section>
 
     <section class="category-showcase" aria-label="Popular categories">
@@ -161,7 +156,7 @@
 
   <script src="auth.js?v=20261011-5"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="app.js?v=20261011-3"></script>
+  <script src="app.js?v=20261011-4"></script>
   <script>
     function renderLyrshopButton() {
       const headerActions = document.querySelector(".header-actions");
