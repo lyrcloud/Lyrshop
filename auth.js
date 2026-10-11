@@ -21,6 +21,12 @@ async function authApi(path, { method = "GET", body } = {}) {
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  // CloudFront swaps API 403/404 errors for the storefront page with a 200, so only JSON counts as an API reply.
+  if (!(response.headers.get("Content-Type") || "").includes("application/json")) {
+    const error = new Error("You don't have access to that, or it no longer exists.");
+    error.status = 403;
+    throw error;
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(data.message || "Something went wrong. Please try again.");
