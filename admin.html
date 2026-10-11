@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Seller Hub - Lyrshop</title>
-  <link rel="stylesheet" href="styles.css?v=20261011-3" />
+  <link rel="stylesheet" href="styles.css?v=20261011-4" />
 </head>
 <body>
   <header class="page-header">
@@ -109,6 +109,13 @@
           <p class="image-picker-status" role="status"></p>
         </div>
         </div>
+        <label>
+          Status
+          <select id="product-status">
+            <option value="published">Published (visible in store)</option>
+            <option value="draft">Draft (hidden from store)</option>
+          </select>
+        </label>
         <div class="admin-form-actions">
           <button type="submit" id="product-submit" class="button button-primary">List Product</button>
           <button type="button" id="product-cancel" class="button button-secondary" hidden>Cancel edit</button>
@@ -120,7 +127,18 @@
       </div>
       <div class="admin-products">
         <h3>Your listings</h3>
+        <div class="admin-product-filters">
+          <input type="search" id="product-filter-search" placeholder="Search name, brand, subcategory" aria-label="Search listings" />
+          <select id="product-filter-status" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="draft">Drafts</option>
+            <option value="published">Published</option>
+          </select>
+          <select id="product-filter-category" aria-label="Filter by category"></select>
+          <span id="product-filter-count" class="product-filter-count"></span>
+        </div>
         <div id="current-products" class="grid"></div>
+        <button type="button" id="product-show-more" class="button button-secondary" hidden>Show more</button>
       </div>
       <div id="message" class="admin-message"></div>
     </section>
@@ -220,6 +238,6 @@
 
   <script src="auth.js?v=20261011-3"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261011-3"></script>
+  <script src="admin.js?v=20261011-4"></script>
 </body>
 </html>

@@ -18,6 +18,12 @@ const brandInput = document.getElementById("product-brand");
 const brandOptions = document.getElementById("brand-options");
 const comparePriceInput = document.getElementById("product-compare-price");
 const saleEventInput = document.getElementById("product-sale-event");
+const statusInput = document.getElementById("product-status");
+const productFilterSearch = document.getElementById("product-filter-search");
+const productFilterStatus = document.getElementById("product-filter-status");
+const productFilterCategory = document.getElementById("product-filter-category");
+const productFilterCount = document.getElementById("product-filter-count");
+const productShowMore = document.getElementById("product-show-more");
 const categoryInput = document.getElementById("product-category");
 const subcategoryInput = document.getElementById("product-subcategory");
 const imageInput = document.getElementById("product-image");
@@ -199,31 +205,58 @@ function canEditProduct(product, session) {
   return session.role === "admin" || (product.seller_email && product.seller_email.toLowerCase() === String(session.email || "").toLowerCase());
 }
 
-function renderProducts(products, session) {
-  currentProducts.innerHTML = "";
-  updateStats(products.length);
+const ADMIN_PRODUCT_PAGE_SIZE = 48;
+let adminProducts = [];
+let adminProductLimit = ADMIN_PRODUCT_PAGE_SIZE;
 
-  if (!products.length) {
-    currentProducts.innerHTML = "<p>No products yet. Use the form above to add your first listing.</p>";
+function getVisibleAdminProducts() {
+  const query = productFilterSearch.value.trim().toLowerCase();
+  const status = productFilterStatus.value;
+  const category = productFilterCategory.value;
+  return adminProducts.filter((product) => {
+    if (status && (product.status || "published") !== status) return false;
+    if (category && product.category !== category) return false;
+    if (!query) return true;
+    return [product.name, product.brand, product.subcategory, product.description]
+      .some((field) => String(field || "").toLowerCase().includes(query));
+  });
+}
+
+function renderProducts(session) {
+  currentProducts.innerHTML = "";
+  updateStats(adminProducts.length);
+  const draftCount = adminProducts.filter((product) => product.status === "draft").length;
+  const visible = getVisibleAdminProducts();
+  productFilterCount.textContent = `${visible.length} of ${adminProducts.length} listings · ${draftCount} drafts`;
+
+  if (!visible.length) {
+    currentProducts.innerHTML = adminProducts.length
+      ? "<p>No listings match these filters.</p>"
+      : "<p>No products yet. Use the form above to add your first listing.</p>";
+    productShowMore.hidden = true;
     return;
   }
 
-  products.forEach((product) => {
+  visible.slice(0, adminProductLimit).forEach((product) => {
     const card = document.createElement("div");
-    const imageUrl = product.image_url || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80";
+    const imageUrl = product.image_url || "logo.svg";
     const editable = canEditProduct(product, session);
-    card.className = "card";
+    const isDraft = product.status === "draft";
+    card.className = isDraft ? "card draft-card" : "card";
     card.innerHTML = `
-      <img class="product-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name)}" />
+      <img class="product-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name)}" loading="lazy" />
       <div class="card-body">
         <div>
+          ${isDraft ? `<span class="draft-badge">Draft · hidden from store</span>` : ""}
+          ${product.brand ? `<small class="product-brand">${escapeHtml(product.brand)}</small>` : ""}
           <h3>${escapeHtml(product.name)}</h3>
           <p>${escapeHtml(product.description || "No description.")}</p>
+          ${isDraft && product.draft_notes ? `<p class="draft-notes">${escapeHtml(product.draft_notes)}</p>` : ""}
           ${product.seller_name ? `<small>by ${escapeHtml(product.seller_name)}</small>` : ""}
         </div>
       </div>
       <div class="card-footer">
-        <span class="meta-pill">${escapeHtml(product.sale_event || product.category || "")}</span>
+        <span class="meta-pill">${escapeHtml(product.sale_event || product.subcategory || product.category || "")}</span>
         <span class="price">
           ${Number(product.compare_at_price) > Number(product.price) ? `<s class="was-price">$${Number(product.compare_at_price).toFixed(2)}</s>` : ""}
           $${Number(product.price).toFixed(2)}
@@ -231,23 +264,35 @@ function renderProducts(products, session) {
       </div>
       ${editable ? `
       <div class="table-actions" style="padding:0.5rem 1rem 1rem">
-        <button class="button button-secondary" type="button" data-product-action="edit" data-product-id="${escapeHtml(product.id)}">Edit</button>
+        <button class="button button-secondary" type="button" data-product-action="edit" data-product-id="${escapeHtml(product.id)}">${isDraft ? "Edit & publish" : "Edit"}</button>
         <button class="button danger-button" type="button" data-product-action="delete" data-product-id="${escapeHtml(product.id)}">Delete</button>
       </div>` : ""}
     `;
     currentProducts.appendChild(card);
   });
+  const remaining = visible.length - adminProductLimit;
+  productShowMore.hidden = remaining <= 0;
+  productShowMore.textContent = `Show ${Math.min(remaining, ADMIN_PRODUCT_PAGE_SIZE)} more`;
+}
+
+function renderProductFilterCategories() {
+  const selected = productFilterCategory.value;
+  productFilterCategory.innerHTML = `<option value="">All categories</option>${readCategories()
+    .map((category) => `<option value="${escapeHtml(category.name)}">${escapeHtml(category.label)}</option>`).join("")}`;
+  productFilterCategory.value = selected;
 }
 
 async function loadCurrentProducts(session) {
   const url = session.role === "admin"
-    ? `${API_BASE_URL}/products`
-    : `${API_BASE_URL}/products?seller=${encodeURIComponent(session.email)}`;
+    ? `${API_BASE_URL}/products?include_drafts=1`
+    : `${API_BASE_URL}/products?include_drafts=1&seller=${encodeURIComponent(session.email)}`;
   try {
     const res = await fetch(url);
     const json = await res.json();
-    renderProducts(json.products || [], session);
-    renderBrandOptions(json.products || []);
+    adminProducts = json.products || [];
+    renderProductFilterCategories();
+    renderProducts(session);
+    renderBrandOptions(adminProducts);
   } catch {
     currentProducts.innerHTML = "<p>Unable to load products. Make sure the backend is running.</p>";
     updateStats(0);
@@ -267,6 +312,8 @@ function startEditProduct(product) {
   brandInput.value = product.brand || "";
   comparePriceInput.value = product.compare_at_price || "";
   saleEventInput.value = product.sale_event || "";
+  // Opening a draft defaults to publishing it; the photo check in submitProduct still applies.
+  statusInput.value = "published";
   categoryInput.value = product.category || "";
   updateSubcategoryOptions();
   subcategoryInput.value = product.subcategory || "";
@@ -299,7 +346,12 @@ async function submitProduct(event) {
     showMessage(message, "The was price must be higher than the price.", true);
     return;
   }
+  if (statusInput.value === "published" && !imageInput.value.trim()) {
+    showMessage(message, "Add a product photo before publishing, or save it as a draft.", true);
+    return;
+  }
   const product = {
+    status: statusInput.value,
     name: nameInput.value.trim(),
     description: descriptionInput.value.trim(),
     price: parseFloat(priceInput.value),
@@ -371,14 +423,8 @@ function handleProductActions(event) {
   }
 
   if (button.dataset.productAction === "edit") {
-    // find the product data from the rendered cards — re-fetch to get full data
-    fetch(`${API_BASE_URL}/products`)
-      .then((r) => r.json())
-      .then((json) => {
-        const product = (json.products || []).find((p) => p.id === productId);
-        if (product) startEditProduct(product);
-      })
-      .catch(() => showMessage(message, "Unable to load product for editing.", true));
+    const product = adminProducts.find((p) => p.id === productId);
+    if (product) startEditProduct(product);
   }
 }
 
@@ -762,6 +808,15 @@ function initImagePickers() {
 form.addEventListener("submit", submitProduct);
 productCancel.addEventListener("click", cancelProductEdit);
 currentProducts.addEventListener("click", handleProductActions);
+productFilterSearch.addEventListener("input", () => { adminProductLimit = ADMIN_PRODUCT_PAGE_SIZE; renderProducts(readSession()); });
+[productFilterStatus, productFilterCategory].forEach((select) => select.addEventListener("change", () => {
+  adminProductLimit = ADMIN_PRODUCT_PAGE_SIZE;
+  renderProducts(readSession());
+}));
+productShowMore.addEventListener("click", () => {
+  adminProductLimit += ADMIN_PRODUCT_PAGE_SIZE;
+  renderProducts(readSession());
+});
 nameInput.addEventListener("input", renderPreview);
 descriptionInput.addEventListener("input", renderPreview);
 priceInput.addEventListener("input", renderPreview);
