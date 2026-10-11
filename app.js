@@ -59,38 +59,7 @@ const paymentMethods = {
   },
 };
 
-const defaultStorefrontCategories = [
-  {
-    name: "Electronics",
-    label: "Electronics",
-    subcategories: ["Computers & tablets", "Phones", "Cameras", "Accessories"],
-    image_url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=320&q=70",
-  },
-  {
-    name: "Audio",
-    label: "Audio",
-    subcategories: ["Headphones", "Speakers", "Microphones", "Home audio"],
-    image_url: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=320&q=70",
-  },
-  {
-    name: "Home",
-    label: "Home & Garden",
-    subcategories: ["Lighting", "Kitchen", "Furniture", "Garden"],
-    image_url: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=320&q=70",
-  },
-  {
-    name: "Lifestyle",
-    label: "Fashion",
-    subcategories: ["Bags", "Shoes", "Accessories", "Activewear"],
-    image_url: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=320&q=70",
-  },
-  {
-    name: "Stationery",
-    label: "Collectibles",
-    subcategories: ["Pens", "Notebooks", "Art supplies", "Memorabilia"],
-    image_url: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=320&q=70",
-  },
-];
+const defaultStorefrontCategories = LYRSHOP_DEFAULT_CATEGORIES;
 
 const PLACEHOLDER_IMAGE_URL = "logo.svg";
 
@@ -347,6 +316,9 @@ function setActiveCategory(categoryName, subcategory = "") {
   renderProductCards(getFilteredProducts());
 }
 
+// Mega menus show the first few subcategories per group; "See all" opens the whole category.
+const CATEGORY_MENU_SUBCATEGORY_LIMIT = 6;
+
 function renderCategoryMenu(categories) {
   if (!categoryMenuPanel) return;
 
@@ -356,9 +328,12 @@ function renderCategoryMenu(categories) {
         <section class="category-menu-group">
           <button type="button" class="category-menu-heading" data-menu-category="${escapeHtml(category.name)}">${escapeHtml(category.label)}</button>
           <div>
-            ${(category.subcategories || []).map((subcategory) => `
+            ${(category.subcategories || []).slice(0, CATEGORY_MENU_SUBCATEGORY_LIMIT).map((subcategory) => `
               <button type="button" class="category-menu-link" data-menu-category="${escapeHtml(category.name)}" data-menu-subcategory="${escapeHtml(subcategory)}">${escapeHtml(subcategory)}</button>
             `).join("")}
+            ${(category.subcategories || []).length > CATEGORY_MENU_SUBCATEGORY_LIMIT ? `
+              <button type="button" class="category-menu-link category-menu-more" data-menu-category="${escapeHtml(category.name)}">See all ${escapeHtml(category.label)}</button>
+            ` : ""}
           </div>
         </section>
       `).join("")}
@@ -383,7 +358,7 @@ function renderStorefrontCategories() {
   }
 
   if (showcase) {
-    showcase.innerHTML = categories.map((category) => `
+    showcase.innerHTML = categories.filter((category) => category.featured !== false).map((category) => `
       <a href="#product-list" class="category-shortcut" data-shortcut-category="${escapeHtml(category.name)}">
         <span class="shortcut-image"><img src="${escapeHtml(category.image_url || defaultStorefrontCategories[0].image_url)}" alt="" /></span>
         <strong>${escapeHtml(category.label)}</strong>

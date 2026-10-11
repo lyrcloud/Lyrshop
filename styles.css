@@ -126,8 +126,8 @@ textarea {
   position: absolute;
   top: calc(100% + 0.55rem);
   left: 0;
-  width: min(780px, calc(100vw - 2rem));
-  max-height: min(70vh, 560px);
+  width: min(1040px, calc(100vw - 2rem));
+  max-height: min(75vh, 640px);
   overflow: auto;
   padding: 1rem;
   border: 1px solid #d9dde6;
@@ -139,7 +139,7 @@ textarea {
 
 .category-menu-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 1rem;
 }
 
@@ -2349,4 +2349,9 @@ footer p {
 .phone-input input {
   min-height: 46px;
   margin-top: 0;
+}
+
+.category-menu-link.category-menu-more {
+  color: #0654ba;
+  font-weight: 700;
 }

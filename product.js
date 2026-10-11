@@ -4,13 +4,7 @@ const DETAIL_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(windo
 const DETAIL_REQUEST_TIMEOUT_MS = 2000;
 const DETAIL_CATEGORIES_KEY = "lyrshopCategories";
 
-const detailCategories = [
-  { name: "Electronics", label: "Electronics", subcategories: ["Computers & tablets", "Phones", "Cameras", "Accessories"] },
-  { name: "Audio", label: "Audio", subcategories: ["Headphones", "Speakers", "Microphones", "Home audio"] },
-  { name: "Home", label: "Home & Garden", subcategories: ["Lighting", "Kitchen", "Furniture", "Garden"] },
-  { name: "Lifestyle", label: "Fashion", subcategories: ["Bags", "Shoes", "Accessories", "Activewear"] },
-  { name: "Stationery", label: "Collectibles", subcategories: ["Pens", "Notebooks", "Art supplies", "Memorabilia"] },
-];
+const detailCategories = LYRSHOP_DEFAULT_CATEGORIES;
 
 const DETAIL_PLACEHOLDER_IMAGE_URL = "logo.svg";
 
@@ -70,6 +64,9 @@ function readDetailCategories() {
   }
 }
 
+// Mega menus show the first few subcategories per group; "See all" opens the whole category.
+const CATEGORY_MENU_SUBCATEGORY_LIMIT = 6;
+
 function bindCategoryMenu() {
   const button = document.getElementById("detail-category-menu-button");
   const panel = document.getElementById("detail-category-menu-panel");
@@ -82,9 +79,12 @@ function bindCategoryMenu() {
         <section class="category-menu-group">
           <a class="category-menu-heading" href="index.html?category=${encodeURIComponent(category.name)}#product-list">${escapeHtml(category.label)}</a>
           <div>
-            ${(category.subcategories || []).map((subcategory) => `
+            ${(category.subcategories || []).slice(0, CATEGORY_MENU_SUBCATEGORY_LIMIT).map((subcategory) => `
               <a class="category-menu-link" href="index.html?category=${encodeURIComponent(category.name)}&subcategory=${encodeURIComponent(subcategory)}#product-list">${escapeHtml(subcategory)}</a>
             `).join("")}
+            ${(category.subcategories || []).length > CATEGORY_MENU_SUBCATEGORY_LIMIT ? `
+              <a class="category-menu-link category-menu-more" href="index.html?category=${encodeURIComponent(category.name)}#product-list">See all ${escapeHtml(category.label)}</a>
+            ` : ""}
           </div>
         </section>
       `).join("")}

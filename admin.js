@@ -5,38 +5,7 @@ const USERS_KEY = "lyrshopUsers";
 const SESSION_KEY = "lyrshopSession";
 const CATEGORIES_KEY = "lyrshopCategories";
 
-const defaultCategories = [
-  {
-    name: "Electronics",
-    label: "Electronics",
-    subcategories: ["Computers & tablets", "Phones", "Cameras", "Accessories"],
-    image_url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=320&q=70",
-  },
-  {
-    name: "Audio",
-    label: "Audio",
-    subcategories: ["Headphones", "Speakers", "Microphones", "Home audio"],
-    image_url: "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=320&q=70",
-  },
-  {
-    name: "Home",
-    label: "Home & Garden",
-    subcategories: ["Lighting", "Kitchen", "Furniture", "Garden"],
-    image_url: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=320&q=70",
-  },
-  {
-    name: "Lifestyle",
-    label: "Fashion",
-    subcategories: ["Bags", "Shoes", "Accessories", "Activewear"],
-    image_url: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=320&q=70",
-  },
-  {
-    name: "Stationery",
-    label: "Collectibles",
-    subcategories: ["Pens", "Notebooks", "Art supplies", "Memorabilia"],
-    image_url: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?auto=format&fit=crop&w=320&q=70",
-  },
-];
+const defaultCategories = LYRSHOP_DEFAULT_CATEGORIES;
 
 const form = document.getElementById("product-form");
 const message = document.getElementById("message");
@@ -145,6 +114,8 @@ function readCategories() {
 
 function saveCategories(categories) {
   localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories.map(normalizeCategory)));
+  // Saved lists are already current; stop categories.js from re-adding defaults the admin removed.
+  localStorage.setItem(LYRSHOP_CATEGORIES_VERSION_KEY, String(LYRSHOP_CATEGORIES_VERSION));
 }
 
 function normalizeCategory(category) {
@@ -545,7 +516,8 @@ function saveCategory(event) {
   };
 
   if (editIndex >= 0) {
-    categories[editIndex] = nextCategory;
+    // Keep fields the form doesn't edit, such as whether the category has a home-page tile.
+    categories[editIndex] = { ...categories[editIndex], ...nextCategory };
     showMessage(categoryMessage, "Category updated.");
   } else {
     categories.push(nextCategory);
