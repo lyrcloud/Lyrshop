@@ -1,4 +1,5 @@
-const AUTH_USERS_KEY = "lyrshopUsers";
+// Accounts saved in the browser before server accounts existed; only read to explain why they no longer work.
+const LEGACY_USERS_KEY = "lyrshopUsers";
 const AUTH_SESSION_KEY = "lyrshopSession";
 const AUTH_ORDERS_KEY = "lyrshopOrders";
 const ADMIN_EMAIL = "lyrclouds@gmail.com";
@@ -10,17 +11,27 @@ const AUTH_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.
   ? "http://127.0.0.1:5000"
   : "";
 
-async function postAuthApi(path, body) {
+// Calls the account API, sending the signed-in user's session token. Throws with the server's message on failure.
+async function authApi(path, { method = "GET", body } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  const token = getCurrentUser()?.token;
+  if (token) headers.Authorization = `Bearer ${token}`;
   const response = await fetch(`${AUTH_API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.message || "Something went wrong. Please try again.");
+    const error = new Error(data.message || "Something went wrong. Please try again.");
+    error.status = response.status;
+    throw error;
   }
-  return data;
+  return { ...data, status: response.status };
+}
+
+function postAuthApi(path, body) {
+  return authApi(path, { method: "POST", body });
 }
 
 // Accounts sign up with an email or an E.164 mobile number; this is whichever one they used.
@@ -30,12 +41,6 @@ function getAccountId(user) {
 
 function getAccountContact(user) {
   return user?.email || user?.phone || "";
-}
-
-function findUserByContact(users, contact) {
-  return users.find((user) => (contact.kind === "phone"
-    ? user.phone === contact.value
-    : String(user.email || "").toLowerCase() === contact.value));
 }
 
 function getRoleForEmail(email) {
@@ -49,21 +54,30 @@ function withResolvedRole(user) {
   };
 }
 
-function getUsers() {
-  return JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || "[]").map(withResolvedRole);
-}
-
-function saveUsers(users) {
-  localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users.map(withResolvedRole)));
-}
-
 function getCurrentUser() {
   const user = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
+  // Sessions from before server accounts carry no token and can't be trusted; sign them out.
+  if (user && !user.token) {
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    return null;
+  }
   return user ? withResolvedRole(user) : null;
 }
 
-function setCurrentUser(user) {
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(withResolvedRole(user)));
+// Stores the server's public profile with its signed session token.
+function setCurrentUser(user, token) {
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ ...withResolvedRole(user), token }));
+}
+
+function hadLegacyAccount(contact) {
+  try {
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_USERS_KEY) || "[]");
+    return legacy.some((user) => (contact.kind === "phone"
+      ? user.phone === contact.value
+      : String(user.email || "").toLowerCase() === contact.value));
+  } catch {
+    return false;
+  }
 }
 
 function clearCurrentUser() {
@@ -93,24 +107,6 @@ function saveOrderForCurrentUser(order) {
     createdAt: new Date().toISOString(),
   });
   localStorage.setItem(AUTH_ORDERS_KEY, JSON.stringify(orders));
-}
-
-function upsertUser(user) {
-  const users = getUsers();
-  const index = users.findIndex((storedUser) => getAccountId(storedUser) === getAccountId(user));
-  if (index >= 0) {
-    users[index] = { ...users[index], ...user };
-  } else {
-    users.push(user);
-  }
-  saveUsers(users);
-  setCurrentUser({
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
-    provider: user.provider,
-    role: getRoleForEmail(user.email),
-  });
 }
 
 // [ISO code, name, dial code]; US/Canada and other +1 countries share a dial code, so options are keyed by ISO.
@@ -287,41 +283,31 @@ function initAuthPage() {
       return;
     }
     const password = passwordInput.value;
-    const existingUser = findUserByContact(getUsers(), contact);
-    const contactLabel = contact.kind === "phone" ? "mobile number" : "email";
 
     if (mode === "signup") {
-      if (existingUser) {
-        message.textContent = `An account already exists for that ${contactLabel}.`;
-        return;
-      }
       submitButton.disabled = true;
       await startVerification({
-        name: nameInput.value.trim() || (contact.kind === "email" ? contact.value.split("@")[0] : contact.value),
+        name: nameInput.value.trim(),
         [contact.kind]: contact.value,
         password,
-        provider: contact.kind === "phone" ? "Mobile" : "Email",
-        role: contact.kind === "email" ? getRoleForEmail(contact.value) : "user",
       });
       submitButton.disabled = false;
       return;
     }
 
-    if (!existingUser || existingUser.password !== password) {
-      message.textContent = contact.kind === "phone"
-        ? "Mobile number or password is incorrect."
-        : "Email or password is incorrect.";
-      return;
+    submitButton.disabled = true;
+    message.textContent = "Signing in...";
+    try {
+      const result = await postAuthApi("/auth/login", { [contact.kind]: contact.value, password });
+      setCurrentUser(result.user, result.token);
+      window.location.href = getAuthReturnTo();
+    } catch (error) {
+      message.textContent = error.status === 401 && hadLegacyAccount(contact)
+        ? "Lyrshop accounts moved to our new secure system. Please sign up again with this email or number."
+        : error.message;
+    } finally {
+      submitButton.disabled = false;
     }
-
-    setCurrentUser({
-      name: existingUser.name,
-      email: existingUser.email,
-      phone: existingUser.phone,
-      provider: existingUser.provider || "Email",
-      role: getRoleForEmail(existingUser.email),
-    });
-    window.location.href = getAuthReturnTo();
   });
 
   verifyForm.addEventListener("submit", async (event) => {
@@ -331,11 +317,16 @@ function initAuthPage() {
     verifyButton.disabled = true;
     verifyMessage.textContent = "Checking code...";
     try {
-      await postAuthApi("/auth/verify/confirm", {
-        ...verificationTarget(),
-        code: verifyCodeInput.value.trim(),
-      });
-      upsertUser({ ...pendingSignup, [pendingSignup.phone ? "phoneVerified" : "emailVerified"]: true });
+      const code = verifyCodeInput.value.trim();
+      const result = pendingSignup.googleCredential
+        ? await postAuthApi("/auth/google", { credential: pendingSignup.googleCredential, code })
+        : await postAuthApi("/auth/register", {
+          ...verificationTarget(),
+          name: pendingSignup.name,
+          password: pendingSignup.password,
+          code,
+        });
+      setCurrentUser(result.user, result.token);
       window.location.href = getAuthReturnTo();
     } catch (error) {
       verifyMessage.textContent = error.message;
@@ -362,29 +353,22 @@ function initAuthPage() {
     (contactKind === "phone" ? phoneInput : emailInput).focus();
   });
 
-  function onGoogleCredential(response) {
-    let googleUser;
+  // The server checks the Google credential; new Google users still confirm an emailed code.
+  async function onGoogleCredential(response) {
+    message.textContent = "Signing in with Google...";
     try {
-      const payload = JSON.parse(atob(response.credential.split(".")[1]));
-      const email = payload.email.toLowerCase();
-      googleUser = {
-        name: payload.name || email.split("@")[0],
-        email,
-        provider: "Google",
-        role: getRoleForEmail(email),
-      };
-    } catch {
-      message.textContent = "Google sign-in failed. Please try again.";
-      return;
+      const result = await postAuthApi("/auth/google", { credential: response.credential });
+      if (result.verification_required) {
+        message.textContent = "";
+        pendingSignup = { email: result.email, googleCredential: response.credential };
+        openVerifyDialog();
+        return;
+      }
+      setCurrentUser(result.user, result.token);
+      window.location.href = getAuthReturnTo();
+    } catch (error) {
+      message.textContent = error.message;
     }
-
-    const isNewUser = !findUserByContact(getUsers(), { kind: "email", value: googleUser.email });
-    if (isNewUser) {
-      startVerification(googleUser);
-      return;
-    }
-    upsertUser(googleUser);
-    window.location.href = getAuthReturnTo();
   }
 
   function initGoogle() {

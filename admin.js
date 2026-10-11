@@ -1,8 +1,6 @@
 const API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname)
   ? "http://localhost:5000"
   : "";
-const USERS_KEY = "lyrshopUsers";
-const SESSION_KEY = "lyrshopSession";
 const CATEGORIES_KEY = "lyrshopCategories";
 
 const defaultCategories = LYRSHOP_DEFAULT_CATEGORIES;
@@ -39,7 +37,6 @@ const userEditIndex = document.getElementById("user-edit-index");
 const userName = document.getElementById("user-name");
 const userEmail = document.getElementById("user-email");
 const userPassword = document.getElementById("user-password");
-const userProvider = document.getElementById("user-provider");
 const userSubmit = document.getElementById("user-submit");
 const userCancel = document.getElementById("user-cancel");
 const userMessage = document.getElementById("user-message");
@@ -90,30 +87,20 @@ function withResolvedUserRole(user) {
   return { ...user, role: getRoleForEmail(user.email) };
 }
 
-function readUsers() {
-  return readJson(USERS_KEY, []).map(withResolvedUserRole);
-}
-
-function saveUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users.map(withResolvedUserRole)));
-}
+// Accounts live on the server; admins load them through the /auth/users API (see auth.js authApi).
+let adminUsers = [];
 
 function readSession() {
-  const session = JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-  return session ? withResolvedUserRole(session) : null;
-}
-
-function saveSession(user) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(withResolvedUserRole(user)));
+  return getCurrentUser();
 }
 
 function requireUser() {
   const session = readSession();
   if (!session) {
+    localStorage.setItem("lyrshopAuthReturnTo", "admin.html");
     window.location.href = "auth.html";
     return null;
   }
-  saveSession(session);
   return session;
 }
 
@@ -147,7 +134,7 @@ function showMessage(element, text, isError = false) {
 
 function updateStats(productTotal = null) {
   if (productTotal !== null) productCount.textContent = productTotal;
-  if (userCount) userCount.textContent = readUsers().length;
+  if (userCount) userCount.textContent = adminUsers.length;
   categoryCount.textContent = readCategories().length;
 }
 
@@ -433,26 +420,42 @@ function handleProductActions(event) {
 function resetUserForm() {
   userForm.reset();
   userEditIndex.value = "";
+  userEmail.disabled = false;
+  userPassword.required = true;
+  userPassword.placeholder = "At least 6 characters";
   userSubmit.textContent = "Create user";
   showMessage(userMessage, "");
 }
 
+async function loadUsers() {
+  try {
+    adminUsers = (await authApi("/auth/users")).users || [];
+    renderUsers();
+  } catch (error) {
+    userTableBody.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
+    if (error.status === 401) {
+      clearCurrentUser();
+      requireUser();
+    }
+  }
+}
+
 function renderUsers() {
-  const users = readUsers();
   updateStats();
 
-  if (!users.length) {
-    userTableBody.innerHTML = `<tr><td colspan="5">No users yet. Create one here or sign up from the auth page.</td></tr>`;
+  if (!adminUsers.length) {
+    userTableBody.innerHTML = `<tr><td colspan="6">No users yet. Create one here or sign up from the auth page.</td></tr>`;
     return;
   }
 
-  userTableBody.innerHTML = users
+  userTableBody.innerHTML = adminUsers
     .map((user, index) => `
       <tr>
         <td>${escapeHtml(user.name)}</td>
         <td>${escapeHtml(user.email || user.phone)}</td>
         <td>${escapeHtml(user.role)}</td>
         <td>${escapeHtml(user.provider || "Email")}</td>
+        <td>${user.created_at ? new Date(user.created_at * 1000).toLocaleDateString() : ""}</td>
         <td>
           <div class="table-actions">
             <button class="button button-secondary" type="button" data-user-action="edit" data-index="${index}">Edit</button>
@@ -464,73 +467,63 @@ function renderUsers() {
     .join("");
 }
 
-function saveUser(event) {
+async function saveUser(event) {
   event.preventDefault();
-  const users = readUsers();
   const editIndex = userEditIndex.value === "" ? -1 : Number(userEditIndex.value);
-  const email = userEmail.value.trim().toLowerCase();
-  const duplicateIndex = users.findIndex((user, index) => String(user.email || "").toLowerCase() === email && index !== editIndex);
-
-  if (duplicateIndex >= 0) {
-    showMessage(userMessage, "A user with that email already exists.", true);
-    return;
-  }
-
-  const nextUser = {
-    name: userName.value.trim() || email.split("@")[0],
-    email,
-    password: userPassword.value,
-    provider: userProvider.value,
-    role: getRoleForEmail(email),
-  };
-
-  if (editIndex >= 0) {
-    const previousEmail = users[editIndex]?.email;
-    users[editIndex] = nextUser;
-    const session = readSession();
-    if (session?.email?.toLowerCase() === previousEmail?.toLowerCase()) {
-      saveSession({ name: nextUser.name, email: nextUser.email, provider: nextUser.provider });
+  const contact = userEmail.value.trim();
+  const body = { name: userName.value.trim() };
+  if (userPassword.value) body.password = userPassword.value;
+  userSubmit.disabled = true;
+  try {
+    let done;
+    if (editIndex >= 0) {
+      const account = adminUsers[editIndex].account;
+      await authApi(`/auth/users/${encodeURIComponent(account)}`, { method: "PUT", body });
+      done = "User updated.";
+    } else {
+      body[contact.startsWith("+") ? "phone" : "email"] = contact;
+      await authApi("/auth/users", { method: "POST", body });
+      done = "User created.";
     }
-    showMessage(userMessage, "User updated.");
-  } else {
-    users.push(nextUser);
-    showMessage(userMessage, "User created.");
+    resetUserForm();
+    showMessage(userMessage, done);
+    await loadUsers();
+  } catch (error) {
+    showMessage(userMessage, error.message, true);
+  } finally {
+    userSubmit.disabled = false;
   }
-
-  saveUsers(users);
-  resetUserForm();
-  renderUsers();
 }
 
-function handleUserTableClick(event) {
+async function handleUserTableClick(event) {
   const button = event.target.closest("[data-user-action]");
   if (!button) return;
 
-  const users = readUsers();
-  const index = Number(button.dataset.index);
-  const user = users[index];
+  const user = adminUsers[Number(button.dataset.index)];
   if (!user) return;
 
   if (button.dataset.userAction === "edit") {
-    userEditIndex.value = index;
+    userEditIndex.value = button.dataset.index;
     userName.value = user.name || "";
-    userEmail.value = user.email || "";
-    userPassword.value = user.password || "";
-    userProvider.value = user.provider || "Email";
+    userEmail.value = user.email || user.phone || "";
+    userEmail.disabled = true;
+    userPassword.value = "";
+    userPassword.required = false;
+    userPassword.placeholder = "Leave blank to keep the current password";
     userSubmit.textContent = "Update user";
     showMessage(userMessage, "Editing user.");
     return;
   }
 
-  users.splice(index, 1);
-  saveUsers(users);
-  const session = readSession();
-  if (session && getAccountId(session) === getAccountId(user)) {
-    localStorage.removeItem(SESSION_KEY);
+  if (!confirm(`Delete ${user.email || user.phone}? They will need to sign up again.`)) return;
+  try {
+    await authApi(`/auth/users/${encodeURIComponent(user.account)}`, { method: "DELETE" });
+    resetUserForm();
+    await loadUsers();
+    showMessage(userMessage, "User deleted.");
+  } catch (error) {
+    showMessage(userMessage, error.message, true);
   }
-  resetUserForm();
-  renderUsers();
-  showMessage(userMessage, "User deleted.");
 }
 
 // ── Category management ────────────────────────────────────────────────────────
@@ -859,7 +852,7 @@ if (session) {
   loadCurrentProducts(session);
 
   if (isAdmin) {
-    renderUsers();
+    loadUsers();
     renderCategories();
   }
 }

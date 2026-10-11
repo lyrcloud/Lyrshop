@@ -145,8 +145,8 @@
 
     <section class="admin-panel admin-section admin-only" id="admin-users-section">
       <div class="panel-header">
-        <h2>User CRUD</h2>
-        <p>Create, edit, and remove demo users stored in this browser.</p>
+        <h2>Users</h2>
+        <p>Every Lyrshop account, newest first. Passwords are stored securely and never shown.</p>
       </div>
       <form id="user-form" class="admin-crud-form">
         <input type="hidden" id="user-edit-index" />
@@ -155,19 +155,12 @@
           <input type="text" id="user-name" placeholder="Alex Morgan" required />
         </label>
         <label>
-          Email
-          <input type="email" id="user-email" placeholder="alex@example.com" required />
+          Email or mobile (+country code)
+          <input type="text" id="user-email" placeholder="alex@example.com or +14155550100" required />
         </label>
         <label>
           Password
-          <input type="text" id="user-password" minlength="6" placeholder="At least 6 characters" required />
-        </label>
-        <label>
-          Provider
-          <select id="user-provider">
-            <option>Email</option>
-            <option>Google</option>
-          </select>
+          <input type="password" id="user-password" minlength="6" placeholder="At least 6 characters" autocomplete="new-password" required />
         </label>
         <div class="admin-form-actions">
           <button type="submit" id="user-submit" class="button button-primary">Create user</button>
@@ -183,6 +176,7 @@
               <th>Email / Mobile</th>
               <th>Role</th>
               <th>Provider</th>
+              <th>Joined</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -236,8 +230,8 @@
     <p>Back to <a href="index.html">store</a>.</p>
   </footer>
 
-  <script src="auth.js?v=20261011-3"></script>
+  <script src="auth.js?v=20261011-4"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261011-4"></script>
+  <script src="admin.js?v=20261011-5"></script>
 </body>
 </html>
