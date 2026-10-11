@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sign in - Lyrshop</title>
-  <link rel="stylesheet" href="styles.css?v=20260517-3" />
+  <link rel="stylesheet" href="styles.css?v=20261011-1" />
 </head>
 <body class="auth-body">
   <header class="page-header compact-header">
@@ -71,16 +71,6 @@
         <button id="auth-submit" type="submit" class="button button-primary full-width">Login</button>
       </form>
 
-      <form id="verify-form" class="auth-form hidden">
-        <p id="verify-copy">We sent a 6-digit code to your email.</p>
-        <label>
-          Verification code
-          <input type="text" id="verify-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required />
-        </label>
-        <button type="submit" class="button button-primary full-width">Verify and create account</button>
-        <button id="verify-resend" type="button" class="button button-secondary full-width">Resend code</button>
-        <button id="verify-back" type="button" class="button button-secondary full-width">Use a different email</button>
-      </form>
 
       <div class="auth-divider"><span>or</span></div>
 
@@ -91,7 +81,22 @@
     </section>
   </main>
 
+  <dialog id="verify-dialog" class="verify-dialog" aria-labelledby="verify-title">
+    <form id="verify-form" class="auth-form">
+      <h2 id="verify-title">Verify your email</h2>
+      <p id="verify-copy">We sent a 6-digit code to your email.</p>
+      <label>
+        Verification code
+        <input type="text" id="verify-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required />
+      </label>
+      <button type="submit" class="button button-primary full-width">Verify and create account</button>
+      <button id="verify-resend" type="button" class="button button-secondary full-width">Resend code</button>
+      <button id="verify-back" type="button" class="button button-secondary full-width">Cancel</button>
+      <p id="verify-message" class="form-message" role="status"></p>
+    </form>
+  </dialog>
+
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="auth.js?v=20261007-1"></script>
+  <script src="auth.js?v=20261011-1"></script>
 </body>
 </html>

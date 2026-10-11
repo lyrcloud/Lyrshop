@@ -2276,3 +2276,34 @@ footer p {
     padding: 0 1rem;
   }
 }
+
+.verify-dialog {
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid #dedede;
+  border-radius: 8px;
+  padding: clamp(1.25rem, 4vw, 1.75rem);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+}
+
+.verify-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.verify-dialog h2 {
+  margin: 0 0 0.25rem;
+}
+
+.verify-dialog #verify-copy {
+  margin: 0 0 0.75rem;
+  color: #555555;
+}
+
+.verify-dialog #verify-code {
+  font-size: 1.4rem;
+  letter-spacing: 0.35em;
+  text-align: center;
+}
+
+.verify-dialog .button + .button {
+  margin-top: 0.5rem;
+}

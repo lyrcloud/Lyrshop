@@ -107,7 +107,8 @@ function initAuthPage() {
   const submitButton = document.getElementById("auth-submit");
   const googleButton = document.getElementById("google-auth");
   const message = document.getElementById("auth-message");
-  const tabs = document.querySelector(".auth-tabs");
+  const verifyDialog = document.getElementById("verify-dialog");
+  const verifyMessage = document.getElementById("verify-message");
   const verifyForm = document.getElementById("verify-form");
   const verifyCopy = document.getElementById("verify-copy");
   const verifyCodeInput = document.getElementById("verify-code");
@@ -116,16 +117,18 @@ function initAuthPage() {
   let mode = "login";
   let pendingSignup = null;
 
-  function showVerifyStep(show) {
-    form.classList.toggle("hidden", show);
-    tabs.classList.toggle("hidden", show);
-    verifyForm.classList.toggle("hidden", !show);
-    if (show) {
-      verifyCopy.textContent = `We sent a 6-digit code to ${pendingSignup.email}. It expires in 10 minutes.`;
-      verifyCodeInput.value = "";
-      verifyCodeInput.focus();
-    }
+  function openVerifyDialog() {
+    verifyCopy.textContent = `We sent a 6-digit code to ${pendingSignup.email}. It expires in 10 minutes.`;
+    verifyCodeInput.value = "";
+    verifyMessage.textContent = "";
+    verifyDialog.showModal();
+    verifyCodeInput.focus();
   }
+
+  // Covers Cancel and the Escape key alike.
+  verifyDialog.addEventListener("close", () => {
+    pendingSignup = null;
+  });
 
   async function sendCode() {
     await postAuthApi("/auth/verify/send", { email: pendingSignup.email });
@@ -137,7 +140,7 @@ function initAuthPage() {
     try {
       await sendCode();
       message.textContent = "";
-      showVerifyStep(true);
+      openVerifyDialog();
     } catch (error) {
       pendingSignup = null;
       message.textContent = error.message;
@@ -204,7 +207,7 @@ function initAuthPage() {
     if (!pendingSignup) return;
     const verifyButton = verifyForm.querySelector('button[type="submit"]');
     verifyButton.disabled = true;
-    message.textContent = "Checking code...";
+    verifyMessage.textContent = "Checking code...";
     try {
       await postAuthApi("/auth/verify/confirm", {
         email: pendingSignup.email,
@@ -213,7 +216,7 @@ function initAuthPage() {
       upsertUser({ ...pendingSignup, emailVerified: true });
       window.location.href = getAuthReturnTo();
     } catch (error) {
-      message.textContent = error.message;
+      verifyMessage.textContent = error.message;
     } finally {
       verifyButton.disabled = false;
     }
@@ -224,18 +227,16 @@ function initAuthPage() {
     verifyResend.disabled = true;
     try {
       await sendCode();
-      message.textContent = "A new code is on its way.";
+      verifyMessage.textContent = "A new code is on its way.";
     } catch (error) {
-      message.textContent = error.message;
+      verifyMessage.textContent = error.message;
     } finally {
       verifyResend.disabled = false;
     }
   });
 
   verifyBack.addEventListener("click", () => {
-    pendingSignup = null;
-    message.textContent = "";
-    showVerifyStep(false);
+    verifyDialog.close();
     emailInput.focus();
   });
 
