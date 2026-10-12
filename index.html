@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-7" />
+  <link rel="stylesheet" href="styles.css?v=20261012-8" />
 </head>
 <body>
   <header class="header">
@@ -23,7 +23,7 @@
         <div class="utility-links utility-right">
           <a href="index.html?view=watchlist#product-list">Watchlist <span class="count-badge" data-count="watchlist" hidden></span></a>
           <a href="dashboard.html">My Lyrshop</a>
-          <a href="#cart-panel">Cart <span class="count-badge" data-count="cart" hidden></span></a>
+          <a href="cart.html">Cart <span class="count-badge" data-count="cart" hidden></span></a>
         </div>
       </div>
     </div>
@@ -88,7 +88,7 @@
       </a>
     </section>
 
-    <div class="content-grid">
+    <div class="content-grid content-grid-full">
       <section class="hero-deals">
       <div class="deals-header">
         <h2 id="listing-title">Today's Deals</h2>
@@ -112,58 +112,6 @@
       <div id="product-list" class="product-grid"></div>
       </section>
 
-      <aside class="sidebar-cart" id="cart-panel">
-      <div class="cart-widget">
-        <h3>Cart</h3>
-        <div id="cart-items" class="cart-items"></div>
-        <div class="checkout-options">
-          <fieldset>
-            <legend>Shipping carrier</legend>
-            <div class="shipping-quote">
-              <label for="shipping-zip">ZIP code</label>
-              <div>
-                <input id="shipping-zip" name="shipping-zip" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="10001" />
-                <button id="quote-shipping-button" class="small-button" type="button">Quote</button>
-              </div>
-              <button id="detect-location-button" class="location-button" type="button">Use my location</button>
-              <p id="shipping-status">Enter a ZIP code to compare USPS, UPS, and FedEx.</p>
-            </div>
-            <div id="shipping-rates" class="shipping-rates"></div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Payment</legend>
-            <label class="checkout-option">
-              <input type="radio" name="payment-method" value="stripe" checked />
-              <span>
-                <strong>Stripe Checkout</strong>
-                <small>Cards and wallet payments</small>
-              </span>
-            </label>
-          </fieldset>
-        </div>
-        <div class="cart-summary">
-          <div class="summary-row">
-            <span>Items</span>
-            <strong>$<span id="cart-subtotal">0.00</span></strong>
-          </div>
-          <div class="summary-row">
-            <span>Shipping</span>
-            <strong>$<span id="shipping-total">0.00</span></strong>
-          </div>
-          <div class="summary-row">
-            <span>Estimated tax</span>
-            <strong>$<span id="tax-total">0.00</span></strong>
-          </div>
-          <div class="total-row">
-            <span>Total</span>
-            <strong>$<span id="cart-total">0.00</span></strong>
-          </div>
-        </div>
-        <button id="checkout-button" class="button button-primary full-width" disabled>Checkout with Stripe</button>
-        <p id="checkout-status" class="checkout-status" aria-live="polite"></p>
-      </div>
-      </aside>
     </div>
   </main>
 
@@ -173,7 +121,7 @@
 
   <script src="auth.js?v=20261012-2"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="ui.js?v=20261012-2"></script>
-  <script src="app.js?v=20261012-3"></script>
+  <script src="ui.js?v=20261012-3"></script>
+  <script src="app.js?v=20261012-4"></script>
 </body>
 </html>

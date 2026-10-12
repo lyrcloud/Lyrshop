@@ -4,60 +4,13 @@ const API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.locat
 const PRODUCT_REQUEST_TIMEOUT_MS = 2000;
 
 const productList = document.getElementById("product-list");
-const cartItems = document.getElementById("cart-items");
-const cartSubtotal = document.getElementById("cart-subtotal");
-const shippingTotal = document.getElementById("shipping-total");
-const taxTotal = document.getElementById("tax-total");
-const cartTotal = document.getElementById("cart-total");
-const checkoutButton = document.getElementById("checkout-button");
-const checkoutStatus = document.getElementById("checkout-status");
 const searchForm = document.getElementById("search-form");
 const categoryMenuButton = document.getElementById("category-menu-button");
 const categoryMenuPanel = document.getElementById("category-menu-panel");
-let shippingMethodInputs = document.querySelectorAll('input[name="shipping-method"]');
-const paymentMethodInputs = document.querySelectorAll('input[name="payment-method"]');
-const shippingZipInput = document.getElementById("shipping-zip");
-const quoteShippingButton = document.getElementById("quote-shipping-button");
-const detectLocationButton = document.getElementById("detect-location-button");
-const shippingRatesPanel = document.getElementById("shipping-rates");
-const shippingStatus = document.getElementById("shipping-status");
 let navItems = document.querySelectorAll(".nav-item");
 let categoryShortcuts = document.querySelectorAll(".category-shortcut");
 const accountLink = document.getElementById("account-link");
 const STOREFRONT_CATEGORIES_KEY = "lyrshopCategories";
-const TAX_RATE = 0.0825;
-
-let shippingMethods = {
-  usps: {
-    label: "USPS",
-    carrier: "USPS",
-    service: "USPS Ground Advantage",
-    cost: 6.25,
-    estimate: "3-5 business days",
-  },
-  ups: {
-    label: "UPS",
-    carrier: "UPS",
-    service: "UPS Ground",
-    cost: 9.5,
-    estimate: "2-4 business days",
-  },
-  fedex: {
-    label: "FedEx",
-    carrier: "FedEx",
-    service: "FedEx Home Delivery",
-    cost: 10.25,
-    estimate: "2-5 business days",
-  },
-};
-
-const paymentMethods = {
-  stripe: {
-    label: "Stripe Checkout",
-    gateway: "Stripe",
-  },
-};
-
 const defaultStorefrontCategories = LYRSHOP_DEFAULT_CATEGORIES;
 
 const PLACEHOLDER_IMAGE_URL = "logo.svg";
@@ -85,7 +38,6 @@ let activeEvent = pageParams.get("event") || "";
 let activeSort = pageParams.get("sort") || "featured";
 let productsLoaded = false;
 let searchBox = null;
-let checkoutInProgress = false;
 
 const SORTS = {
   featured: { label: "Featured", compare: null },
@@ -98,190 +50,6 @@ const SORTS = {
 function saveCart() {
   localStorage.setItem("shopCart", JSON.stringify(cart));
   updateHeaderCounts();
-}
-
-function getSelectedRadioValue(inputs, fallback) {
-  const selected = Array.from(inputs).find((input) => input.checked);
-  return selected ? selected.value : fallback;
-}
-
-function getCheckoutTotals() {
-  const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
-  const shippingKey = getSelectedRadioValue(shippingMethodInputs, "usps");
-  const paymentKey = getSelectedRadioValue(paymentMethodInputs, "stripe");
-  const shipping = shippingMethods[shippingKey] || shippingMethods.usps;
-  const payment = paymentMethods[paymentKey] || paymentMethods.stripe;
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + shipping.cost + tax;
-
-  return {
-    subtotal,
-    shipping,
-    payment,
-    tax,
-    total,
-  };
-}
-
-function getStoredZip() {
-  return localStorage.getItem("lyrshopShippingZip") || "";
-}
-
-function saveStoredZip(zip) {
-  localStorage.setItem("lyrshopShippingZip", zip);
-}
-
-function saveStoredLocation(location) {
-  localStorage.setItem("lyrshopLocation", JSON.stringify(location));
-}
-
-function getBrowserPosition() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported by this browser."));
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: false,
-      timeout: 10000,
-      maximumAge: 300000,
-    });
-  });
-}
-
-function formatCurrency(amount) {
-  return Number(amount || 0).toFixed(2);
-}
-
-function normalizeShippingRate(rate) {
-  const amount = Number(rate.amount);
-  if (!rate.id || !Number.isFinite(amount)) return null;
-  return {
-    label: rate.carrier || rate.id.toUpperCase(),
-    carrier: rate.carrier || rate.id.toUpperCase(),
-    service: rate.service || rate.carrier || rate.id.toUpperCase(),
-    cost: amount,
-    estimate: rate.estimate || "Carrier estimate unavailable",
-  };
-}
-
-function renderShippingRates(selectedKey = getSelectedRadioValue(shippingMethodInputs, "usps")) {
-  if (!shippingRatesPanel) return;
-
-  shippingRatesPanel.innerHTML = Object.entries(shippingMethods).map(([key, rate], index) => `
-    <label class="checkout-option">
-      <input type="radio" name="shipping-method" value="${escapeHtml(key)}" ${key === selectedKey || (!selectedKey && index === 0) ? "checked" : ""} />
-      <span>
-        <strong>${escapeHtml(rate.carrier)}</strong>
-        <small>${escapeHtml(rate.service)} | ${escapeHtml(rate.estimate)}</small>
-      </span>
-      <em>$${formatCurrency(rate.cost)}</em>
-    </label>
-  `).join("");
-
-  shippingMethodInputs = document.querySelectorAll('input[name="shipping-method"]');
-  shippingMethodInputs.forEach((input) => input.addEventListener("change", renderCart));
-}
-
-async function quoteShippingRates() {
-  if (!shippingZipInput || !shippingStatus) return;
-
-  const zip = shippingZipInput.value.trim();
-  if (!zip) {
-    shippingStatus.textContent = "Enter a ZIP code to compare USPS, UPS, and FedEx.";
-    return;
-  }
-
-  if (!cart.length) {
-    shippingStatus.textContent = "Add an item before quoting shipping.";
-    return;
-  }
-
-  quoteShippingButton.disabled = true;
-  shippingStatus.textContent = "Getting carrier quotes...";
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/shipping/rates`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ destination_zip: zip, items: cart }),
-    });
-
-    const json = await response.json();
-    if (!response.ok) throw new Error(json.message || "Shipping quote failed");
-
-    const rates = (json.rates || [])
-      .map((rate) => [rate.id, normalizeShippingRate(rate)])
-      .filter(([, rate]) => Boolean(rate));
-
-    if (!rates.length) throw new Error("No shipping rates returned");
-
-    const selectedKey = rates[0][0];
-    shippingMethods = Object.fromEntries(rates);
-    saveStoredZip(zip);
-    renderShippingRates(selectedKey);
-    renderCart();
-    shippingStatus.textContent = json.live_rates
-      ? "Live carrier rates loaded."
-      : "Estimated carrier rates loaded. Configure carrier credentials before production.";
-  } catch (error) {
-    console.warn("Shipping quote failed, using default carrier rates.", error);
-    renderShippingRates();
-    renderCart();
-    shippingStatus.textContent = "Using default carrier estimates until the backend is available.";
-  } finally {
-    quoteShippingButton.disabled = false;
-  }
-}
-
-async function detectUserLocation() {
-  if (!shippingStatus || !shippingZipInput || !detectLocationButton) return;
-
-  detectLocationButton.disabled = true;
-  shippingStatus.textContent = "Requesting location permission...";
-
-  try {
-    const position = await getBrowserPosition();
-    const location = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
-      accuracy_meters: Math.round(position.coords.accuracy || 0),
-    };
-
-    saveStoredLocation(location);
-    shippingStatus.textContent = "Finding your postal code...";
-
-    const response = await fetch(`${API_BASE_URL}/location/reverse`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(location),
-    });
-    const json = await response.json();
-
-    if (!response.ok) throw new Error(json.message || "Location lookup failed");
-
-    if (json.postal_code) {
-      shippingZipInput.value = String(json.postal_code).split("-")[0];
-      const place = [json.city, json.state].filter(Boolean).join(", ");
-      shippingStatus.textContent = place ? `Location detected: ${place}.` : "Location detected.";
-      await quoteShippingRates();
-      return;
-    }
-
-    shippingStatus.textContent = `Location detected near ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}. Enter a ZIP code to quote shipping.`;
-  } catch (error) {
-    console.warn("Location detection failed.", error);
-    if (error.code === 1) {
-      shippingStatus.textContent = "Location permission was denied. Enter a ZIP code to quote shipping.";
-    } else if (error.code === 3) {
-      shippingStatus.textContent = "Location lookup timed out. Enter a ZIP code to quote shipping.";
-    } else {
-      shippingStatus.textContent = error.message || "Location lookup failed. Enter a ZIP code to quote shipping.";
-    }
-  } finally {
-    detectLocationButton.disabled = false;
-  }
 }
 
 function escapeHtml(value) {
@@ -388,42 +156,6 @@ function renderStorefrontCategories() {
 
 
   renderCategoryMenu(categories);
-}
-
-function renderCart() {
-  cartItems.innerHTML = "";
-
-  if (!cart.length) {
-    cartItems.innerHTML = "<p>Your cart is empty.</p>";
-    checkoutButton.disabled = true;
-  } else {
-    cart.forEach((item, index) => {
-      const row = document.createElement("div");
-      row.className = "cart-item";
-      row.innerHTML = `
-        <span>${escapeHtml(item.name)}</span>
-        <span>$${item.price.toFixed(2)}</span>
-        <button class="small-button" data-index="${index}">Remove</button>
-      `;
-      cartItems.appendChild(row);
-    });
-    checkoutButton.disabled = checkoutInProgress;
-  }
-
-  const totals = getCheckoutTotals();
-  cartSubtotal.textContent = totals.subtotal.toFixed(2);
-  shippingTotal.textContent = totals.shipping.cost.toFixed(2);
-  taxTotal.textContent = totals.tax.toFixed(2);
-  cartTotal.textContent = totals.total.toFixed(2);
-}
-
-function setCheckoutState(message, inProgress = false) {
-  checkoutInProgress = inProgress;
-  if (checkoutStatus) checkoutStatus.textContent = message || "";
-  if (checkoutButton) {
-    checkoutButton.disabled = inProgress || !cart.length;
-    checkoutButton.textContent = inProgress ? "Starting checkout..." : "Checkout with Stripe";
-  }
 }
 
 function getFilteredProducts() {
@@ -790,13 +522,13 @@ function bindProductListActions() {
     if (addButton) {
       const product = allProducts.find((item) => String(item.id) === addButton.dataset.add);
       if (!product) return;
+      cart = readStoredCart(); // The cart page or another tab may have changed it.
       cart.push({ id: product.id, name: product.name, price: product.price });
       saveCart();
-      renderCart();
       addButton.classList.add("is-added");
       addButton.textContent = "Added \u2713";
       window.setTimeout(() => { addButton.classList.remove("is-added"); addButton.textContent = "Add to Cart"; }, 1400);
-      showToast(`${product.name} added to your cart`, { actionLabel: "View cart", actionHref: "#cart-panel" });
+      showToast(`${product.name} added to your cart`, { actionLabel: "View cart", actionHref: "cart.html" });
       return;
     }
     const heart = event.target.closest("[data-watch]");
@@ -868,101 +600,6 @@ async function loadProducts() {
   }
 }
 
-async function checkout() {
-  if (!cart.length || checkoutInProgress) return;
-  const user = getCurrentUser();
-
-  if (!user) {
-    localStorage.setItem("lyrshopAuthReturnTo", "index.html#cart-panel");
-    window.location.href = "auth.html";
-    return;
-  }
-
-  setCheckoutState("Starting Stripe checkout...", true);
-  const totals = getCheckoutTotals();
-  const order = {
-    items: cart,
-    subtotal: totals.subtotal,
-    shipping_total: totals.shipping.cost,
-    tax_total: totals.tax,
-    total: totals.total,
-    shipping_method: totals.shipping.service,
-    shipping_estimate: totals.shipping.estimate,
-    shipping_carrier: totals.shipping.carrier,
-    shipping_service: totals.shipping.service,
-    payment_method: totals.payment.label,
-    payment_gateway: totals.payment.gateway,
-    payment_status: "pending",
-    user_email: user.email,
-  };
-
-  let savedOrder = { ...order };
-  let orderWasAccepted = false;
-  let checkoutUrl = "";
-  let stripeConfigured = false;
-
-  try {
-    const sessionResponse = await fetch(`${API_BASE_URL}/checkout/session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...order,
-        success_url: `${window.location.origin}/dashboard.html`,
-        cancel_url: `${window.location.origin}/index.html#cart-panel`,
-      }),
-    });
-    const sessionJson = await sessionResponse.json();
-    if (!sessionResponse.ok) {
-      setCheckoutState("Stripe checkout failed: " + (sessionJson.message || "unknown error"));
-      return;
-    }
-
-    savedOrder.stripe_session_id = sessionJson.session_id;
-    checkoutUrl = sessionJson.checkout_url;
-    stripeConfigured = Boolean(sessionJson.stripe_configured);
-
-    const response = await fetch(`${API_BASE_URL}/orders`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(savedOrder),
-    });
-
-    if (response.ok) {
-      const json = await response.json();
-      savedOrder = json.order || order;
-      orderWasAccepted = true;
-    } else {
-      const error = await response.json();
-      setCheckoutState("Checkout failed: " + (error.message || "unknown error"));
-      return;
-    }
-  } catch (error) {
-    console.warn("Checkout backend unavailable, saving order in browser history.", error);
-    orderWasAccepted = true;
-  }
-
-  if (orderWasAccepted) {
-    saveOrderForCurrentUser(savedOrder);
-    cart = [];
-    saveCart();
-    renderCart();
-    if (stripeConfigured && checkoutUrl) {
-      setCheckoutState("Redirecting to Stripe...", true);
-      window.location.href = checkoutUrl;
-      return;
-    }
-    if (stripeConfigured && !checkoutUrl) {
-      setCheckoutState("Stripe checkout failed: no checkout URL returned. Contact support.");
-      return;
-    }
-    setCheckoutState("Order placed! Stripe payments are not configured — redirecting to your orders...");
-    setTimeout(() => { window.location.href = "dashboard.html"; }, 2000);
-    return;
-  }
-
-  setCheckoutState("");
-}
-
 function renderAccountState() {
   const user = getCurrentUser();
   if (user) {
@@ -980,20 +617,6 @@ productList.addEventListener("click", (event) => {
     // handled by product creation listener already
   }
 });
-
-cartItems.addEventListener("click", (event) => {
-  if (event.target.matches(".small-button")) {
-    const index = Number(event.target.dataset.index);
-    cart.splice(index, 1);
-    saveCart();
-    renderCart();
-  }
-});
-
-checkoutButton.addEventListener("click", checkout);
-if (quoteShippingButton) quoteShippingButton.addEventListener("click", quoteShippingRates);
-if (detectLocationButton) detectLocationButton.addEventListener("click", detectUserLocation);
-paymentMethodInputs.forEach((input) => input.addEventListener("change", renderCart));
 
 function bindCategoryFilters() {
   navItems.forEach((item) => {
@@ -1091,9 +714,6 @@ function initStorefront() {
   });
   refreshListing();
   renderAccountState();
-  if (shippingZipInput) shippingZipInput.value = getStoredZip();
-  renderShippingRates();
-  renderCart();
   loadProducts();
 }
 

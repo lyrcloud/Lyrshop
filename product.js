@@ -187,7 +187,7 @@ function bindActions(product) {
     cartButton.textContent = "Added \u2713";
     window.setTimeout(() => { cartButton.classList.remove("is-added"); cartButton.textContent = "Add to cart"; }, 1400);
     showToast(`${quantity > 1 ? `${quantity} \u00d7 ` : ""}${product.name} added to your cart`,
-      { actionLabel: "Go to cart", actionHref: "index.html#cart-panel" });
+      { actionLabel: "Go to cart", actionHref: "cart.html" });
   });
 
   const watchButton = document.querySelector(".watch-button");
@@ -201,7 +201,7 @@ function bindActions(product) {
 
   document.getElementById("buy-now-button").addEventListener("click", () => {
     addProductToCart(product, Number(quantitySelect.value));
-    window.location.href = getCurrentUser() ? "dashboard.html" : "auth.html";
+    window.location.href = "cart.html";
   });
 
 }

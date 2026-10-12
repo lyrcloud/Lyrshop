@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cart &amp; Checkout - Lyrshop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=20261012-8" />
+</head>
+<body class="checkout-body">
+  <header class="checkout-header">
+    <div class="checkout-header-inner">
+      <a href="index.html" class="logo-link" aria-label="Lyrshop home">
+        <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+          <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238" letter-spacing="-2">lyrshop</text>
+        </svg>
+      </a>
+      <span class="checkout-secure">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        Secure checkout
+      </span>
+      <nav class="checkout-header-links" aria-label="Account">
+        <a href="index.html">Continue shopping</a>
+        <a href="dashboard.html" id="account-link">Account</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="checkout-page">
+    <ol class="checkout-steps" aria-label="Checkout progress">
+      <li class="is-current"><span>1</span> Cart</li>
+      <li><span>2</span> Shipping</li>
+      <li><span>3</span> Payment</li>
+    </ol>
+
+    <div class="checkout-layout">
+      <div class="checkout-main">
+        <section class="checkout-card" aria-labelledby="cart-heading">
+          <div class="checkout-card-head">
+            <h1 id="cart-heading">Your cart</h1>
+            <span id="cart-count-label" class="checkout-muted"></span>
+          </div>
+          <div id="cart-items" class="cart-lines"></div>
+        </section>
+
+        <section class="checkout-card needs-items" aria-labelledby="shipping-heading" hidden>
+          <div class="checkout-card-head">
+            <h2 id="shipping-heading"><span class="step-dot">2</span> Shipping</h2>
+          </div>
+          <div class="shipping-quote">
+            <label for="shipping-zip">Delivery ZIP code</label>
+            <div>
+              <input id="shipping-zip" name="shipping-zip" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="10001" />
+              <button id="quote-shipping-button" class="small-button" type="button">Get rates</button>
+            </div>
+            <button id="detect-location-button" class="location-button" type="button">Use my location</button>
+            <p id="shipping-status">Enter a ZIP code to compare USPS, UPS, and FedEx.</p>
+          </div>
+          <div id="shipping-rates" class="shipping-rates"></div>
+        </section>
+
+        <section class="checkout-card needs-items" aria-labelledby="payment-heading" hidden>
+          <div class="checkout-card-head">
+            <h2 id="payment-heading"><span class="step-dot">3</span> Payment</h2>
+          </div>
+          <label class="checkout-option">
+            <input type="radio" name="payment-method" value="stripe" checked />
+            <span>
+              <strong>Stripe Checkout</strong>
+              <small>Cards and wallet payments. You'll enter card details on Stripe's secure page.</small>
+            </span>
+          </label>
+        </section>
+      </div>
+
+      <aside class="checkout-summary" aria-labelledby="summary-heading">
+        <h2 id="summary-heading">Order summary</h2>
+        <div class="cart-summary">
+          <div class="summary-row">
+            <span>Items</span>
+            <strong>$<span id="cart-subtotal">0.00</span></strong>
+          </div>
+          <div class="summary-row">
+            <span>Shipping</span>
+            <strong>$<span id="shipping-total">0.00</span></strong>
+          </div>
+          <div class="summary-row">
+            <span>Estimated tax</span>
+            <strong>$<span id="tax-total">0.00</span></strong>
+          </div>
+          <div class="total-row">
+            <span>Total</span>
+            <strong>$<span id="cart-total">0.00</span></strong>
+          </div>
+        </div>
+        <button id="checkout-button" class="button button-primary full-width" disabled>Checkout with Stripe</button>
+        <p id="checkout-status" class="checkout-status" aria-live="polite"></p>
+        <p class="checkout-muted checkout-fineprint">Payment is processed by Stripe. Lyrshop never sees your card number.</p>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="checkout-footer">
+    <p>&copy; 2026 Lyrshop. Powered by Lyrcloud.</p>
+  </footer>
+
+  <script src="auth.js?v=20261012-2"></script>
+  <script src="ui.js?v=20261012-3"></script>
+  <script src="cart.js?v=20261012-1"></script>
+</body>
+</html>
