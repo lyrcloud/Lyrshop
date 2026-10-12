@@ -161,11 +161,7 @@ function renderPreview() {
   const preview = {
     name: nameInput.value || "Product name",
     description: descriptionInput.value || "Add a description to show here.",
-    price: parseFloat(priceInput.value) || 0.0,
-    compare_at_price: parseFloat(comparePriceInput.value) || 0,
     brand: brandInput.value.trim(),
-    sale_event: saleEventInput.value.trim(),
-    category: categoryInput.value || "Demo",
     image_url: imageInput.value || "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80",
   };
 
@@ -178,13 +174,6 @@ function renderPreview() {
           <h3>${escapeHtml(preview.name)}</h3>
           <p>${escapeHtml(preview.description)}</p>
         </div>
-      </div>
-      <div class="card-footer">
-        <span class="meta-pill">${escapeHtml(preview.sale_event || preview.category)}</span>
-        <span class="price">
-          ${preview.compare_at_price > preview.price ? `<s class="was-price">$${preview.compare_at_price.toFixed(2)}</s>` : ""}
-          $${preview.price.toFixed(2)}
-        </span>
       </div>
     </div>
   `;
