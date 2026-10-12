@@ -3919,3 +3919,18 @@ input[type="checkbox"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* ══ Account roles ═══════════════════════════════════════════════════════ */
+.role-superadmin {
+  background: var(--button-bg);
+  color: #ffffff;
+}
+
+.role-admin {
+  background: #cffafe;
+  color: #0e7490;
+}
+
+.table-actions small {
+  color: var(--muted);
+}

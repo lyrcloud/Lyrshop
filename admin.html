@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-4" />
+  <link rel="stylesheet" href="styles.css?v=20261012-5" />
 </head>
 <body>
   <header class="page-header">
@@ -246,7 +246,7 @@
     <section class="admin-panel admin-section admin-only" id="admin-users-section">
       <div class="panel-header">
         <h2>Users</h2>
-        <p>Every Lyrshop account, newest first. Passwords are stored securely and never shown.</p>
+        <p id="users-intro">Every Lyrshop account, newest first. Passwords are stored securely and never shown.</p>
       </div>
       <form id="user-form" class="admin-crud-form">
         <input type="hidden" id="user-edit-index" />
@@ -261,6 +261,13 @@
         <label>
           Password
           <input type="password" id="user-password" minlength="6" placeholder="At least 6 characters" autocomplete="new-password" required />
+        </label>
+        <label class="superadmin-only" hidden>
+          Access
+          <select id="user-role">
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
         </label>
         <div class="admin-form-actions">
           <button type="submit" id="user-submit" class="button button-primary">Create user</button>
@@ -330,8 +337,8 @@
     <p>Back to <a href="index.html">store</a>.</p>
   </footer>
 
-  <script src="auth.js?v=20261012-1"></script>
+  <script src="auth.js?v=20261012-2"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261012-2"></script>
+  <script src="admin.js?v=20261012-3"></script>
 </body>
 </html>

@@ -2,7 +2,6 @@
 const LEGACY_USERS_KEY = "lyrshopUsers";
 const AUTH_SESSION_KEY = "lyrshopSession";
 const AUTH_ORDERS_KEY = "lyrshopOrders";
-const ADMIN_EMAILS = ["lyrclouds@gmail.com", "aswinkumarbisati@gmail.com"];
 // Mobile sign-up/login needs Twilio able to text any number (account upgraded from trial). Flip to true then.
 const MOBILE_SIGNUP_ENABLED = false;
 
@@ -49,15 +48,9 @@ function getAccountContact(user) {
   return user?.email || user?.phone || "";
 }
 
-function getRoleForEmail(email) {
-  return ADMIN_EMAILS.includes(String(email || "").trim().toLowerCase()) ? "admin" : "user";
-}
-
-function withResolvedRole(user) {
-  return {
-    ...user,
-    role: getRoleForEmail(user.email),
-  };
+// Roles come from the server: "superadmin", "admin" or "user". The server re-checks them on every admin request.
+function isStaffRole(role) {
+  return role === "admin" || role === "superadmin";
 }
 
 function getCurrentUser() {
@@ -67,12 +60,29 @@ function getCurrentUser() {
     localStorage.removeItem(AUTH_SESSION_KEY);
     return null;
   }
-  return user ? withResolvedRole(user) : null;
+  return user;
 }
 
 // Stores the server's public profile with its signed session token.
 function setCurrentUser(user, token) {
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ ...withResolvedRole(user), token }));
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ ...user, token }));
+}
+
+// Reloads the signed-in profile so role changes made by the super admin show up without signing in again.
+async function refreshCurrentUser() {
+  const session = getCurrentUser();
+  if (!session) return null;
+  try {
+    const { user } = await authApi("/auth/me");
+    setCurrentUser(user, session.token);
+    return getCurrentUser();
+  } catch (error) {
+    if (error.status === 401) {
+      clearCurrentUser();
+      return null;
+    }
+    return session;
+  }
 }
 
 function hadLegacyAccount(contact) {

@@ -10,6 +10,13 @@ if (!user) {
   document.getElementById("profile-name").textContent = user.name;
   document.getElementById("profile-email").textContent = getAccountContact(user);
   document.getElementById("profile-provider").textContent = user.provider;
+  const roleLabels = { superadmin: "Super admin", admin: "Admin", user: "Customer" };
+  const showRole = (account) => {
+    document.getElementById("profile-role").textContent = roleLabels[account.role] || "Customer";
+  };
+  showRole(user);
+  // The role can change after sign-in (the super admin grants or removes admin access).
+  refreshCurrentUser().then((fresh) => fresh && showRole(fresh));
 
   const orderList = document.getElementById("order-list");
   if (!orders.length) {

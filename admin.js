@@ -58,6 +58,7 @@ const userEmail = document.getElementById("user-email");
 const userPassword = document.getElementById("user-password");
 const userSubmit = document.getElementById("user-submit");
 const userCancel = document.getElementById("user-cancel");
+const userRole = document.getElementById("user-role");
 const userMessage = document.getElementById("user-message");
 const userTableBody = document.getElementById("user-table-body");
 
@@ -96,14 +97,6 @@ function readJson(key, fallback) {
     console.warn(`Stored ${key} data is invalid.`, error);
     return fallback;
   }
-}
-
-function getRoleForEmail(email) {
-  return ADMIN_EMAILS.includes(String(email || "").trim().toLowerCase()) ? "admin" : "user";
-}
-
-function withResolvedUserRole(user) {
-  return { ...user, role: getRoleForEmail(user.email) };
 }
 
 // Accounts live on the server; admins load them through the /auth/users API (see auth.js authApi).
@@ -208,7 +201,7 @@ function renderPreview() {
 }
 
 function canEditProduct(product, session) {
-  return session.role === "admin" || (product.seller_email && product.seller_email.toLowerCase() === String(session.email || "").toLowerCase());
+  return isStaffRole(session.role) || (product.seller_email && product.seller_email.toLowerCase() === String(session.email || "").toLowerCase());
 }
 
 const ADMIN_PRODUCT_PAGE_SIZE = 48;
@@ -289,7 +282,7 @@ function renderProductFilterCategories() {
 }
 
 async function loadCurrentProducts(session) {
-  const url = session.role === "admin"
+  const url = isStaffRole(session.role)
     ? `${API_BASE_URL}/products?include_drafts=1`
     : `${API_BASE_URL}/products?include_drafts=1&seller=${encodeURIComponent(session.email)}`;
   try {
@@ -443,7 +436,21 @@ function resetUserForm() {
   userPassword.required = true;
   userPassword.placeholder = "At least 6 characters";
   userSubmit.textContent = "Create user";
+  userRole.value = "user";
+  userRole.disabled = false;
   showMessage(userMessage, "");
+}
+
+const ROLE_LABELS = { superadmin: "Super admin", admin: "Admin", user: "User" };
+
+function isSuperAdmin() {
+  return readSession()?.role === "superadmin";
+}
+
+// Mirrors the server rule: admins manage regular users; the super admin also manages admins.
+function canManageUser(user) {
+  if (user.role === "superadmin") return isSuperAdmin();
+  return user.role === "user" || isSuperAdmin();
 }
 
 async function loadUsers() {
@@ -468,21 +475,29 @@ function renderUsers() {
   }
 
   userTableBody.innerHTML = adminUsers
-    .map((user, index) => `
+    .map((user, index) => {
+      const manageable = canManageUser(user);
+      const isSelf = user.account === readSession()?.account;
+      const accessButton = isSuperAdmin() && user.role !== "superadmin"
+        ? `<button class="button button-secondary" type="button" data-user-action="toggle-admin" data-index="${index}">${user.role === "admin" ? "Remove admin" : "Make admin"}</button>`
+        : "";
+      return `
       <tr>
         <td>${escapeHtml(user.name)}</td>
         <td>${escapeHtml(user.email || user.phone)}</td>
-        <td>${escapeHtml(user.role)}</td>
+        <td><span class="status-badge role-${escapeHtml(user.role)}">${escapeHtml(ROLE_LABELS[user.role] || user.role)}</span></td>
         <td>${escapeHtml(user.provider || "Email")}</td>
         <td>${user.created_at ? new Date(user.created_at * 1000).toLocaleDateString() : ""}</td>
         <td>
           <div class="table-actions">
-            <button class="button button-secondary" type="button" data-user-action="edit" data-index="${index}">Edit</button>
-            <button class="button danger-button" type="button" data-user-action="delete" data-index="${index}">Delete</button>
+            ${manageable ? `<button class="button button-secondary" type="button" data-user-action="edit" data-index="${index}">Edit</button>` : ""}
+            ${accessButton}
+            ${manageable && !isSelf && user.role !== "superadmin" ? `<button class="button danger-button" type="button" data-user-action="delete" data-index="${index}">Delete</button>` : ""}
+            ${manageable || accessButton ? "" : `<small>Super admin only</small>`}
           </div>
         </td>
-      </tr>
-    `)
+      </tr>`;
+    })
     .join("");
 }
 
@@ -492,6 +507,8 @@ async function saveUser(event) {
   const contact = userEmail.value.trim();
   const body = { name: userName.value.trim() };
   if (userPassword.value) body.password = userPassword.value;
+  const editing = editIndex >= 0 ? adminUsers[editIndex] : null;
+  if (isSuperAdmin() && editing?.role !== "superadmin") body.role = userRole.value;
   userSubmit.disabled = true;
   try {
     let done;
@@ -521,8 +538,26 @@ async function handleUserTableClick(event) {
   const user = adminUsers[Number(button.dataset.index)];
   if (!user) return;
 
+  if (button.dataset.userAction === "toggle-admin") {
+    const makeAdmin = user.role !== "admin";
+    const contact = user.email || user.phone;
+    if (!confirm(makeAdmin
+      ? `Give ${contact} admin access? They will be able to manage orders, products and regular users.`
+      : `Remove admin access from ${contact}?`)) return;
+    try {
+      await authApi(`/auth/users/${encodeURIComponent(user.account)}`, { method: "PUT", body: { role: makeAdmin ? "admin" : "user" } });
+      await loadUsers();
+      showMessage(userMessage, makeAdmin ? `${contact} is now an admin.` : `${contact} is no longer an admin.`);
+    } catch (error) {
+      showMessage(userMessage, error.message, true);
+    }
+    return;
+  }
+
   if (button.dataset.userAction === "edit") {
     userEditIndex.value = button.dataset.index;
+    userRole.value = user.role === "admin" ? "admin" : "user";
+    userRole.disabled = user.role === "superadmin";
     userName.value = user.name || "";
     userEmail.value = user.email || user.phone || "";
     userEmail.disabled = true;
@@ -1015,9 +1050,15 @@ categoryCancel.addEventListener("click", resetCategoryForm);
 categoryList.addEventListener("click", handleCategoryClick);
 initImagePickers();
 
-const session = requireUser();
-if (session) {
-  const isAdmin = session.role === "admin";
+async function initAdminPage() {
+  if (!requireUser()) return;
+  // Pick up admin access granted or removed since this browser signed in.
+  const session = await refreshCurrentUser();
+  if (!session) {
+    requireUser();
+    return;
+  }
+  const isAdmin = isStaffRole(session.role);
 
   // Show/hide admin-only elements
   document.querySelectorAll(".admin-only").forEach((el) => {
@@ -1031,8 +1072,15 @@ if (session) {
     document.getElementById("admin-subtitle").textContent = "Manage your product listings on Lyrshop.";
     document.querySelector("[data-admin-section='products']").textContent = "My Products";
   } else {
-    document.getElementById("admin-eyebrow").textContent = "Admin dashboard";
+    document.getElementById("admin-eyebrow").textContent = session.role === "superadmin" ? "Super admin dashboard" : "Admin dashboard";
     document.getElementById("admin-title").textContent = "Manage Lyrshop";
+    document.querySelectorAll(".superadmin-only").forEach((el) => {
+      el.hidden = session.role !== "superadmin";
+    });
+    if (session.role !== "superadmin") {
+      document.getElementById("users-intro").textContent =
+        "Every Lyrshop account, newest first. Only the super admin can change admin accounts or grant admin access.";
+    }
     document.getElementById("admin-subtitle").textContent = "Manage products, orders, users, and categories.";
   }
 
@@ -1048,3 +1096,5 @@ if (session) {
     renderCategories();
   }
 }
+
+initAdminPage();
