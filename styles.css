@@ -3740,3 +3740,72 @@ input[type="checkbox"] {
     font-size: 16px;
   }
 }
+
+/* ══ Buttons in the logo color ═══════════════════════════════════════════
+   Every button uses the logo red; hover switches to a dark ink color. */
+:root {
+  --button-bg: #e53238;
+  --button-hover: #1f2937;
+  --button-soft: #fff1f1;
+  --button-soft-border: #fbc4c6;
+}
+
+.button-primary,
+.search-button,
+.buy-now-button,
+.button-dark,
+.back-to-top,
+#quote-shipping-button,
+.small-button,
+.location-button {
+  background: var(--button-bg);
+  border-color: var(--button-bg);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(229, 50, 56, 0.28);
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.12s;
+}
+
+.button-primary:hover:not(:disabled),
+.search-button:hover,
+.buy-now-button:hover,
+.button-dark:hover,
+.back-to-top:hover,
+#quote-shipping-button:hover,
+.small-button:hover,
+.location-button:hover:not(:disabled) {
+  background: var(--button-hover);
+  border-color: var(--button-hover);
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgba(31, 41, 55, 0.3);
+}
+
+.button-secondary,
+.detail-cart-button,
+.watch-button,
+.danger-button {
+  background: var(--button-soft);
+  border: 1px solid var(--button-soft-border);
+  color: var(--button-bg);
+}
+
+.button-secondary:hover:not(:disabled),
+.detail-cart-button:hover,
+.watch-button:hover,
+.watch-button.is-watched,
+.danger-button:hover {
+  background: var(--button-hover);
+  border-color: var(--button-hover);
+  color: #ffffff;
+}
+
+.hero-dots button[aria-selected="true"] {
+  background: var(--button-bg);
+}
+
+/* Keep the green "added to cart" confirmation */
+.button.add-cart-btn.is-added,
+.button.detail-cart-button.is-added {
+  background: var(--success);
+  border-color: var(--success);
+  color: #ffffff;
+}
