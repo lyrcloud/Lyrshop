@@ -28,10 +28,6 @@ const imageInput = document.getElementById("product-image");
 const productEditId = document.getElementById("product-edit-id");
 const productSubmit = document.getElementById("product-submit");
 const productCancel = document.getElementById("product-cancel");
-const productCount = document.getElementById("admin-product-count");
-const userCount = document.getElementById("admin-user-count");
-const categoryCount = document.getElementById("admin-category-count");
-const orderCount = document.getElementById("admin-order-count");
 
 const orderForm = document.getElementById("order-form");
 const orderEditId = document.getElementById("order-edit-id");
@@ -144,12 +140,6 @@ function showMessage(element, text, isError = false) {
   element.classList.toggle("is-error", isError);
 }
 
-function updateStats(productTotal = null) {
-  if (productTotal !== null) productCount.textContent = productTotal;
-  if (userCount) userCount.textContent = adminUsers.length;
-  categoryCount.textContent = readCategories().length;
-}
-
 function renderCategoryOptions() {
   const categories = readCategories();
   categoryOptions.innerHTML = categories
@@ -223,7 +213,6 @@ function getVisibleAdminProducts() {
 
 function renderProducts(session) {
   currentProducts.innerHTML = "";
-  updateStats(adminProducts.length);
   const draftCount = adminProducts.filter((product) => product.status === "draft").length;
   const visible = getVisibleAdminProducts();
   productFilterCount.textContent = `${visible.length} of ${adminProducts.length} listings · ${draftCount} drafts`;
@@ -294,7 +283,6 @@ async function loadCurrentProducts(session) {
     renderBrandOptions(adminProducts);
   } catch {
     currentProducts.innerHTML = "<p>Unable to load products. Make sure the backend is running.</p>";
-    updateStats(0);
   }
 }
 
@@ -467,7 +455,6 @@ async function loadUsers() {
 }
 
 function renderUsers() {
-  updateStats();
 
   if (!adminUsers.length) {
     userTableBody.innerHTML = `<tr><td colspan="6">No users yet. Create one here or sign up from the auth page.</td></tr>`;
@@ -605,11 +592,6 @@ function statusBadge(kind, status) {
   return `<span class="status-badge status-${kind}-${escapeHtml(value)}">${escapeHtml(value)}</span>`;
 }
 
-// Paid orders not yet shipped, delivered or cancelled.
-function isAwaitingShipment(order) {
-  return order.payment_status === "paid" && ["unfulfilled", "processing"].includes(getFulfillmentStatus(order));
-}
-
 function getVisibleOrders() {
   const query = orderFilterSearch.value.trim().toLowerCase();
   const payment = orderFilterPayment.value;
@@ -624,7 +606,6 @@ function getVisibleOrders() {
 }
 
 function renderOrders() {
-  if (orderCount) orderCount.textContent = adminOrders.filter(isAwaitingShipment).length;
   const visible = getVisibleOrders();
   orderFilterCount.textContent = `${visible.length} of ${adminOrders.length} orders`;
 
@@ -759,7 +740,6 @@ function resetCategoryForm() {
 function renderCategories() {
   const categories = readCategories();
   renderCategoryOptions();
-  updateStats();
 
   if (!categories.length) {
     categoryList.innerHTML = "<p>No categories yet. Create one to use it in the product form.</p>";
