@@ -99,7 +99,7 @@ function readJson(key, fallback) {
 }
 
 function getRoleForEmail(email) {
-  return String(email || "").trim().toLowerCase() === ADMIN_EMAIL ? "admin" : "user";
+  return ADMIN_EMAILS.includes(String(email || "").trim().toLowerCase()) ? "admin" : "user";
 }
 
 function withResolvedUserRole(user) {

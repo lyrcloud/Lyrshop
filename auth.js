@@ -2,7 +2,7 @@
 const LEGACY_USERS_KEY = "lyrshopUsers";
 const AUTH_SESSION_KEY = "lyrshopSession";
 const AUTH_ORDERS_KEY = "lyrshopOrders";
-const ADMIN_EMAIL = "lyrclouds@gmail.com";
+const ADMIN_EMAILS = ["lyrclouds@gmail.com", "aswinkumarbisati@gmail.com"];
 // Mobile sign-up/login needs Twilio able to text any number (account upgraded from trial). Flip to true then.
 const MOBILE_SIGNUP_ENABLED = false;
 
@@ -50,7 +50,7 @@ function getAccountContact(user) {
 }
 
 function getRoleForEmail(email) {
-  return String(email || "").trim().toLowerCase() === ADMIN_EMAIL ? "admin" : "user";
+  return ADMIN_EMAILS.includes(String(email || "").trim().toLowerCase()) ? "admin" : "user";
 }
 
 function withResolvedRole(user) {
