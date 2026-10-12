@@ -3742,10 +3742,10 @@ input[type="checkbox"] {
 }
 
 /* ══ Buttons in the logo color ═══════════════════════════════════════════
-   Every button uses the logo red; hover switches to a dark ink color. */
+   Every button uses the logo red; hover switches to cyan. */
 :root {
   --button-bg: #e53238;
-  --button-hover: #1f2937;
+  --button-hover: #0891b2;
   --button-soft: #fff1f1;
   --button-soft-border: #fbc4c6;
 }
@@ -3776,7 +3776,7 @@ input[type="checkbox"] {
   background: var(--button-hover);
   border-color: var(--button-hover);
   color: #ffffff;
-  box-shadow: 0 10px 26px rgba(31, 41, 55, 0.3);
+  box-shadow: 0 10px 26px rgba(8, 145, 178, 0.35);
 }
 
 .button-secondary,
