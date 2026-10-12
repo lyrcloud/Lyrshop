@@ -451,9 +451,8 @@ function getFilteredProducts() {
   }
 
   if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase();
-    filtered = filtered.filter((p) => [p.name, p.description, p.brand]
-      .some((field) => String(field || "").toLowerCase().includes(q)));
+    const terms = getSearchTerms(searchQuery);
+    filtered = filtered.filter((p) => matchesSearch(productSearchFields(p), terms));
   }
 
   const sort = SORTS[activeSort] || SORTS.featured;

@@ -124,6 +124,38 @@ function debounce(fn, wait) {
  * getProducts/getCategories supply data lazily; onChange (optional) runs as the shopper types,
  * onSubmit runs on Enter/Search without a highlighted suggestion.
  */
+// Words people say or type around what they want ("show me red shoes"); ignored when matching.
+const SEARCH_FILLER_WORDS = new Set(["a", "an", "the", "some", "any", "me", "my", "i", "i'm", "im", "want", "need",
+  "looking", "look", "for", "find", "search", "show", "get", "buy", "please", "to", "of", "can", "you"]);
+
+function normalizeSearchText(value) {
+  return String(value || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+// Splits a query into words to match; each word also matches its singular ("backpacks" finds "backpack").
+function getSearchTerms(query) {
+  const words = normalizeSearchText(query).split(" ").filter(Boolean);
+  const meaningful = words.filter((word) => !SEARCH_FILLER_WORDS.has(word));
+  return (meaningful.length ? meaningful : words).map((word) => {
+    const forms = [word];
+    if (word.length > 4 && word.endsWith("es")) forms.push(word.slice(0, -2));
+    if (word.length > 3 && word.endsWith("s")) forms.push(word.slice(0, -1));
+    return forms;
+  });
+}
+
+// True when every search word appears somewhere in the given fields.
+function matchesSearch(fields, terms) {
+  if (!terms.length) return true;
+  const text = ` ${normalizeSearchText(fields.join(" "))} `;
+  return terms.every((forms) => forms.some((form) => text.includes(form)));
+}
+
+function productSearchFields(product) {
+  return [product.name, product.brand, product.description, product.category, product.subcategory];
+}
+
 const VOICE_ERRORS = {
   "not-allowed": "Microphone access is blocked. Allow it in your browser to search by voice.",
   "service-not-allowed": "Microphone access is blocked. Allow it in your browser to search by voice.",
@@ -170,7 +202,8 @@ function initVoiceSearch(form, input, onFinal) {
     let transcript = "";
 
     recognition.addEventListener("result", (event) => {
-      transcript = [...event.results].map((result) => result[0].transcript).join("").trim();
+      // Dictation often ends with a period ("Backpacks."); keep the box clean.
+      transcript = [...event.results].map((result) => result[0].transcript).join("").trim().replace(/[.!?]+$/, "");
       input.value = transcript;
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
@@ -230,14 +263,13 @@ function initSearchBox({ form, getProducts, getCategories, onChange, onSubmit, i
       close();
       return;
     }
-    const q = query.toLowerCase();
+    const terms = getSearchTerms(query);
     const category = select.value;
     const products = getProducts()
-      .filter((p) => (!category || p.category === category)
-        && [p.name, p.brand].some((field) => String(field || "").toLowerCase().includes(q)))
+      .filter((p) => (!category || p.category === category) && matchesSearch(productSearchFields(p), terms))
       .slice(0, 6);
-    const brands = [...new Set(getProducts().map((p) => p.brand).filter((b) => b && b.toLowerCase().includes(q)))].slice(0, 3);
-    const categories = getCategories().filter((c) => c.label.toLowerCase().includes(q)).slice(0, 3);
+    const brands = [...new Set(getProducts().map((p) => p.brand).filter((b) => b && matchesSearch([b], terms)))].slice(0, 3);
+    const categories = getCategories().filter((c) => matchesSearch([c.label, c.name], terms)).slice(0, 3);
 
     const rows = [
       ...products.map((p) => ({ kind: "Product", label: p.name, meta: `$${Number(p.price).toFixed(2)}`,
