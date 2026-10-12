@@ -31,6 +31,25 @@ const productCancel = document.getElementById("product-cancel");
 const productCount = document.getElementById("admin-product-count");
 const userCount = document.getElementById("admin-user-count");
 const categoryCount = document.getElementById("admin-category-count");
+const orderCount = document.getElementById("admin-order-count");
+
+const orderForm = document.getElementById("order-form");
+const orderEditId = document.getElementById("order-edit-id");
+const orderSummary = document.getElementById("order-summary");
+const orderPaymentStatus = document.getElementById("order-payment-status");
+const orderFulfillmentStatus = document.getElementById("order-fulfillment-status");
+const orderCarrier = document.getElementById("order-carrier");
+const orderTracking = document.getElementById("order-tracking");
+const orderNote = document.getElementById("order-note");
+const orderSubmit = document.getElementById("order-submit");
+const orderCancel = document.getElementById("order-cancel");
+const orderHistory = document.getElementById("order-history");
+const orderMessage = document.getElementById("order-message");
+const orderTableBody = document.getElementById("order-table-body");
+const orderFilterSearch = document.getElementById("order-filter-search");
+const orderFilterPayment = document.getElementById("order-filter-payment");
+const orderFilterFulfillment = document.getElementById("order-filter-fulfillment");
+const orderFilterCount = document.getElementById("order-filter-count");
 
 const userForm = document.getElementById("user-form");
 const userEditIndex = document.getElementById("user-edit-index");
@@ -526,6 +545,173 @@ async function handleUserTableClick(event) {
   }
 }
 
+// ── Order management ───────────────────────────────────────────────────────────
+
+let adminOrders = [];
+
+function formatMoney(value) {
+  return `$${(Number(value) || 0).toFixed(2)}`;
+}
+
+function formatOrderDate(seconds) {
+  return seconds ? new Date(seconds * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "—";
+}
+
+function shortOrderId(id) {
+  return `#${String(id || "").slice(0, 8).toUpperCase()}`;
+}
+
+function getFulfillmentStatus(order) {
+  return order.fulfillment_status || "unfulfilled";
+}
+
+function statusBadge(kind, status) {
+  const value = status || "unset";
+  return `<span class="status-badge status-${kind}-${escapeHtml(value)}">${escapeHtml(value)}</span>`;
+}
+
+// Paid orders not yet shipped, delivered or cancelled.
+function isAwaitingShipment(order) {
+  return order.payment_status === "paid" && ["unfulfilled", "processing"].includes(getFulfillmentStatus(order));
+}
+
+function getVisibleOrders() {
+  const query = orderFilterSearch.value.trim().toLowerCase();
+  const payment = orderFilterPayment.value;
+  const fulfillment = orderFilterFulfillment.value;
+  return adminOrders.filter((order) => {
+    if (payment && order.payment_status !== payment) return false;
+    if (fulfillment && getFulfillmentStatus(order) !== fulfillment) return false;
+    if (!query) return true;
+    return [order.id, order.user_email, order.tracking_number, ...(order.items || []).map((item) => item.name)]
+      .some((field) => String(field || "").toLowerCase().includes(query));
+  });
+}
+
+function renderOrders() {
+  if (orderCount) orderCount.textContent = adminOrders.filter(isAwaitingShipment).length;
+  const visible = getVisibleOrders();
+  orderFilterCount.textContent = `${visible.length} of ${adminOrders.length} orders`;
+
+  if (!visible.length) {
+    orderTableBody.innerHTML = `<tr><td colspan="8">${adminOrders.length ? "No orders match these filters." : "No orders yet."}</td></tr>`;
+    return;
+  }
+
+  orderTableBody.innerHTML = visible
+    .map((order) => {
+      const items = order.items || [];
+      const tracking = order.tracking_number
+        ? `<small>${escapeHtml(order.shipping_carrier || "")} ${escapeHtml(order.tracking_number)}</small>`
+        : "";
+      return `
+      <tr>
+        <td><strong>${escapeHtml(shortOrderId(order.id))}</strong></td>
+        <td>${escapeHtml(formatOrderDate(order.created_at))}</td>
+        <td>${escapeHtml(order.user_email || "Guest")}</td>
+        <td>${escapeHtml(items.map((item) => item.name).join(", ") || "—")}</td>
+        <td>${formatMoney(order.total)}</td>
+        <td>${statusBadge("payment", order.payment_status)}</td>
+        <td>${statusBadge("shipping", getFulfillmentStatus(order))}${tracking}</td>
+        <td>
+          <div class="table-actions">
+            <button class="button button-secondary" type="button" data-order-id="${escapeHtml(order.id)}">Manage</button>
+          </div>
+        </td>
+      </tr>`;
+    })
+    .join("");
+}
+
+async function loadOrders() {
+  try {
+    adminOrders = (await authApi("/orders")).orders || [];
+    renderOrders();
+  } catch (error) {
+    orderTableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
+    if (error.status === 401) {
+      clearCurrentUser();
+      requireUser();
+    }
+  }
+}
+
+function openOrder(order) {
+  orderEditId.value = order.id;
+  const items = order.items || [];
+  orderSummary.innerHTML = `
+    <h3>Order ${escapeHtml(shortOrderId(order.id))}</h3>
+    <p>${escapeHtml(order.user_email || "Guest")} · placed ${escapeHtml(formatOrderDate(order.created_at))}</p>
+    <ul>${items.map((item) => `<li>${escapeHtml(item.name)} <span>${formatMoney(item.price)}</span></li>`).join("")}</ul>
+    <p>
+      Subtotal ${formatMoney(order.subtotal ?? order.total)} · Shipping ${formatMoney(order.shipping_total)}
+      · Tax ${formatMoney(order.tax_total)} · <strong>Total ${formatMoney(order.total)}</strong>
+    </p>
+    <p>
+      Paid with ${escapeHtml(order.payment_method || "—")} via ${escapeHtml(order.payment_gateway || "—")}
+      ${order.stripe_session_id ? `· Stripe session <code>${escapeHtml(order.stripe_session_id)}</code>` : ""}
+    </p>
+    <p>Customer chose ${escapeHtml([order.shipping_carrier, order.shipping_service || order.shipping_method].filter(Boolean).join(" ") || "—")}
+      (${escapeHtml(order.shipping_estimate || "no estimate")})</p>
+  `;
+  orderPaymentStatus.value = order.payment_status || "pending";
+  orderFulfillmentStatus.value = getFulfillmentStatus(order);
+  orderCarrier.value = order.shipping_carrier || "";
+  orderTracking.value = order.tracking_number || "";
+  orderNote.value = order.admin_note || "";
+  orderHistory.innerHTML = (order.history || [])
+    .slice()
+    .reverse()
+    .map((entry) => `<li><time>${escapeHtml(formatOrderDate(entry.at))}</time> ${escapeHtml(entry.change)} <small>by ${escapeHtml(entry.by)}</small></li>`)
+    .join("");
+  orderForm.hidden = false;
+  showMessage(orderMessage, "");
+  orderForm.scrollIntoView({ behavior: "smooth" });
+}
+
+function closeOrder() {
+  orderForm.reset();
+  orderForm.hidden = true;
+  orderEditId.value = "";
+}
+
+async function saveOrder(event) {
+  event.preventDefault();
+  const orderId = orderEditId.value;
+  if (orderFulfillmentStatus.value === "shipped" && !orderTracking.value.trim()) {
+    showMessage(orderMessage, "Add a tracking number before marking the order shipped.", true);
+    return;
+  }
+  orderSubmit.disabled = true;
+  try {
+    const { order } = await authApi(`/orders/${encodeURIComponent(orderId)}`, {
+      method: "PUT",
+      body: {
+        payment_status: orderPaymentStatus.value,
+        fulfillment_status: orderFulfillmentStatus.value,
+        shipping_carrier: orderCarrier.value,
+        tracking_number: orderTracking.value,
+        admin_note: orderNote.value,
+      },
+    });
+    adminOrders = adminOrders.map((existing) => (existing.id === order.id ? order : existing));
+    renderOrders();
+    closeOrder();
+    showMessage(orderMessage, `Order ${shortOrderId(order.id)} saved.`);
+  } catch (error) {
+    showMessage(orderMessage, error.message, true);
+  } finally {
+    orderSubmit.disabled = false;
+  }
+}
+
+function handleOrderTableClick(event) {
+  const button = event.target.closest("[data-order-id]");
+  if (!button) return;
+  const order = adminOrders.find((item) => item.id === button.dataset.orderId);
+  if (order) openOrder(order);
+}
+
 // ── Category management ────────────────────────────────────────────────────────
 
 function resetCategoryForm() {
@@ -816,6 +1002,11 @@ priceInput.addEventListener("input", renderPreview);
 [brandInput, comparePriceInput, saleEventInput].forEach((input) => input.addEventListener("input", renderPreview));
 categoryInput.addEventListener("input", () => { updateSubcategoryOptions(); renderPreview(); });
 imageInput.addEventListener("input", renderPreview);
+orderForm.addEventListener("submit", saveOrder);
+orderCancel.addEventListener("click", closeOrder);
+orderTableBody.addEventListener("click", handleOrderTableClick);
+orderFilterSearch.addEventListener("input", renderOrders);
+[orderFilterPayment, orderFilterFulfillment].forEach((select) => select.addEventListener("change", renderOrders));
 userForm.addEventListener("submit", saveUser);
 userCancel.addEventListener("click", resetUserForm);
 userTableBody.addEventListener("click", handleUserTableClick);
@@ -842,7 +1033,7 @@ if (session) {
   } else {
     document.getElementById("admin-eyebrow").textContent = "Admin dashboard";
     document.getElementById("admin-title").textContent = "Manage Lyrshop";
-    document.getElementById("admin-subtitle").textContent = "Manage products, users, and categories.";
+    document.getElementById("admin-subtitle").textContent = "Manage products, orders, users, and categories.";
   }
 
   initTabs();
@@ -852,6 +1043,7 @@ if (session) {
   loadCurrentProducts(session);
 
   if (isAdmin) {
+    loadOrders();
     loadUsers();
     renderCategories();
   }

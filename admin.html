@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-3" />
+  <link rel="stylesheet" href="styles.css?v=20261012-4" />
 </head>
 <body>
   <header class="page-header">
@@ -32,6 +32,10 @@
         <span id="admin-user-count">0</span>
         <strong>Users</strong>
       </article>
+      <article class="admin-stat admin-only" id="stat-orders">
+        <span id="admin-order-count">0</span>
+        <strong>Orders to ship</strong>
+      </article>
       <article class="admin-stat">
         <span id="admin-category-count">0</span>
         <strong>Categories</strong>
@@ -40,6 +44,7 @@
 
     <nav class="admin-tabs" aria-label="Sections">
       <button class="admin-tab active" type="button" data-admin-section="products">My Products</button>
+      <button class="admin-tab admin-only" type="button" data-admin-section="orders">Orders</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="users">Users</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="categories">Categories</button>
     </nav>
@@ -146,6 +151,98 @@
       <div id="message" class="admin-message"></div>
     </section>
 
+    <section class="admin-panel admin-section admin-only" id="admin-orders-section">
+      <div class="panel-header">
+        <h2>Orders</h2>
+        <p>Confirm payments, then pack and ship. An order needs a tracking number before it can be marked shipped.</p>
+      </div>
+      <form id="order-form" class="admin-crud-form" hidden>
+        <input type="hidden" id="order-edit-id" />
+        <div id="order-summary" class="order-summary"></div>
+        <label>
+          Payment status
+          <select id="order-payment-status">
+            <option value="pending">Pending</option>
+            <option value="authorized">Authorized</option>
+            <option value="paid">Paid</option>
+            <option value="refunded">Refunded</option>
+            <option value="failed">Failed</option>
+          </select>
+        </label>
+        <label>
+          Shipping status
+          <select id="order-fulfillment-status">
+            <option value="unfulfilled">Unfulfilled</option>
+            <option value="processing">Processing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+        <label>
+          Carrier
+          <input type="text" id="order-carrier" list="order-carrier-options" placeholder="e.g. USPS" />
+          <datalist id="order-carrier-options">
+            <option value="USPS"></option>
+            <option value="UPS"></option>
+            <option value="FedEx"></option>
+            <option value="DHL"></option>
+          </datalist>
+        </label>
+        <label>
+          Tracking number
+          <input type="text" id="order-tracking" placeholder="Required to mark shipped" />
+        </label>
+        <label class="order-note-field">
+          Internal note
+          <textarea id="order-note" placeholder="Only admins see this."></textarea>
+        </label>
+        <div class="admin-form-actions">
+          <button type="submit" id="order-submit" class="button button-primary">Save order</button>
+          <button type="button" id="order-cancel" class="button button-secondary">Close</button>
+        </div>
+        <ol id="order-history" class="order-history"></ol>
+      </form>
+      <div id="order-message" class="admin-message"></div>
+      <div class="admin-product-filters">
+        <input type="search" id="order-filter-search" placeholder="Search order #, customer, item, tracking" aria-label="Search orders" />
+        <select id="order-filter-payment" aria-label="Filter by payment status">
+          <option value="">All payments</option>
+          <option value="pending">Pending</option>
+          <option value="authorized">Authorized</option>
+          <option value="paid">Paid</option>
+          <option value="refunded">Refunded</option>
+          <option value="failed">Failed</option>
+        </select>
+        <select id="order-filter-fulfillment" aria-label="Filter by shipping status">
+          <option value="">All shipping</option>
+          <option value="unfulfilled">Unfulfilled</option>
+          <option value="processing">Processing</option>
+          <option value="shipped">Shipped</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <span id="order-filter-count" class="product-filter-count"></span>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Items</th>
+              <th>Total</th>
+              <th>Payment</th>
+              <th>Shipping</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="order-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="admin-panel admin-section admin-only" id="admin-users-section">
       <div class="panel-header">
         <h2>Users</h2>
@@ -235,6 +332,6 @@
 
   <script src="auth.js?v=20261011-5"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261011-5"></script>
+  <script src="admin.js?v=20261012-1"></script>
 </body>
 </html>
