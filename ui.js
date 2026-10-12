@@ -124,6 +124,75 @@ function debounce(fn, wait) {
  * getProducts/getCategories supply data lazily; onChange (optional) runs as the shopper types,
  * onSubmit runs on Enter/Search without a highlighted suggestion.
  */
+const VOICE_ERRORS = {
+  "not-allowed": "Microphone access is blocked. Allow it in your browser to search by voice.",
+  "service-not-allowed": "Microphone access is blocked. Allow it in your browser to search by voice.",
+  "no-speech": "Didn't catch that. Tap the microphone and try again.",
+  "audio-capture": "No microphone found.",
+  network: "Voice search needs an internet connection.",
+};
+
+// Adds a microphone button that fills the search box from speech, then runs the search.
+// Hidden in browsers without the Web Speech API (e.g. Firefox).
+function initVoiceSearch(form, input, onFinal) {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) return;
+
+  const field = form.querySelector(".search-field");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "search-voice";
+  button.setAttribute("aria-label", "Search by voice");
+  button.setAttribute("aria-pressed", "false");
+  button.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg>`;
+  field.classList.add("has-voice");
+  field.appendChild(button);
+
+  let recognition = null;
+  const placeholder = input.placeholder;
+
+  function setListening(listening) {
+    button.classList.toggle("is-listening", listening);
+    button.setAttribute("aria-pressed", String(listening));
+    button.setAttribute("aria-label", listening ? "Stop voice search" : "Search by voice");
+    input.placeholder = listening ? "Listening…" : placeholder;
+  }
+
+  button.addEventListener("click", () => {
+    if (recognition) {
+      recognition.stop();
+      return;
+    }
+    recognition = new Recognition();
+    recognition.lang = document.documentElement.lang || navigator.language || "en-US";
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    let transcript = "";
+
+    recognition.addEventListener("result", (event) => {
+      transcript = [...event.results].map((result) => result[0].transcript).join("").trim();
+      input.value = transcript;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    recognition.addEventListener("error", (event) => {
+      if (event.error !== "aborted") showToast(VOICE_ERRORS[event.error] || "Voice search stopped. Please try again.");
+    });
+    recognition.addEventListener("end", () => {
+      recognition = null;
+      setListening(false);
+      if (transcript) onFinal(transcript);
+    });
+
+    setListening(true);
+    try {
+      recognition.start();
+    } catch {
+      recognition = null;
+      setListening(false);
+    }
+  });
+}
+
 function initSearchBox({ form, getProducts, getCategories, onChange, onSubmit, initialQuery = "", initialCategory = "" }) {
   const input = form.querySelector("input");
   const clear = form.querySelector(".search-clear");
@@ -231,6 +300,10 @@ function initSearchBox({ form, getProducts, getCategories, onChange, onSubmit, i
     onSubmit(input.value.trim(), select.value);
   });
   document.addEventListener("click", (event) => { if (!form.contains(event.target)) close(); });
+  initVoiceSearch(form, input, () => {
+    close();
+    onSubmit(input.value.trim(), select.value);
+  });
 
   return {
     setCategory(value) { select.value = value || ""; },
