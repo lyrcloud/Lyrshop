@@ -371,8 +371,27 @@ function initSearchBox({ form, getProducts, getCategories, onChange, onSubmit, i
   };
 }
 
+// A round profile photo, or the first letter of the name when there is none.
+function userAvatar(user, className = "user-avatar") {
+  const name = String(user?.name || "?").trim();
+  return user?.photo_url
+    ? `<img class="${className}" src="${uiEscape(user.photo_url)}" alt="" />`
+    : `<span class="${className} is-initial" aria-hidden="true">${uiEscape(name.charAt(0).toUpperCase() || "?")}</span>`;
+}
+
+// The top bar's greeting: "Hi! Sign in or register", or the signed-in shopper's photo and first name.
+function renderUserGreeting() {
+  const user = typeof getCurrentUser === "function" ? getCurrentUser() : null;
+  document.querySelectorAll("[data-user-greeting]").forEach((slot) => {
+    slot.innerHTML = user
+      ? `<a href="dashboard.html#account" class="utility-user">${userAvatar(user)}Hi, ${uiEscape(String(user.name || "there").split(" ")[0])}</a>`
+      : `Hi! <a href="auth.html">Sign in</a> or <a href="auth.html">register</a>`;
+  });
+}
+
 function initSharedUi() {
   updateHeaderCounts();
+  renderUserGreeting();
   initBackToTop();
   initSearchShortcut();
   // Keep counts in sync when the cart or watchlist changes in another tab.

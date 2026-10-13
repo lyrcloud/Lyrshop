@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-12" />
+  <link rel="stylesheet" href="styles.css?v=20261012-13" />
 </head>
 <body>
   <header class="page-header compact-header">
@@ -18,6 +18,7 @@
     </a>
     <div class="header-actions">
       <a href="index.html" class="button button-secondary">Shop</a>
+      <a href="admin.html" class="button button-secondary">Sell</a>
       <a href="cart.html" class="button button-secondary">Cart <span class="count-badge" data-count="cart" hidden></span></a>
       <button id="logout-button" type="button" class="button button-primary">Sign out</button>
     </div>
@@ -25,6 +26,7 @@
 
   <main class="my-page">
     <div class="my-heading">
+      <span id="my-heading-avatar"></span>
       <h1>My Lyrshop</h1>
       <p id="my-greeting"></p>
     </div>
@@ -95,6 +97,25 @@
           <div class="my-block-header">
             <h2 id="account-title">Personal info</h2>
           </div>
+          <form id="profile-form" class="profile-form">
+            <div class="profile-photo">
+              <span id="profile-avatar"></span>
+              <div class="profile-photo-actions">
+                <button type="button" id="photo-upload" class="button button-secondary">Upload photo</button>
+                <button type="button" id="photo-remove" class="link-button" hidden>Remove photo</button>
+                <input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+                <small class="field-note">JPEG, PNG, WebP or GIF, up to 10 MB.</small>
+              </div>
+            </div>
+            <label class="profile-name-field">
+              Display name
+              <input type="text" id="profile-name-input" maxlength="60" autocomplete="name" required />
+            </label>
+            <div class="profile-form-actions">
+              <button type="submit" id="profile-save" class="button button-primary">Save changes</button>
+              <span id="profile-message" class="profile-message" role="status"></span>
+            </div>
+          </form>
           <dl class="profile-list my-profile">
             <div><dt>Name</dt><dd id="profile-name"></dd></div>
             <div><dt>Email / Mobile</dt><dd id="profile-email"></dd></div>
@@ -111,8 +132,8 @@
   </footer>
 
   <script src="auth.js?v=20261012-3"></script>
-  <script src="ui.js?v=20261012-5"></script>
-  <script src="dashboard.js?v=20261012-3"></script>
+  <script src="ui.js?v=20261012-6"></script>
+  <script src="dashboard.js?v=20261012-4"></script>
   <script src="footer.js?v=20261012-1"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>

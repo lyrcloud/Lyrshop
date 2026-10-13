@@ -212,8 +212,105 @@ function renderAll() {
   document.getElementById("clear-recent").hidden = !getRecentlyViewed().length;
 }
 
+// ── Profile ────────────────────────────────────────────────────────────────────
+// Name and photo are saved with PUT /auth/me; photos go up through the same signed upload as product images.
+
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+const profileForm = document.getElementById("profile-form");
+const profileNameInput = document.getElementById("profile-name-input");
+const profileMessage = document.getElementById("profile-message");
+const photoInput = document.getElementById("photo-input");
+const photoUploadButton = document.getElementById("photo-upload");
+const photoRemoveButton = document.getElementById("photo-remove");
+const profileSave = document.getElementById("profile-save");
+// The photo shown in the form; saved only when the seller presses Save.
+let pendingPhoto = null;
+
+function setProfileMessage(text, isError = false) {
+  profileMessage.textContent = text;
+  profileMessage.classList.toggle("is-error", isError);
+}
+
+function renderAvatarPreview(account) {
+  const shown = { ...account, photo_url: pendingPhoto ?? account.photo_url };
+  document.getElementById("profile-avatar").innerHTML = userAvatar(shown, "user-avatar profile-avatar-large");
+  photoRemoveButton.hidden = !shown.photo_url;
+  photoUploadButton.textContent = shown.photo_url ? "Change photo" : "Upload photo";
+}
+
+async function uploadPhoto(file) {
+  if (!PHOTO_TYPES.includes(file.type)) throw new Error("Choose a JPEG, PNG, WebP or GIF image.");
+  if (file.size > PHOTO_MAX_BYTES) throw new Error("Photos must be 10 MB or smaller.");
+  const signRes = await fetch(`${MY_API_BASE_URL}/media/upload-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content_type: file.type, filename: file.name }),
+  });
+  const sign = await signRes.json().catch(() => ({}));
+  if (!signRes.ok) throw new Error(sign.message || "Could not start the upload.");
+  const body = new FormData();
+  Object.entries(sign.fields || {}).forEach(([key, value]) => body.append(key, value));
+  body.append("file", file, file.name);
+  const uploadRes = await fetch(sign.url, { method: "POST", body });
+  if (!uploadRes.ok) throw new Error("Upload failed. Please try again.");
+  return new URL(sign.public_url, sign.url.startsWith("http://127.0.0.1") ? MY_API_BASE_URL : window.location.origin).href;
+}
+
+function bindProfileForm() {
+  photoUploadButton.addEventListener("click", () => photoInput.click());
+  photoInput.addEventListener("change", async () => {
+    const file = photoInput.files[0];
+    photoInput.value = "";
+    if (!file) return;
+    photoUploadButton.disabled = true;
+    setProfileMessage("Uploading photo…");
+    try {
+      pendingPhoto = await uploadPhoto(file);
+      renderAvatarPreview(getCurrentUser());
+      setProfileMessage("Photo ready. Press Save changes to keep it.");
+    } catch (error) {
+      setProfileMessage(error.message, true);
+    } finally {
+      photoUploadButton.disabled = false;
+    }
+  });
+  photoRemoveButton.addEventListener("click", () => {
+    pendingPhoto = "";
+    renderAvatarPreview(getCurrentUser());
+    setProfileMessage("Photo will be removed when you save.");
+  });
+  profileForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const body = { name: profileNameInput.value };
+    if (pendingPhoto !== null) body.photo_url = pendingPhoto;
+    profileSave.disabled = true;
+    setProfileMessage("Saving…");
+    try {
+      const { user: saved } = await authApi("/auth/me", { method: "PUT", body });
+      setCurrentUser(saved, getCurrentUser().token);
+      pendingPhoto = null;
+      renderProfile(saved);
+      renderUserGreeting();
+      setProfileMessage("Profile saved.");
+    } catch (error) {
+      if (error.status === 401) {
+        clearCurrentUser();
+        window.location.href = "auth.html";
+        return;
+      }
+      setProfileMessage(error.message, true);
+    } finally {
+      profileSave.disabled = false;
+    }
+  });
+}
+
 function renderProfile(account) {
   const roleLabels = { superadmin: "Super admin", admin: "Admin", user: "Customer" };
+  document.getElementById("my-heading-avatar").innerHTML = userAvatar(account, "user-avatar my-heading-avatar");
+  if (document.activeElement !== profileNameInput) profileNameInput.value = account.name || "";
+  renderAvatarPreview(account);
   document.getElementById("my-greeting").textContent = `Hi, ${account.name}`;
   document.getElementById("profile-name").textContent = account.name;
   document.getElementById("profile-email").textContent = getAccountContact(account);
@@ -224,6 +321,7 @@ function renderProfile(account) {
 if (!user) {
   window.location.href = "auth.html";
 } else {
+  bindProfileForm();
   renderProfile(user);
   // The role can change after sign-in (the super admin grants or removes admin access).
   refreshCurrentUser().then((fresh) => fresh && renderProfile(fresh));

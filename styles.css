@@ -5908,3 +5908,142 @@ body.zoom-open {
 .password-strength[hidden] {
   display: none;
 }
+
+/* Top bar: larger text, with the greeting on the far right (ui.js renderUserGreeting). */
+.utility-bar {
+  font-size: 0.92rem;
+}
+
+.utility-inner {
+  padding: 0.5rem 1.5rem;
+}
+
+.utility-links {
+  gap: 1.15rem;
+}
+
+.utility-greeting {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding-left: 1.15rem;
+  border-left: 1px solid #dfe3ea;
+}
+
+.utility-user {
+  gap: 0.45rem;
+}
+
+/* Profile photos (ui.js userAvatar): a photo, or the name's first letter. */
+.user-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.my-heading {
+  align-items: center;
+}
+
+.my-heading-avatar {
+  width: 52px;
+  height: 52px;
+  font-size: 1.3rem;
+}
+
+.profile-form {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 560px;
+  margin-bottom: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.profile-photo {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.profile-avatar-large {
+  width: 96px;
+  height: 96px;
+  font-size: 2.4rem;
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 5px var(--line);
+}
+
+.profile-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.profile-photo-actions .field-note {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.profile-name-field {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.profile-name-field input {
+  margin: 0;
+}
+
+.profile-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.profile-message {
+  color: #065f46;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.profile-message.is-error {
+  color: #b91c1c;
+}
+
+@media (max-width: 860px) {
+  .utility-right {
+    display: flex;
+  }
+
+  .utility-right > :not(.utility-greeting) {
+    display: none;
+  }
+
+  .utility-greeting {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .utility-inner {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-photo {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
