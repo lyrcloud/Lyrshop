@@ -621,6 +621,7 @@ function renderOrders() {
         <td>
           <div class="table-actions">
             <button class="button button-secondary" type="button" data-order-id="${escapeHtml(order.id)}">Manage</button>
+            ${isSuperAdmin() ? `<button class="button danger-button" type="button" data-order-id="${escapeHtml(order.id)}" data-order-action="delete">Delete</button>` : ""}
           </div>
         </td>
       </tr>`;
@@ -710,11 +711,26 @@ async function saveOrder(event) {
   }
 }
 
+async function deleteOrder(order) {
+  if (!confirm(`Delete order ${shortOrderId(order.id)}? It will be removed from the order history for good.`)) return;
+  try {
+    await authApi(`/orders/${encodeURIComponent(order.id)}`, { method: "DELETE" });
+    adminOrders = adminOrders.filter((existing) => existing.id !== order.id);
+    if (orderEditId.value === order.id) closeOrder();
+    renderOrders();
+    showMessage(orderMessage, `Order ${shortOrderId(order.id)} deleted.`);
+  } catch (error) {
+    showMessage(orderMessage, error.message, true);
+  }
+}
+
 function handleOrderTableClick(event) {
   const button = event.target.closest("[data-order-id]");
   if (!button) return;
   const order = adminOrders.find((item) => item.id === button.dataset.orderId);
-  if (order) openOrder(order);
+  if (!order) return;
+  if (button.dataset.orderAction === "delete") deleteOrder(order);
+  else openOrder(order);
 }
 
 // ── Category management ────────────────────────────────────────────────────────
