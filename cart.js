@@ -267,23 +267,27 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-// The cart keeps one entry per unit; show one row per product with a quantity.
+// One line per product and chosen options (a tee in M and in L are separate lines).
+function lineKey(item) {
+  return `${item.id}|${item.variant || ""}`;
+}
+
+// The cart keeps one entry per unit; show one row per line with a quantity.
 function groupCart() {
   const groups = new Map();
   cart.forEach((item) => {
-    const key = String(item.id);
-    const group = groups.get(key) || { ...item, quantity: 0 };
+    const key = lineKey(item);
+    const group = groups.get(key) || { ...item, key, quantity: 0 };
     group.quantity += 1;
     groups.set(key, group);
   });
   return [...groups.values()];
 }
 
-function setQuantity(productId, quantity) {
-  const key = String(productId);
-  const sample = cart.find((item) => String(item.id) === key);
+function setQuantity(key, quantity) {
+  const sample = cart.find((item) => lineKey(item) === key);
   if (!sample) return;
-  const others = cart.filter((item) => String(item.id) !== key);
+  const others = cart.filter((item) => lineKey(item) !== key);
   cart = [...others, ...Array.from({ length: Math.max(0, quantity) }, () => ({ ...sample }))];
   saveCart();
   renderCart();
@@ -311,16 +315,17 @@ function renderCart() {
           <a href="${escapeHtml(link)}" class="cart-line-image"><img src="${escapeHtml(image)}" alt="" loading="lazy" /></a>
           <div class="cart-line-info">
             <a href="${escapeHtml(link)}" class="cart-line-name">${escapeHtml(item.name)}</a>
+            ${item.variant ? `<small class="cart-line-variant">${escapeHtml(item.variant)}</small>` : ""}
             ${details.brand ? `<small>${escapeHtml(details.brand)}</small>` : ""}
             <span class="cart-line-each">$${formatCurrency(item.price)} each</span>
           </div>
           <div class="cart-line-qty" role="group" aria-label="Quantity for ${escapeHtml(item.name)}">
-            <button type="button" data-qty="${escapeHtml(item.id)}" data-step="-1" aria-label="Decrease quantity">&minus;</button>
+            <button type="button" data-qty="${escapeHtml(item.key)}" data-step="-1" aria-label="Decrease quantity">&minus;</button>
             <span>${item.quantity}</span>
-            <button type="button" data-qty="${escapeHtml(item.id)}" data-step="1" aria-label="Increase quantity">+</button>
+            <button type="button" data-qty="${escapeHtml(item.key)}" data-step="1" aria-label="Increase quantity">+</button>
           </div>
           <strong class="cart-line-total">$${formatCurrency(item.price * item.quantity)}</strong>
-          <button type="button" class="cart-line-remove" data-remove="${escapeHtml(item.id)}">Remove</button>
+          <button type="button" class="cart-line-remove" data-remove="${escapeHtml(item.key)}">Remove</button>
         </article>`;
     }).join("");
   }
@@ -466,7 +471,7 @@ function renderCheckoutAccount() {
 cartItems.addEventListener("click", (event) => {
   const step = event.target.closest("[data-qty]");
   if (step) {
-    const current = cart.filter((item) => String(item.id) === step.dataset.qty).length;
+    const current = cart.filter((item) => lineKey(item) === step.dataset.qty).length;
     setQuantity(step.dataset.qty, current + Number(step.dataset.step));
     return;
   }

@@ -68,7 +68,7 @@ function showSection() {
 function groupItems(items) {
   const groups = new Map();
   (items || []).forEach((item) => {
-    const key = String(item.id ?? item.name);
+    const key = `${item.id ?? item.name}|${item.variant || ""}`;
     const group = groups.get(key) || { ...item, quantity: 0 };
     group.quantity += 1;
     groups.set(key, group);
@@ -119,6 +119,7 @@ function renderOrder(order) {
             <a href="${first.id ? productUrl(first.id) : "#purchases"}">${myEscape(first.name || "Order")}</a>
             ${first.quantity > 1 ? `<span class="my-muted">× ${first.quantity}</span>` : ""}
           </p>
+          ${first.variant ? `<p class="my-muted">${myEscape(first.variant)}</p>` : ""}
           ${others > 0 ? `<p class="my-muted">and ${others} more item${others === 1 ? "" : "s"}</p>` : ""}
           ${tracking}
         </div>

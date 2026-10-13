@@ -4895,3 +4895,362 @@ footer.site-footer .footer-legal {
     animation: none;
   }
 }
+
+/* Product photo zoom (product.js bindZoom): hover magnifier plus a full-screen viewer. */
+.main-product-image[role="button"] {
+  cursor: zoom-in;
+}
+
+.main-product-image img {
+  transition: transform 0.12s ease-out;
+}
+
+.main-product-image.is-zooming .image-badge,
+.main-product-image.is-zooming .zoom-hint {
+  opacity: 0;
+}
+
+.main-product-image:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.zoom-hint {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: rgba(17, 24, 39, 0.72);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.zoom-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 12, 16, 0.94);
+}
+
+.zoom-lightbox[hidden] {
+  display: none;
+}
+
+body.zoom-open {
+  overflow: hidden;
+}
+
+.zoom-viewport {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 3.5rem 1rem 0;
+}
+
+.zoom-viewport img {
+  max-width: 100%;
+  max-height: calc(100vh - 7rem);
+  object-fit: contain;
+  cursor: zoom-in;
+  background: #ffffff;
+  border-radius: 6px;
+}
+
+.zoom-viewport.is-zoomed {
+  display: block;
+  padding: 0;
+}
+
+.zoom-viewport.is-zoomed img {
+  max-width: none;
+  max-height: none;
+  cursor: zoom-out;
+  border-radius: 0;
+}
+
+.zoom-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.zoom-close:hover,
+.zoom-close:focus-visible {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.zoom-caption {
+  margin: 0;
+  padding: 0.75rem;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* Product options on the listing page: color swatches and size/other pills. */
+.detail-options {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.detail-options:empty {
+  display: none;
+}
+
+.detail-option-label {
+  margin: 0 0 0.5rem;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.detail-option-label strong {
+  color: var(--ink);
+}
+
+.detail-option-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.option-pill {
+  min-width: 48px;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.option-pill:hover {
+  border-color: var(--ink-soft);
+}
+
+.option-pill[aria-pressed="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.option-swatch {
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+.option-swatch span,
+.swatch {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid rgba(17, 24, 39, 0.18);
+  background: linear-gradient(135deg, #e5e7eb, #9ca3af);
+}
+
+.option-swatch:hover {
+  border-color: var(--line);
+}
+
+.option-swatch[aria-pressed="true"] {
+  border-color: var(--ink);
+}
+
+.detail-option.is-missing .detail-option-values {
+  padding: 0.35rem;
+  margin: -0.35rem;
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px #fca5a5;
+}
+
+.option-error {
+  margin: 0 0 0.75rem;
+  color: #b91c1c;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.option-error:empty {
+  display: none;
+}
+
+.detail-measurements h3 {
+  margin: 1.5rem 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.cart-line-variant {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+/* Seller Hub: options panel on the product form and the Attributes tab. */
+.product-options {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.product-options legend {
+  padding: 0 0.35rem;
+  font-weight: 700;
+}
+
+.field-note {
+  display: block;
+  margin: 0.25rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.option-group {
+  margin-bottom: 1rem;
+}
+
+.option-group-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.option-chips,
+.value-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.option-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.option-chip input {
+  width: auto;
+  margin: 0;
+}
+
+.option-chip:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.option-chip .swatch,
+.value-chip .swatch {
+  width: 14px;
+  height: 14px;
+}
+
+.value-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: #f1f5f9;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.measurements h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.measurement-rows {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.measurement-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.measurement-row input {
+  margin: 0;
+}
+
+.measurement-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.chip-button {
+  padding: 0.3rem 0.65rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.chip-button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.admin-crud-form .wide-field {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 560px) {
+  .measurement-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .measurement-row .link-button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+.admin-form-actions [hidden] {
+  display: none;
+}

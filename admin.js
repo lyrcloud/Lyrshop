@@ -31,6 +31,19 @@ const productCancel = document.getElementById("product-cancel");
 const priceHint = document.getElementById("product-price-hint");
 const aiFillButton = document.getElementById("ai-fill");
 const aiStatus = document.getElementById("ai-status");
+const productOptionsPanel = document.getElementById("product-options");
+const productOptionGroups = document.getElementById("product-option-groups");
+const measurementRows = document.getElementById("measurement-rows");
+const attributeForm = document.getElementById("attribute-form");
+const attributeEditId = document.getElementById("attribute-edit-id");
+const attributeName = document.getElementById("attribute-name");
+const attributeType = document.getElementById("attribute-type");
+const attributeValues = document.getElementById("attribute-values");
+const attributeCategories = document.getElementById("attribute-categories");
+const attributeSubmit = document.getElementById("attribute-submit");
+const attributeCancel = document.getElementById("attribute-cancel");
+const attributeMessage = document.getElementById("attribute-message");
+const attributeTableBody = document.getElementById("attribute-table-body");
 
 const orderForm = document.getElementById("order-form");
 const orderEditId = document.getElementById("order-edit-id");
@@ -297,12 +310,261 @@ function startEditProduct(product) {
   updateSubcategoryOptions();
   subcategoryInput.value = product.subcategory || "";
   imageInput.value = product.image_url || "";
+  setProductOptions(product);
   resetAiAssist();
   productSubmit.textContent = "Update product";
   productCancel.hidden = false;
   document.getElementById("product-form-title").textContent = "Edit product";
   renderPreview();
   form.scrollIntoView({ behavior: "smooth" });
+}
+
+// ── Attributes and product options ─────────────────────────────────────────────
+// Attributes (Color, Size, ...) live on the server so every seller shares them. A product stores its own copy of the
+// values it is offered in, so editing or deleting an attribute never changes existing listings.
+
+const ATTRIBUTE_TYPE_LABELS = { color: "Color swatches", size: "Size buttons", text: "Buttons" };
+let allAttributes = [];
+// Option name -> Set of ticked values for the product being edited, kept across category changes.
+let optionSelections = new Map();
+
+function splitList(text) {
+  return String(text || "").split(",").map((value) => value.trim()).filter(Boolean);
+}
+
+function swatchStyle(value) {
+  const color = String(value).toLowerCase().replace(/\s+/g, "");
+  return window.CSS?.supports?.("color", color) ? `background:${color}` : "";
+}
+
+function canEditAttribute(attribute) {
+  const session = readSession();
+  return session?.role === "superadmin" || attribute.owner === session?.account;
+}
+
+function attributeAppliesTo(attribute, category) {
+  const name = String(category || "").trim().toLowerCase();
+  return !attribute.categories?.length || attribute.categories.some((item) => item.toLowerCase() === name);
+}
+
+async function loadAttributes() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/attributes`);
+    const json = await res.json();
+    if (!isApiSuccess(res)) throw new Error(json.message || "Could not load attributes.");
+    allAttributes = json.attributes || [];
+  } catch (error) {
+    showMessage(attributeMessage, error.message || "Could not load attributes.", true);
+  }
+  renderAttributes();
+  renderProductOptions();
+}
+
+function renderAttributes() {
+  if (!allAttributes.length) {
+    attributeTableBody.innerHTML = `<tr><td colspan="6">No attributes yet. Create the first one above.</td></tr>`;
+    return;
+  }
+  const session = readSession();
+  attributeTableBody.innerHTML = allAttributes.map((attribute) => {
+    const editable = canEditAttribute(attribute);
+    const values = attribute.values.map((value) => attribute.type === "color"
+      ? `<span class="value-chip"><span class="swatch" style="${swatchStyle(value)}"></span>${escapeHtml(value)}</span>`
+      : `<span class="value-chip">${escapeHtml(value)}</span>`).join("");
+    return `
+      <tr>
+        <td><strong>${escapeHtml(attribute.name)}</strong></td>
+        <td>${escapeHtml(ATTRIBUTE_TYPE_LABELS[attribute.type] || "Buttons")}</td>
+        <td><div class="value-chips">${values}</div></td>
+        <td>${escapeHtml(attribute.categories?.length ? attribute.categories.join(", ") : "All categories")}</td>
+        <td>${attribute.owner === session?.account ? "You" : escapeHtml(attribute.owner || "—")}</td>
+        <td>
+          <div class="table-actions">
+            ${editable ? `
+              <button class="button button-secondary" type="button" data-attribute-action="edit" data-attribute-id="${escapeHtml(attribute.id)}">Edit</button>
+              <button class="button danger-button" type="button" data-attribute-action="delete" data-attribute-id="${escapeHtml(attribute.id)}">Delete</button>`
+              : `<small>View only</small>`}
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+function resetAttributeForm() {
+  attributeForm.reset();
+  attributeEditId.value = "";
+  attributeSubmit.textContent = "Create attribute";
+  attributeCancel.hidden = true;
+  document.getElementById("attribute-form-title").textContent = "Attributes";
+}
+
+async function saveAttribute(event) {
+  event.preventDefault();
+  const editId = attributeEditId.value;
+  const body = {
+    name: attributeName.value.trim(),
+    type: attributeType.value,
+    values: splitList(attributeValues.value),
+    categories: splitList(attributeCategories.value),
+  };
+  attributeSubmit.disabled = true;
+  try {
+    const { attribute } = await authApi(editId ? `/attributes/${encodeURIComponent(editId)}` : "/attributes", {
+      method: editId ? "PUT" : "POST",
+      body,
+    });
+    allAttributes = [...allAttributes.filter((item) => item.id !== attribute.id), attribute]
+      .sort((a, b) => a.name.localeCompare(b.name));
+    renderAttributes();
+    renderProductOptions();
+    resetAttributeForm();
+    showMessage(attributeMessage, `${attribute.name} ${editId ? "updated" : "created"}.`);
+  } catch (error) {
+    showMessage(attributeMessage, error.message, true);
+  } finally {
+    attributeSubmit.disabled = false;
+  }
+}
+
+async function handleAttributeTableClick(event) {
+  const button = event.target.closest("[data-attribute-action]");
+  if (!button) return;
+  const attribute = allAttributes.find((item) => item.id === button.dataset.attributeId);
+  if (!attribute) return;
+  if (button.dataset.attributeAction === "edit") {
+    attributeEditId.value = attribute.id;
+    attributeName.value = attribute.name;
+    attributeType.value = attribute.type || "text";
+    attributeValues.value = attribute.values.join(", ");
+    attributeCategories.value = (attribute.categories || []).join(", ");
+    attributeSubmit.textContent = "Update attribute";
+    attributeCancel.hidden = false;
+    document.getElementById("attribute-form-title").textContent = `Edit ${attribute.name}`;
+    showMessage(attributeMessage, "");
+    attributeForm.scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+  if (!confirm(`Delete the ${attribute.name} attribute? Products already listed with it keep their options.`)) return;
+  try {
+    await authApi(`/attributes/${encodeURIComponent(attribute.id)}`, { method: "DELETE" });
+    allAttributes = allAttributes.filter((item) => item.id !== attribute.id);
+    if (attributeEditId.value === attribute.id) resetAttributeForm();
+    renderAttributes();
+    renderProductOptions();
+    showMessage(attributeMessage, `${attribute.name} deleted.`);
+  } catch (error) {
+    showMessage(attributeMessage, error.message, true);
+  }
+}
+
+// The option groups to show: attributes for the chosen category, plus any option the product already has.
+function visibleOptionGroups() {
+  const groups = allAttributes
+    .filter((attribute) => attributeAppliesTo(attribute, categoryInput.value))
+    .map((attribute) => ({ name: attribute.name, type: attribute.type, values: [...attribute.values] }));
+  optionSelections.forEach((selected, name) => {
+    const group = groups.find((item) => item.name.toLowerCase() === name.toLowerCase());
+    if (group) {
+      selected.forEach((value) => { if (!group.values.includes(value)) group.values.push(value); });
+    } else if (selected.size) {
+      const attribute = allAttributes.find((item) => item.name.toLowerCase() === name.toLowerCase());
+      groups.push({ name, type: attribute?.type || "text", values: [...selected] });
+    }
+  });
+  return groups;
+}
+
+function renderProductOptions() {
+  const groups = visibleOptionGroups();
+  productOptionsPanel.hidden = !groups.length && !measurementRows.children.length;
+  productOptionGroups.innerHTML = groups.map((group) => {
+    const selected = optionSelections.get(group.name) || new Set();
+    const chips = group.values.map((value) => `
+      <label class="option-chip">
+        <input type="checkbox" data-option-name="${escapeHtml(group.name)}" value="${escapeHtml(value)}" ${selected.has(value) ? "checked" : ""} />
+        ${group.type === "color" ? `<span class="swatch" style="${swatchStyle(value)}"></span>` : ""}
+        <span>${escapeHtml(value)}</span>
+      </label>`).join("");
+    return `
+      <div class="option-group">
+        <div class="option-group-header">
+          <strong>${escapeHtml(group.name)}</strong>
+          <button type="button" class="link-button" data-option-all="${escapeHtml(group.name)}">Select all</button>
+          <button type="button" class="link-button" data-option-none="${escapeHtml(group.name)}">Clear</button>
+        </div>
+        <div class="option-chips">${chips}</div>
+      </div>`;
+  }).join("");
+}
+
+function handleOptionChange(event) {
+  const box = event.target.closest("[data-option-name]");
+  if (!box) return;
+  const name = box.dataset.optionName;
+  const selected = optionSelections.get(name) || new Set();
+  if (box.checked) selected.add(box.value);
+  else selected.delete(box.value);
+  optionSelections.set(name, selected);
+}
+
+function handleOptionClick(event) {
+  const all = event.target.closest("[data-option-all]");
+  const none = event.target.closest("[data-option-none]");
+  const name = all?.dataset.optionAll ?? none?.dataset.optionNone;
+  if (name === undefined) return;
+  const boxes = [...productOptionGroups.querySelectorAll("[data-option-name]")].filter((box) => box.dataset.optionName === name);
+  optionSelections.set(name, new Set(all ? boxes.map((box) => box.value) : []));
+  renderProductOptions();
+}
+
+// The product's options in the order the attribute lists them: [{ name, type, values }].
+function collectProductOptions() {
+  return visibleOptionGroups()
+    .map((group) => {
+      const selected = optionSelections.get(group.name) || new Set();
+      return { name: group.name, type: group.type, values: group.values.filter((value) => selected.has(value)) };
+    })
+    .filter((option) => option.values.length);
+}
+
+function addMeasurementRow(label = "", value = "") {
+  const row = document.createElement("div");
+  row.className = "measurement-row";
+  row.innerHTML = `
+    <input type="text" class="measurement-label" maxlength="60" placeholder="Measurement" aria-label="Measurement name" />
+    <input type="text" class="measurement-value" maxlength="60" placeholder="e.g. 40 in / 102 cm" aria-label="Measurement value" />
+    <button type="button" class="link-button" data-remove-measurement aria-label="Remove measurement">Remove</button>`;
+  row.querySelector(".measurement-label").value = label;
+  row.querySelector(".measurement-value").value = value;
+  measurementRows.appendChild(row);
+  return row;
+}
+
+function collectMeasurements() {
+  return [...measurementRows.querySelectorAll(".measurement-row")]
+    .map((row) => ({ label: row.querySelector(".measurement-label").value.trim(), value: row.querySelector(".measurement-value").value.trim() }))
+    .filter((row) => row.label && row.value);
+}
+
+function setProductOptions(product) {
+  optionSelections = new Map((product?.options || []).map((option) => [option.name, new Set(option.values)]));
+  measurementRows.innerHTML = "";
+  (product?.measurements || []).forEach((row) => addMeasurementRow(row.label, row.value));
+  renderProductOptions();
+}
+
+function handleMeasurementClick(event) {
+  const preset = event.target.closest("[data-measurement]");
+  if (preset) {
+    const row = addMeasurementRow(preset.dataset.measurement);
+    row.querySelector(preset.dataset.measurement ? ".measurement-value" : ".measurement-label").focus();
+    return;
+  }
+  const remove = event.target.closest("[data-remove-measurement]");
+  if (remove) {
+    remove.closest(".measurement-row").remove();
+    renderProductOptions();
+  }
 }
 
 // ── AI listing ─────────────────────────────────────────────────────────────────
@@ -391,6 +653,7 @@ function cancelProductEdit() {
   productSubmit.textContent = "List Product";
   productCancel.hidden = true;
   document.getElementById("product-form-title").textContent = "List a new product";
+  setProductOptions(null);
   resetAiAssist();
   renderPreview();
   showMessage(message, "");
@@ -422,6 +685,8 @@ async function submitProduct(event) {
     category: categoryInput.value.trim(),
     subcategory: subcategoryInput.value.trim(),
     image_url: imageInput.value.trim(),
+    options: collectProductOptions(),
+    measurements: collectMeasurements(),
     seller_email: session.email,
     seller_name: session.name,
   };
@@ -436,8 +701,8 @@ async function submitProduct(event) {
     });
 
     if (isApiSuccess(res)) {
-      showMessage(message, editId ? "Product updated." : "Product listed successfully.");
       cancelProductEdit();
+      showMessage(message, editId ? "Product updated." : "Product listed successfully.");
       loadCurrentProducts(session);
       return;
     }
@@ -699,7 +964,7 @@ function renderOrders() {
         <td><strong>${escapeHtml(shortOrderId(order.id))}</strong></td>
         <td>${escapeHtml(formatOrderDate(order.created_at))}</td>
         <td>${escapeHtml(order.user_email || "Guest")}</td>
-        <td>${escapeHtml(items.map((item) => item.name).join(", ") || "—")}</td>
+        <td>${escapeHtml(items.map((item) => (item.variant ? `${item.name} (${item.variant})` : item.name)).join(", ") || "—")}</td>
         <td>${formatMoney(order.total)}</td>
         <td>${statusBadge("payment", order.payment_status)}</td>
         <td>${statusBadge("shipping", getFulfillmentStatus(order))}${tracking}</td>
@@ -733,7 +998,7 @@ function openOrder(order) {
   orderSummary.innerHTML = `
     <h3>Order ${escapeHtml(shortOrderId(order.id))}</h3>
     <p>${escapeHtml(order.user_email || "Guest")} · placed ${escapeHtml(formatOrderDate(order.created_at))}</p>
-    <ul>${items.map((item) => `<li>${escapeHtml(item.name)} <span>${formatMoney(item.price)}</span></li>`).join("")}</ul>
+    <ul>${items.map((item) => `<li>${escapeHtml(item.name)}${item.variant ? ` <small>${escapeHtml(item.variant)}</small>` : ""} <span>${formatMoney(item.price)}</span></li>`).join("")}</ul>
     <p>
       Subtotal ${formatMoney(order.subtotal ?? order.total)} · Shipping ${formatMoney(order.shipping_total)}
       · Tax ${formatMoney(order.tax_total)} · <strong>Total ${formatMoney(order.total)}</strong>
@@ -1106,7 +1371,17 @@ nameInput.addEventListener("input", renderPreview);
 descriptionInput.addEventListener("input", renderPreview);
 priceInput.addEventListener("input", renderPreview);
 [brandInput, comparePriceInput, saleEventInput].forEach((input) => input.addEventListener("input", renderPreview));
-categoryInput.addEventListener("input", () => { updateSubcategoryOptions(); renderPreview(); });
+categoryInput.addEventListener("input", () => { updateSubcategoryOptions(); renderProductOptions(); renderPreview(); });
+productOptionGroups.addEventListener("change", handleOptionChange);
+productOptionGroups.addEventListener("click", handleOptionClick);
+productOptionsPanel.addEventListener("click", handleMeasurementClick);
+attributeForm.addEventListener("submit", saveAttribute);
+attributeCancel.addEventListener("click", () => { resetAttributeForm(); showMessage(attributeMessage, ""); });
+attributeTableBody.addEventListener("click", handleAttributeTableClick);
+document.querySelectorAll("[data-open-section]").forEach((link) => link.addEventListener("click", () => {
+  document.querySelector(`.admin-tab[data-admin-section="${link.dataset.openSection}"]`)?.click();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}));
 imageInput.addEventListener("input", () => { syncAiButton(); renderPreview(); });
 aiFillButton.addEventListener("click", () => fillFromPhoto({ overwrite: true }));
 orderForm.addEventListener("submit", saveOrder);
@@ -1157,6 +1432,11 @@ async function initAdminPage() {
   }
 
   initTabs();
+  loadAttributes();
+  if (session.role === "superadmin") {
+    document.getElementById("attributes-intro").textContent =
+      "Colors, sizes and other options buyers choose from. As super admin you can edit or delete every attribute.";
+  }
   renderPreview();
   renderCategoryOptions();
   updateSubcategoryOptions();

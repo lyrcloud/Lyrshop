@@ -515,7 +515,9 @@ function renderProductCards(products) {
             <span class="current-price">$${product.price.toFixed(2)}</span>
             ${isOnSale(product) ? `<span class="original-price">$${product.original_price.toFixed(2)}</span>` : ""}
           </div>
-          <button type="button" class="button button-primary add-cart-btn" data-add="${escapeHtml(product.id)}">Add to Cart</button>
+          ${product.options?.length
+            ? `<a class="button button-primary add-cart-btn" href="${productUrl}">Choose options</a>`
+            : `<button type="button" class="button button-primary add-cart-btn" data-add="${escapeHtml(product.id)}">Add to Cart</button>`}
         </div>
       </article>`;
   }).join("");

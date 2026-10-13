@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-10" />
+  <link rel="stylesheet" href="styles.css?v=20261012-11" />
 </head>
 <body>
   <header class="page-header">
@@ -25,6 +25,7 @@
   <main class="admin-page">
     <nav class="admin-tabs" aria-label="Sections">
       <button class="admin-tab active" type="button" data-admin-section="products">My Products</button>
+      <button class="admin-tab" type="button" data-admin-section="attributes">Attributes</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="orders">Orders</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="users">Users</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="categories">Categories</button>
@@ -87,6 +88,28 @@
           <input type="text" id="product-subcategory" list="subcategory-options" placeholder="Select a subcategory" />
           <datalist id="subcategory-options"></datalist>
         </label>
+        <fieldset id="product-options" class="product-options" hidden>
+          <legend>Options buyers choose</legend>
+          <p class="field-note">Tick the colors, sizes and other options this item comes in. Buyers must pick one of each before adding it to their cart.
+            Manage the lists under <button type="button" class="link-button" data-open-section="attributes">Attributes</button>.</p>
+          <div id="product-option-groups"></div>
+          <div class="measurements">
+            <h4>Measurements</h4>
+            <p class="field-note">Help buyers find their fit, e.g. Chest 40 in.</p>
+            <div id="measurement-rows" class="measurement-rows"></div>
+            <div class="measurement-presets">
+              <span>Add:</span>
+              <button type="button" class="chip-button" data-measurement="Chest">Chest</button>
+              <button type="button" class="chip-button" data-measurement="Waist">Waist</button>
+              <button type="button" class="chip-button" data-measurement="Hips">Hips</button>
+              <button type="button" class="chip-button" data-measurement="Length">Length</button>
+              <button type="button" class="chip-button" data-measurement="Sleeve">Sleeve</button>
+              <button type="button" class="chip-button" data-measurement="Shoulder">Shoulder</button>
+              <button type="button" class="chip-button" data-measurement="Inseam">Inseam</button>
+              <button type="button" class="chip-button" data-measurement="">Other…</button>
+            </div>
+          </div>
+        </fieldset>
         <div class="image-field">
         <label>
           Image URL
@@ -135,6 +158,58 @@
         <button type="button" id="product-show-more" class="button button-secondary" hidden>Show more</button>
       </div>
       <div id="message" class="admin-message"></div>
+    </section>
+
+    <section class="admin-panel admin-section" id="admin-attributes-section">
+      <div class="panel-header">
+        <h2 id="attribute-form-title">Attributes</h2>
+        <p id="attributes-intro">Colors, sizes and other options buyers choose from. Every seller can use any attribute; you can edit or delete the ones you created.</p>
+      </div>
+      <form id="attribute-form" class="admin-crud-form">
+        <input type="hidden" id="attribute-edit-id" />
+        <label>
+          Name
+          <input type="text" id="attribute-name" maxlength="40" placeholder="e.g. Material" required />
+        </label>
+        <label>
+          Shown as
+          <select id="attribute-type">
+            <option value="text">Buttons</option>
+            <option value="size">Size buttons</option>
+            <option value="color">Color swatches</option>
+          </select>
+        </label>
+        <label class="wide-field">
+          Values
+          <input type="text" id="attribute-values" placeholder="Cotton, Linen, Wool" required />
+          <small class="field-note">Separate values with commas, in the order buyers should see them.</small>
+        </label>
+        <label class="wide-field">
+          Categories
+          <input type="text" id="attribute-categories" placeholder="Lifestyle, Sports" />
+          <small class="field-note" id="attribute-category-note">Comma-separated category names. Leave blank to offer it for every category.</small>
+        </label>
+        <div class="admin-form-actions">
+          <button type="submit" id="attribute-submit" class="button button-primary">Create attribute</button>
+          <button type="button" id="attribute-cancel" class="button button-secondary" hidden>Cancel edit</button>
+        </div>
+      </form>
+      <div id="attribute-message" class="admin-message" role="status"></div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Shown as</th>
+              <th>Values</th>
+              <th>Categories</th>
+              <th>Created by</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="attribute-table-body"></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="admin-panel admin-section admin-only" id="admin-orders-section">
@@ -325,7 +400,7 @@
 
   <script src="auth.js?v=20261012-2"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261012-8"></script>
+  <script src="admin.js?v=20261012-9"></script>
   <script src="footer.js?v=20261012-1"></script>
 </body>
 </html>

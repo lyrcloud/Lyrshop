@@ -142,12 +142,160 @@ function renderSpecifics(product) {
     .join("");
 }
 
+// ── Options (color, size, ...) ─────────────────────────────────────────────────
+// Buyers pick one value of each option the seller offers; the choice travels with the cart line into the order.
+
+const chosenOptions = {};
+
+function swatchStyle(value) {
+  const color = String(value).toLowerCase().replace(/\s+/g, "");
+  return window.CSS?.supports?.("color", color) ? `background:${color}` : "";
+}
+
+function variantLabel(product) {
+  return (product.options || []).map((option) => `${option.name}: ${chosenOptions[option.name]}`).join(" · ");
+}
+
+function renderOptions(product) {
+  const container = document.getElementById("detail-options");
+  container.innerHTML = (product.options || []).map((option) => {
+    const buttons = option.values.map((value) => option.type === "color"
+      ? `<button type="button" class="option-swatch" data-option="${escapeHtml(option.name)}" data-value="${escapeHtml(value)}"
+          aria-pressed="false" aria-label="${escapeHtml(value)}" title="${escapeHtml(value)}"><span style="${swatchStyle(value)}"></span></button>`
+      : `<button type="button" class="option-pill" data-option="${escapeHtml(option.name)}" data-value="${escapeHtml(value)}"
+          aria-pressed="false">${escapeHtml(value)}</button>`).join("");
+    return `
+      <div class="detail-option" data-option-group="${escapeHtml(option.name)}">
+        <p class="detail-option-label">${escapeHtml(option.name)}: <strong data-chosen>Select</strong></p>
+        <div class="detail-option-values" role="group" aria-label="${escapeHtml(option.name)}">${buttons}</div>
+      </div>`;
+  }).join("");
+}
+
+function bindOptions() {
+  document.getElementById("detail-options").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-option]");
+    if (!button) return;
+    const group = button.closest("[data-option-group]");
+    chosenOptions[button.dataset.option] = button.dataset.value;
+    group.querySelectorAll("[data-option]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+    group.querySelector("[data-chosen]").textContent = button.dataset.value;
+    group.classList.remove("is-missing");
+    if (!document.querySelector(".detail-option.is-missing")) document.getElementById("option-error").textContent = "";
+  });
+}
+
+// Returns true when every option has a choice; otherwise flags the missing ones.
+function checkOptions(product) {
+  const missing = (product.options || []).filter((option) => !chosenOptions[option.name]);
+  document.querySelectorAll("[data-option-group]").forEach((group) => {
+    group.classList.toggle("is-missing", missing.some((option) => option.name === group.dataset.optionGroup));
+  });
+  document.getElementById("option-error").textContent = missing.length
+    ? `Please choose ${missing.map((option) => option.name.toLowerCase()).join(" and ")}.`
+    : "";
+  if (missing.length) document.querySelector(".detail-option.is-missing")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  return !missing.length;
+}
+
+function renderMeasurements(product) {
+  const rows = product.measurements || [];
+  document.getElementById("detail-measurements").hidden = !rows.length;
+  document.getElementById("measurement-grid").innerHTML = rows
+    .map((row) => `<div><dt>${escapeHtml(row.label)}</dt><dd>${escapeHtml(row.value)}</dd></div>`)
+    .join("");
+}
+
 function addProductToCart(product, quantity) {
   const cart = readCart();
+  const options = Object.fromEntries((product.options || []).map((option) => [option.name, chosenOptions[option.name]]));
+  const variant = variantLabel(product);
   for (let i = 0; i < quantity; i += 1) {
-    cart.push({ id: product.id, name: product.name, price: product.price });
+    cart.push({ id: product.id, name: product.name, price: product.price, ...(variant ? { options, variant } : {}) });
   }
   saveCart(cart);
+}
+
+// ── Photo zoom ─────────────────────────────────────────────────────────────────
+// Hovering magnifies the photo under the pointer; clicking opens it full screen, where a click toggles a closer zoom.
+
+const ZOOM_SCALE = 2.2;
+const LIGHTBOX_ZOOM = 2.5;
+
+function bindZoom() {
+  const stage = document.getElementById("zoom-stage");
+  const image = document.getElementById("detail-image");
+  const lightbox = document.getElementById("zoom-lightbox");
+  const viewport = document.getElementById("zoom-viewport");
+  const zoomImage = document.getElementById("zoom-image");
+  const closeButton = document.getElementById("zoom-close");
+  const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  let returnFocus = null;
+
+  if (!canHover) stage.querySelector(".zoom-hint").textContent = "\u{1F50D} Tap to enlarge";
+  if (canHover) {
+    stage.addEventListener("pointermove", (event) => {
+      const box = stage.getBoundingClientRect();
+      image.style.transformOrigin = `${((event.clientX - box.left) / box.width) * 100}% ${((event.clientY - box.top) / box.height) * 100}%`;
+      image.style.transform = `scale(${ZOOM_SCALE})`;
+      stage.classList.add("is-zooming");
+    });
+    stage.addEventListener("pointerleave", () => {
+      image.style.transform = "";
+      stage.classList.remove("is-zooming");
+    });
+  }
+
+  const setLightboxZoom = (zoomed, event) => {
+    viewport.classList.toggle("is-zoomed", zoomed);
+    if (!zoomed) {
+      zoomImage.style.width = "";
+      return;
+    }
+    // Keep the clicked point under the pointer after enlarging.
+    const box = zoomImage.getBoundingClientRect();
+    const fx = event ? (event.clientX - box.left) / box.width : 0.5;
+    const fy = event ? (event.clientY - box.top) / box.height : 0.5;
+    zoomImage.style.width = `${box.width * LIGHTBOX_ZOOM}px`;
+    const view = viewport.getBoundingClientRect();
+    viewport.scrollLeft = fx * zoomImage.offsetWidth - (event ? event.clientX - view.left : view.width / 2);
+    viewport.scrollTop = fy * zoomImage.offsetHeight - (event ? event.clientY - view.top : view.height / 2);
+  };
+
+  const open = () => {
+    if (!image.src) return;
+    returnFocus = document.activeElement;
+    zoomImage.src = image.src;
+    zoomImage.alt = image.alt;
+    setLightboxZoom(false);
+    lightbox.hidden = false;
+    document.body.classList.add("zoom-open");
+    closeButton.focus();
+  };
+  const close = () => {
+    lightbox.hidden = true;
+    document.body.classList.remove("zoom-open");
+    returnFocus?.focus();
+  };
+
+  stage.addEventListener("click", open);
+  stage.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      open();
+    }
+  });
+  zoomImage.addEventListener("click", (event) => setLightboxZoom(!viewport.classList.contains("is-zoomed"), event));
+  closeButton.addEventListener("click", close);
+  lightbox.addEventListener("click", (event) => { if (event.target === lightbox) close(); });
+  document.addEventListener("keydown", (event) => {
+    if (lightbox.hidden) return;
+    if (event.key === "Escape") close();
+    if (event.key === "Tab") {
+      event.preventDefault();
+      closeButton.focus();
+    }
+  });
 }
 
 function renderProduct(product) {
@@ -168,6 +316,8 @@ function renderProduct(product) {
   detailImage.alt = product.name;
 
   renderSpecifics(product);
+  renderOptions(product);
+  renderMeasurements(product);
 }
 
 function renderWatchButton(button, product) {
@@ -180,13 +330,16 @@ function renderWatchButton(button, product) {
 function bindActions(product) {
   const quantitySelect = document.getElementById("quantity-select");
   const cartButton = document.getElementById("detail-cart-button");
+  bindOptions();
   cartButton.addEventListener("click", () => {
+    if (!checkOptions(product)) return;
     const quantity = Number(quantitySelect.value);
     addProductToCart(product, quantity);
     cartButton.classList.add("is-added");
     cartButton.textContent = "Added \u2713";
     window.setTimeout(() => { cartButton.classList.remove("is-added"); cartButton.textContent = "Add to cart"; }, 1400);
-    showToast(`${quantity > 1 ? `${quantity} \u00d7 ` : ""}${product.name} added to your cart`,
+    const variant = variantLabel(product);
+    showToast(`${quantity > 1 ? `${quantity} \u00d7 ` : ""}${product.name}${variant ? ` (${variant})` : ""} added to your cart`,
       { actionLabel: "Go to cart", actionHref: "cart.html" });
   });
 
@@ -200,6 +353,7 @@ function bindActions(product) {
   });
 
   document.getElementById("buy-now-button").addEventListener("click", () => {
+    if (!checkOptions(product)) return;
     addProductToCart(product, Number(quantitySelect.value));
     window.location.href = "cart.html";
   });
@@ -232,6 +386,7 @@ async function initProductDetail() {
   }
   renderProduct(product);
   bindActions(product);
+  bindZoom();
   recordRecentlyViewed(product.id);
 }
 
