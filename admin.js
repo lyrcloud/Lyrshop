@@ -28,6 +28,9 @@ const imageInput = document.getElementById("product-image");
 const productEditId = document.getElementById("product-edit-id");
 const productSubmit = document.getElementById("product-submit");
 const productCancel = document.getElementById("product-cancel");
+const priceHint = document.getElementById("product-price-hint");
+const aiFillButton = document.getElementById("ai-fill");
+const aiStatus = document.getElementById("ai-status");
 
 const orderForm = document.getElementById("order-form");
 const orderEditId = document.getElementById("order-edit-id");
@@ -294,11 +297,92 @@ function startEditProduct(product) {
   updateSubcategoryOptions();
   subcategoryInput.value = product.subcategory || "";
   imageInput.value = product.image_url || "";
+  resetAiAssist();
   productSubmit.textContent = "Update product";
   productCancel.hidden = false;
   document.getElementById("product-form-title").textContent = "Edit product";
   renderPreview();
   form.scrollIntoView({ behavior: "smooth" });
+}
+
+// ── AI listing ─────────────────────────────────────────────────────────────────
+// Claude reads the photo and suggests the listing fields, like eBay's photo-first listing. After an upload it only
+// fills empty fields; the button refills them all. The price stays the seller's call and is shown as a hint only.
+
+const AI_STATUS_IDLE = "Upload a photo and AI fills in the name, description, brand and category.";
+let aiRequest = 0;
+
+function setAiStatus(text, tone = "") {
+  aiStatus.textContent = text;
+  aiStatus.dataset.tone = tone;
+}
+
+function syncAiButton() {
+  aiFillButton.disabled = !imageInput.value.trim();
+}
+
+function resetAiAssist() {
+  aiRequest += 1;
+  priceHint.hidden = true;
+  priceHint.textContent = "";
+  setAiStatus(AI_STATUS_IDLE);
+  syncAiButton();
+}
+
+async function fillFromPhoto({ overwrite }) {
+  const imageUrl = imageInput.value.trim();
+  if (!imageUrl) return;
+  const request = ++aiRequest;
+  aiFillButton.disabled = true;
+  setAiStatus("Reading your photo…", "busy");
+  try {
+    const { draft } = await authApi("/products/ai-draft", {
+      method: "POST",
+      body: {
+        image_url: imageUrl,
+        // Whatever the seller already typed as a name helps pin down the exact model.
+        hint: nameInput.value.trim(),
+        categories: readCategories().map((category) => ({ name: category.name, subcategories: category.subcategories || [] })),
+      },
+    });
+    // A newer photo or a reset form has taken over since this request started.
+    if (request !== aiRequest) return;
+
+    const fill = (input, value) => {
+      if (value && (overwrite || !input.value.trim())) input.value = value;
+    };
+    fill(nameInput, draft.name);
+    fill(brandInput, draft.brand);
+    fill(descriptionInput, draft.description);
+    if (overwrite || !categoryInput.value.trim()) {
+      categoryInput.value = draft.category;
+      subcategoryInput.value = draft.subcategory;
+    } else {
+      fill(subcategoryInput, draft.subcategory);
+    }
+    updateSubcategoryOptions();
+    renderPreview();
+
+    if (draft.price_high > 0) {
+      const range = draft.price_low === draft.price_high
+        ? formatMoney(draft.price_low)
+        : `${formatMoney(draft.price_low)}–${formatMoney(draft.price_high)}`;
+      priceHint.textContent = `AI estimate: similar items sell for about ${range}.`;
+      priceHint.hidden = false;
+    }
+    setAiStatus(draft.confidence === "low"
+      ? "Filled from your photo, but the AI wasn't sure what this is. Please check every field."
+      : "Filled from your photo. Check the details before listing.", draft.confidence === "low" ? "warn" : "done");
+  } catch (error) {
+    if (request !== aiRequest) return;
+    if (error.status === 401) {
+      setAiStatus("Please sign in again to use AI listing.", "error");
+    } else {
+      setAiStatus(error.message || "AI couldn't read the photo. Fill in the details yourself.", "error");
+    }
+  } finally {
+    if (request === aiRequest) syncAiButton();
+  }
 }
 
 function cancelProductEdit() {
@@ -307,6 +391,7 @@ function cancelProductEdit() {
   productSubmit.textContent = "List Product";
   productCancel.hidden = true;
   document.getElementById("product-form-title").textContent = "List a new product";
+  resetAiAssist();
   renderPreview();
   showMessage(message, "");
 }
@@ -978,6 +1063,7 @@ function initImagePickers() {
         target.value = await uploadImage(image.blob, image.name);
         target.dispatchEvent(new Event("input", { bubbles: true }));
         setStatus("Image uploaded.");
+        if (target === imageInput) fillFromPhoto({ overwrite: false });
       } catch (error) {
         setStatus(error.message || "Image upload failed.", true);
       } finally {
@@ -1021,7 +1107,8 @@ descriptionInput.addEventListener("input", renderPreview);
 priceInput.addEventListener("input", renderPreview);
 [brandInput, comparePriceInput, saleEventInput].forEach((input) => input.addEventListener("input", renderPreview));
 categoryInput.addEventListener("input", () => { updateSubcategoryOptions(); renderPreview(); });
-imageInput.addEventListener("input", renderPreview);
+imageInput.addEventListener("input", () => { syncAiButton(); renderPreview(); });
+aiFillButton.addEventListener("click", () => fillFromPhoto({ overwrite: true }));
 orderForm.addEventListener("submit", saveOrder);
 orderCancel.addEventListener("click", closeOrder);
 orderTableBody.addEventListener("click", handleOrderTableClick);

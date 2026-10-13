@@ -4823,3 +4823,75 @@ footer.site-footer .footer-legal {
     gap: 1.75rem 1rem;
   }
 }
+
+/* AI listing assist on the seller form (admin.js fillFromPhoto). */
+.ai-assist {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: -0.25rem 0 1rem;
+  padding: 0.75rem;
+  border: 1px dashed #c7d2fe;
+  border-radius: 8px;
+  background: #f5f7ff;
+}
+
+.ai-assist .button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.ai-status {
+  flex: 1 1 220px;
+  margin: 0;
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.ai-status[data-tone="busy"] {
+  color: #4338ca;
+}
+
+.ai-status[data-tone="busy"]::before {
+  content: "";
+  display: inline-block;
+  width: 0.8em;
+  height: 0.8em;
+  margin-right: 0.4em;
+  vertical-align: -0.1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: ai-spin 0.8s linear infinite;
+}
+
+.ai-status[data-tone="done"] {
+  color: #065f46;
+}
+
+.ai-status[data-tone="warn"] {
+  color: #92400e;
+}
+
+.ai-status[data-tone="error"] {
+  color: #b91c1c;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: #4338ca;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-status[data-tone="busy"]::before {
+    animation: none;
+  }
+}
