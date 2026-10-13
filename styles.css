@@ -4429,3 +4429,397 @@ input[type="checkbox"] {
 .cart-line-qty {
   justify-self: start;
 }
+
+/* My Lyrshop (dashboard.html): tabs, a section sidebar and summary blocks, laid out like My eBay. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.my-page {
+  max-width: 1200px;
+  margin: 0 auto 4rem;
+  padding: 0 2rem;
+}
+
+.my-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 1.75rem 0 1rem;
+}
+
+.my-heading h1 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+}
+
+.my-heading p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.my-tabs {
+  display: flex;
+  gap: 1.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.my-tab {
+  padding: 0.7rem 0;
+  border-bottom: 3px solid transparent;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.my-tab.active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.my-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 2rem;
+  padding-top: 1.5rem;
+}
+
+.my-sidebar[hidden] {
+  display: none;
+}
+
+.my-sidebar[hidden] + .my-content {
+  grid-column: 1 / -1;
+}
+
+.my-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-self: start;
+}
+
+.my-sidebar a {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  color: var(--ink-soft);
+}
+
+.my-sidebar a:hover {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.my-sidebar a.active {
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.my-section[hidden] {
+  display: none;
+}
+
+.my-block {
+  padding-bottom: 1.75rem;
+  margin-bottom: 1.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.my-block:last-child {
+  border-bottom: 0;
+}
+
+.my-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.my-block-header h2,
+.my-block-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.my-block-header a {
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.my-empty,
+.my-muted {
+  color: var(--muted);
+}
+
+.my-empty {
+  margin: 0;
+}
+
+.my-empty a {
+  color: var(--accent);
+}
+
+.my-orders {
+  display: grid;
+  gap: 1rem;
+}
+
+.my-order {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.my-order-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  padding: 0.7rem 1rem;
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.my-order-meta strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.my-order-body {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+  padding: 1rem;
+}
+
+.my-thumb,
+.my-item-image {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: #f6f7f9;
+  overflow: hidden;
+}
+
+.my-thumb img,
+.my-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.4rem;
+}
+
+.my-order-info p {
+  margin: 0 0 0.3rem;
+  overflow-wrap: anywhere;
+}
+
+.my-order-info a:hover,
+.my-item-name:hover {
+  text-decoration: underline;
+}
+
+.my-order-status {
+  font-weight: 700;
+  color: var(--success);
+}
+
+.my-order-status.is-waiting {
+  color: #b45309;
+}
+
+.my-order-status.is-closed {
+  color: var(--muted);
+}
+
+.my-order-tracking {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.my-order-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.my-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1.25rem 1rem;
+}
+
+.my-items > .my-empty {
+  grid-column: 1 / -1;
+}
+
+.my-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.my-item-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.my-item-price {
+  font-weight: 800;
+}
+
+.my-item .link-button {
+  align-self: flex-start;
+}
+
+.my-profile {
+  max-width: 560px;
+}
+
+@media (max-width: 760px) {
+  .compact-header:has(+ .my-page) .header-actions {
+    gap: 0.5rem;
+  }
+
+  .compact-header:has(+ .my-page) .button {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.88rem;
+  }
+
+  .my-page {
+    padding: 0 1rem;
+  }
+
+  .my-heading {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .my-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+    padding-top: 1rem;
+  }
+
+  .my-sidebar {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 0.4rem;
+    scrollbar-width: none;
+  }
+
+  .my-sidebar a {
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    font-size: 0.88rem;
+  }
+
+  .my-order-body {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .my-order-badges {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .my-items {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+}
+
+/* Site footer (footer.js): eBay-style link columns over a copyright line. */
+footer.site-footer {
+  padding: 2.5rem 2rem 2rem;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.footer-columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer-column h2 {
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.footer-column ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.footer-column a {
+  color: var(--ink-soft);
+}
+
+.footer-column a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+footer.site-footer .footer-legal {
+  max-width: 1200px;
+  margin: 2rem auto 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 760px) {
+  footer.site-footer {
+    padding: 2rem 1rem 1.5rem;
+  }
+
+  .footer-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.75rem 1rem;
+  }
+}

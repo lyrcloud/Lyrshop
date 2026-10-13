@@ -30,6 +30,24 @@ function toggleWatchlist(productId) {
   return watched;
 }
 
+const RECENTLY_VIEWED_KEY = "lyrshopRecentlyViewed";
+const RECENTLY_VIEWED_LIMIT = 24;
+
+// Newest first; viewing an item again moves it back to the front.
+function getRecentlyViewed() {
+  return readStoredList(RECENTLY_VIEWED_KEY);
+}
+
+function recordRecentlyViewed(productId) {
+  const id = String(productId);
+  const list = [id, ...getRecentlyViewed().filter((item) => item !== id)].slice(0, RECENTLY_VIEWED_LIMIT);
+  localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(list));
+}
+
+function clearRecentlyViewed() {
+  localStorage.removeItem(RECENTLY_VIEWED_KEY);
+}
+
 function updateHeaderCounts() {
   const counts = { cart: readStoredList(CART_KEY).length, watchlist: getWatchlist().length };
   document.querySelectorAll("[data-count]").forEach((badge) => {

@@ -232,6 +232,7 @@ async function initProductDetail() {
   }
   renderProduct(product);
   bindActions(product);
+  recordRecentlyViewed(product.id);
 }
 
 initProductDetail();

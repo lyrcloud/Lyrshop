@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard - Lyrshop</title>
+  <title>My Lyrshop</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-8" />
+  <link rel="stylesheet" href="styles.css?v=20261012-9" />
 </head>
 <body>
   <header class="page-header compact-header">
@@ -18,78 +18,101 @@
     </a>
     <div class="header-actions">
       <a href="index.html" class="button button-secondary">Shop</a>
-      <a href="admin.html" class="button button-secondary">Seller</a>
-      <button id="logout-button" type="button" class="button button-primary">Logout</button>
+      <a href="cart.html" class="button button-secondary">Cart <span class="count-badge" data-count="cart" hidden></span></a>
+      <button id="logout-button" type="button" class="button button-primary">Sign out</button>
     </div>
   </header>
 
-  <main class="dashboard-page">
-    <section class="dashboard-hero">
-      <div>
-        <p class="eyebrow">User dashboard</p>
-        <h1 id="dashboard-title">Your account</h1>
-        <p id="dashboard-email"></p>
+  <main class="my-page">
+    <div class="my-heading">
+      <h1>My Lyrshop</h1>
+      <p id="my-greeting"></p>
+    </div>
+
+    <nav class="my-tabs" aria-label="My Lyrshop">
+      <a href="#summary" class="my-tab" data-tab="activity">Activity</a>
+      <a href="#account" class="my-tab" data-tab="account">Account</a>
+    </nav>
+
+    <div class="my-layout">
+      <nav class="my-sidebar" id="my-sidebar" aria-label="Activity">
+        <a href="#summary" data-section-link="summary">Summary</a>
+        <a href="#recently-viewed" data-section-link="recently-viewed">Recently viewed</a>
+        <a href="#purchases" data-section-link="purchases">Purchases</a>
+        <a href="#watchlist" data-section-link="watchlist">Watchlist</a>
+        <a href="admin.html">Selling</a>
+      </nav>
+
+      <div class="my-content">
+        <section class="my-section" data-section="summary" aria-labelledby="summary-title">
+          <h2 id="summary-title" class="visually-hidden">Summary</h2>
+          <div class="my-block">
+            <div class="my-block-header">
+              <h3>Purchases</h3>
+              <a href="#purchases">See all</a>
+            </div>
+            <div id="summary-purchases" class="my-orders"></div>
+          </div>
+          <div class="my-block">
+            <div class="my-block-header">
+              <h3>Watchlist</h3>
+              <a href="#watchlist">See all</a>
+            </div>
+            <div id="summary-watchlist" class="my-items"></div>
+          </div>
+          <div class="my-block">
+            <div class="my-block-header">
+              <h3>Recently viewed</h3>
+              <a href="#recently-viewed">See all</a>
+            </div>
+            <div id="summary-recent" class="my-items"></div>
+          </div>
+        </section>
+
+        <section class="my-section" data-section="recently-viewed" aria-labelledby="recent-title" hidden>
+          <div class="my-block-header">
+            <h2 id="recent-title">Recently viewed</h2>
+            <button type="button" id="clear-recent" class="link-button">Clear all</button>
+          </div>
+          <div id="recent-list" class="my-items"></div>
+        </section>
+
+        <section class="my-section" data-section="purchases" aria-labelledby="purchases-title" hidden>
+          <div class="my-block-header">
+            <h2 id="purchases-title">Purchases</h2>
+          </div>
+          <div id="purchase-list" class="my-orders"></div>
+        </section>
+
+        <section class="my-section" data-section="watchlist" aria-labelledby="watchlist-title" hidden>
+          <div class="my-block-header">
+            <h2 id="watchlist-title">Watchlist</h2>
+          </div>
+          <div id="watchlist-list" class="my-items"></div>
+        </section>
+
+        <section class="my-section" data-section="account" aria-labelledby="account-title" hidden>
+          <div class="my-block-header">
+            <h2 id="account-title">Personal info</h2>
+          </div>
+          <dl class="profile-list my-profile">
+            <div><dt>Name</dt><dd id="profile-name"></dd></div>
+            <div><dt>Email / Mobile</dt><dd id="profile-email"></dd></div>
+            <div><dt>Sign-in method</dt><dd id="profile-provider"></dd></div>
+            <div><dt>Access</dt><dd id="profile-role"></dd></div>
+          </dl>
+        </section>
       </div>
-      <div class="dashboard-stat">
-        <span id="dashboard-order-count">0</span>
-        <small>Orders</small>
-      </div>
-    </section>
-
-    <section class="account-options" aria-label="Account actions">
-      <a href="index.html" class="option-tile">
-        <span class="option-icon" aria-hidden="true">$</span>
-        <span>
-          <strong>Shop products</strong>
-          <small>Browse deals, add items to cart, and checkout.</small>
-        </span>
-      </a>
-      <a href="admin.html" class="option-tile">
-        <span class="option-icon" aria-hidden="true">+</span>
-        <span>
-          <strong>Sell products</strong>
-          <small>Add catalog items and preview your seller listings.</small>
-        </span>
-      </a>
-    </section>
-
-    <section class="dashboard-grid">
-      <article class="dashboard-panel">
-        <div class="panel-header">
-          <h2>Profile</h2>
-          <p>Account details used for checkout and order updates.</p>
-        </div>
-        <dl class="profile-list">
-          <div>
-            <dt>Name</dt>
-            <dd id="profile-name"></dd>
-          </div>
-          <div>
-            <dt>Email / Mobile</dt>
-            <dd id="profile-email"></dd>
-          </div>
-          <div>
-            <dt>Sign-in method</dt>
-            <dd id="profile-provider"></dd>
-          </div>
-          <div>
-            <dt>Access</dt>
-            <dd id="profile-role"></dd>
-          </div>
-        </dl>
-      </article>
-
-      <article class="dashboard-panel">
-        <div class="panel-header">
-          <h2>Recent orders</h2>
-          <p>Orders placed from this browser while signed in.</p>
-        </div>
-        <div id="order-list" class="order-list"></div>
-      </article>
-    </section>
+    </div>
   </main>
 
+  <footer data-site-footer>
+    <p>&copy; 2026 Lyrshop. Powered by Lyrcloud.</p>
+  </footer>
+
   <script src="auth.js?v=20261012-2"></script>
-  <script src="dashboard.js?v=20261012-1"></script>
+  <script src="ui.js?v=20261012-4"></script>
+  <script src="dashboard.js?v=20261012-2"></script>
+  <script src="footer.js?v=20261012-1"></script>
 </body>
 </html>

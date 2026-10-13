@@ -35,11 +35,17 @@ let searchQuery = pageParams.get("search") || "";
 let activeView = pageParams.get("view") || "";
 let activeBrand = pageParams.get("brand") || "";
 let activeEvent = pageParams.get("event") || "";
-let activeSort = pageParams.get("sort") || "featured";
+const DEFAULT_SORT = "latest";
+let activeSort = pageParams.get("sort") || DEFAULT_SORT;
 let productsLoaded = false;
 let searchBox = null;
 
+// Products uploaded before upload times were recorded have no created_at and sort after newer ones.
+const byNewest = (a, b) => b.created_at - a.created_at;
+
 const SORTS = {
+  latest: { label: "Latest uploads", compare: byNewest },
+  trending: { label: "Trending", compare: (a, b) => b.trending - a.trending || byNewest(a, b) },
   featured: { label: "Featured", compare: null },
   "price-asc": { label: "Price: low to high", compare: (a, b) => a.price - b.price },
   "price-desc": { label: "Price: high to low", compare: (a, b) => b.price - a.price },
@@ -187,7 +193,7 @@ function getFilteredProducts() {
     filtered = filtered.filter((p) => matchesSearch(productSearchFields(p), terms));
   }
 
-  const sort = SORTS[activeSort] || SORTS.featured;
+  const sort = SORTS[activeSort] || SORTS[DEFAULT_SORT];
   return sort.compare ? [...filtered].sort(sort.compare) : filtered;
 }
 
@@ -279,7 +285,7 @@ function renderListingToolbar() {
       ${escapeHtml(chip.label)} <span aria-hidden="true">&times;</span>
     </button>`).join("")
     + (chips.length > 1 ? `<button type="button" class="active-filter-reset" data-clear="all">Clear all</button>` : "");
-  sortSelect.value = SORTS[activeSort] ? activeSort : "featured";
+  sortSelect.value = SORTS[activeSort] ? activeSort : DEFAULT_SORT;
 }
 
 function clearFilter(key) {
@@ -301,7 +307,7 @@ function syncListingUrl() {
   if (activeView) params.set("view", activeView);
   if (activeBrand) params.set("brand", activeBrand);
   if (activeEvent) params.set("event", activeEvent);
-  if (activeSort !== "featured") params.set("sort", activeSort);
+  if (activeSort !== DEFAULT_SORT) params.set("sort", activeSort);
   const query = params.toString();
   history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
 }
@@ -581,6 +587,9 @@ async function loadProducts() {
           // Only a real seller-set "was" price is shown; never invent a discount.
           original_price: Number(p.compare_at_price) || 0,
           rating: Number(p.rating) || 4,
+          created_at: Number(p.created_at) || 0,
+          // Units sold in the last 30 days, counted by the server.
+          trending: Number(p.trending) || 0,
           image_url: p.image_url || PLACEHOLDER_IMAGE_URL,
         };
       })

@@ -415,7 +415,8 @@ async function checkout() {
 
     const response = await fetch(`${API_BASE_URL}/orders`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // The sign-in token ties the order to this account, so it shows under Purchases on any device.
+      headers: { "Content-Type": "application/json", ...(user.token ? { Authorization: `Bearer ${user.token}` } : {}) },
       body: JSON.stringify(savedOrder),
     });
 
