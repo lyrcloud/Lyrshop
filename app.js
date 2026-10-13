@@ -442,16 +442,6 @@ function refreshListing() {
   syncListingUrl();
 }
 
-function renderStars(score) {
-  const maxStars = 5;
-  const filledStars = Math.round(score || 4);
-  let stars = "";
-  for (let i = 0; i < maxStars; i += 1) {
-    stars += i < filledStars ? "★" : "☆";
-  }
-  return stars;
-}
-
 function getDiscountPercent(original, current) {
   if (!original || original <= current) return 0;
   return Math.round(((original - current) / original) * 100);
@@ -510,7 +500,7 @@ function renderProductCards(products) {
           <h3 class="product-name"><a href="${productUrl}">${escapeHtml(product.name)}</a></h3>
           <p class="product-desc">${escapeHtml(product.description)}</p>
           ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
-          <div class="product-rating" aria-label="Rated ${Math.round(product.rating || 4)} out of 5">${renderStars(product.rating || 4)}</div>
+          <div class="product-rating">${ratingStars(product.rating || 4)}</div>
           <div class="product-pricing">
             <span class="current-price">$${product.price.toFixed(2)}</span>
             ${isOnSale(product) ? `<span class="original-price">$${product.original_price.toFixed(2)}</span>` : ""}

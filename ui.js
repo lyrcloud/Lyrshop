@@ -63,6 +63,16 @@ function updateHeaderCounts() {
   });
 }
 
+// Five stars for a 0-5 score. Hovering or focusing lights them in a wave and shows the exact score.
+function ratingStars(score, { label = "out of 5" } = {}) {
+  const value = Math.max(0, Math.min(5, Number(score) || 0));
+  const filled = Math.round(value);
+  const text = `${value.toFixed(1)} ${label}`;
+  const stars = Array.from({ length: 5 }, (_, index) =>
+    `<span class="star${index < filled ? " is-full" : ""}" style="--star: ${index}" aria-hidden="true">\u2605</span>`).join("");
+  return `<span class="rating-stars" tabindex="0" role="img" aria-label="Rated ${text}" data-tip="${text}">${stars}</span>`;
+}
+
 function showToast(message, { tone = "success", actionLabel, actionHref } = {}) {
   let stack = document.getElementById("toast-stack");
   if (!stack) {

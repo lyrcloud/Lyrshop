@@ -281,10 +281,94 @@ function initAuthPage() {
     signupTab.setAttribute("aria-selected", String(isSignup));
     nameField.classList.toggle("hidden", !isSignup);
     nameInput.required = isSignup;
-    submitButton.textContent = isSignup ? "Create account" : "Login";
+    submitLabel.textContent = isSignup ? "Create account" : "Login";
     passwordInput.autocomplete = isSignup ? "new-password" : "current-password";
     message.textContent = "";
+    tabs.dataset.mode = mode;
+    title.textContent = isSignup ? "Create your account" : "Welcome back";
+    subtitle.textContent = isSignup
+      ? "Join Lyrshop to save favorites, track orders and start selling."
+      : "Sign in to track orders, see your watchlist and check out faster.";
+    form.classList.remove("is-switching");
+    void form.offsetWidth; // Restart the fade-in.
+    form.classList.add("is-switching");
+    updatePasswordHelp();
+    (isSignup ? nameInput : contactKind === "phone" ? phoneInput : emailInput).focus({ preventScroll: true });
   }
+
+  // ── Interactive form helpers ───────────────────────────────────────────────
+  const tabs = document.querySelector(".auth-tabs");
+  const title = document.getElementById("auth-title");
+  const subtitle = document.getElementById("auth-subtitle");
+  const submitLabel = submitButton.querySelector(".auth-submit-label");
+  const passwordToggle = document.getElementById("password-toggle");
+  const strength = document.getElementById("password-strength");
+  const strengthLabel = document.getElementById("strength-label");
+  const passwordFeedback = document.getElementById("password-feedback");
+  const emailFeedback = document.getElementById("email-feedback");
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const STRENGTH_LABELS = ["Too short", "Weak", "Fair", "Good", "Strong"];
+  let capsLockOn = false;
+  let emailTouched = false;
+
+  function setBusy(busy) {
+    submitButton.disabled = busy;
+    submitButton.classList.toggle("is-loading", busy);
+  }
+
+  // 0 = under 6 characters; then one point each for length 10+, mixed case, a digit and a symbol (capped at 4).
+  function passwordScore(password) {
+    if (password.length < 6) return 0;
+    const points = [password.length >= 10, /[a-z]/.test(password) && /[A-Z]/.test(password), /\d/.test(password), /[^A-Za-z0-9]/.test(password)]
+      .filter(Boolean).length;
+    return Math.max(1, Math.min(4, points));
+  }
+
+  function updatePasswordHelp() {
+    const password = passwordInput.value;
+    const showStrength = mode === "signup" && password.length > 0;
+    strength.hidden = !showStrength;
+    if (showStrength) {
+      const score = passwordScore(password);
+      strength.dataset.score = String(score);
+      strengthLabel.textContent = STRENGTH_LABELS[score];
+    }
+    passwordFeedback.textContent = capsLockOn ? "Caps Lock is on." : "";
+    passwordFeedback.classList.toggle("is-warning", capsLockOn);
+  }
+
+  function updateEmailFeedback() {
+    const value = emailInput.value.trim();
+    const valid = EMAIL_PATTERN.test(value);
+    const show = emailTouched && value.length > 0;
+    emailInput.classList.toggle("is-valid", show && valid);
+    emailInput.classList.toggle("is-invalid", show && !valid);
+    emailFeedback.textContent = show && !valid ? "That doesn't look like an email address yet." : "";
+  }
+
+  passwordToggle.addEventListener("click", () => {
+    const show = passwordInput.type === "password";
+    passwordInput.type = show ? "text" : "password";
+    passwordToggle.textContent = show ? "Hide" : "Show";
+    passwordToggle.setAttribute("aria-pressed", String(show));
+    passwordToggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    passwordInput.focus();
+  });
+  passwordInput.addEventListener("input", updatePasswordHelp);
+  ["keydown", "keyup"].forEach((type) => passwordInput.addEventListener(type, (event) => {
+    if (typeof event.getModifierState !== "function") return;
+    capsLockOn = event.getModifierState("CapsLock");
+    updatePasswordHelp();
+  }));
+  passwordInput.addEventListener("blur", () => {
+    capsLockOn = false;
+    updatePasswordHelp();
+  });
+  emailInput.addEventListener("blur", () => {
+    emailTouched = true;
+    updateEmailFeedback();
+  });
+  emailInput.addEventListener("input", updateEmailFeedback);
 
   loginTab.addEventListener("click", () => setMode("login"));
   signupTab.addEventListener("click", () => setMode("signup"));
@@ -301,17 +385,17 @@ function initAuthPage() {
     const password = passwordInput.value;
 
     if (mode === "signup") {
-      submitButton.disabled = true;
+      setBusy(true);
       await startVerification({
         name: nameInput.value.trim(),
         [contact.kind]: contact.value,
         password,
       });
-      submitButton.disabled = false;
+      setBusy(false);
       return;
     }
 
-    submitButton.disabled = true;
+    setBusy(true);
     message.textContent = "Signing in...";
     try {
       const result = await postAuthApi("/auth/login", { [contact.kind]: contact.value, password });
@@ -322,7 +406,7 @@ function initAuthPage() {
         ? "Lyrshop accounts moved to our new secure system. Please sign up again with this email or number."
         : error.message;
     } finally {
-      submitButton.disabled = false;
+      setBusy(false);
     }
   });
 

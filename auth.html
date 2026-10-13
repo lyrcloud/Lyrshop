@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-11" />
+  <link rel="stylesheet" href="styles.css?v=20261012-12" />
 </head>
 <body class="auth-body">
   <header class="page-header compact-header">
@@ -20,40 +20,14 @@
   </header>
 
   <main class="auth-page">
-    <section class="auth-hero" aria-label="Account benefits">
-      <p class="eyebrow">Lyrshop account</p>
-      <h1>Shop faster with your deals, cart, and orders in one account.</h1>
-      <div class="auth-showcase" aria-hidden="true">
-        <img
-          class="auth-showcase-main"
-          src="https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=70"
-          alt=""
-        />
-        <div class="auth-deal-card">
-          <span>Today</span>
-          <strong>$64.99</strong>
-          <small>Eco backpack saved</small>
-        </div>
-        <div class="auth-mini-products">
-          <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=240&q=70" alt="" />
-          <img src="https://images.unsplash.com/photo-1527814050087-3793815479db?auto=format&fit=crop&w=240&q=70" alt="" />
-        </div>
-      </div>
-      <div class="auth-benefits">
-        <span>Fast checkout</span>
-        <span>Order history</span>
-        <span>Saved watchlist</span>
-      </div>
-    </section>
-
     <section class="auth-panel" aria-labelledby="auth-title">
       <div class="auth-copy">
-        <p class="eyebrow">Customer account</p>
-        <h1 id="auth-title">Sign in to Lyrshop</h1>
-        <p>Track orders, save account details, and move faster through checkout.</p>
+        <h1 id="auth-title">Welcome back</h1>
+        <p id="auth-subtitle">Sign in to track orders, see your watchlist and check out faster.</p>
       </div>
 
-      <div class="auth-tabs" role="tablist" aria-label="Account mode">
+      <div class="auth-tabs" role="tablist" aria-label="Account mode" data-mode="login">
+        <span class="auth-tab-indicator" aria-hidden="true"></span>
         <button id="login-tab" class="auth-tab active" type="button" role="tab" aria-selected="true">Login</button>
         <button id="signup-tab" class="auth-tab" type="button" role="tab" aria-selected="false">Sign up</button>
       </div>
@@ -69,7 +43,8 @@
         </div>
         <label id="email-field">
           Email
-          <input type="email" id="auth-email" autocomplete="email" placeholder="you@example.com" required />
+          <input type="email" id="auth-email" autocomplete="email" placeholder="you@example.com" required aria-describedby="email-feedback" />
+          <span class="field-feedback" id="email-feedback" aria-live="polite"></span>
         </label>
         <div id="phone-field" class="hidden">
           <label for="auth-phone">Mobile number</label>
@@ -78,11 +53,21 @@
             <input type="tel" id="auth-phone" autocomplete="tel-national" inputmode="tel" placeholder="415 555 0100" />
           </div>
         </div>
-        <label>
-          Password
-          <input type="password" id="auth-password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required />
-        </label>
-        <button id="auth-submit" type="submit" class="button button-primary full-width">Login</button>
+        <div class="auth-field">
+          <label for="auth-password">Password</label>
+          <div class="password-field">
+            <input type="password" id="auth-password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required aria-describedby="password-feedback" />
+            <button type="button" class="password-toggle" id="password-toggle" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+          <div class="password-strength" id="password-strength" hidden>
+            <span class="strength-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span id="strength-label"></span>
+          </div>
+          <span class="field-feedback" id="password-feedback" aria-live="polite"></span>
+        </div>
+        <button id="auth-submit" type="submit" class="button button-primary full-width auth-submit">
+          <span class="auth-submit-label">Login</span>
+        </button>
       </form>
 
 
@@ -92,6 +77,11 @@
 
       <p id="auth-message" class="form-message" role="status"></p>
       <p class="auth-terms">New accounts are verified with a code sent to your email or mobile.</p>
+      <ul class="auth-perks" aria-label="Account benefits">
+        <li>&#128274; Secure sign-in</li>
+        <li>&#128230; Order tracking</li>
+        <li>&#9825; Saved watchlist</li>
+      </ul>
     </section>
   </main>
 
@@ -115,7 +105,8 @@
   </dialog>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="auth.js?v=20261012-2"></script>
+  <script src="auth.js?v=20261012-3"></script>
   <script src="footer.js?v=20261012-1"></script>
+  <script src="lyrbot.js?v=20261012-1"></script>
 </body>
 </html>

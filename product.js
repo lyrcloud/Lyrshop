@@ -303,7 +303,8 @@ function renderProduct(product) {
   document.getElementById("breadcrumb-category").textContent = product.category;
   document.getElementById("breadcrumb-product").textContent = product.name;
   document.getElementById("detail-title").textContent = product.name;
-  document.getElementById("detail-subtitle").textContent = `${product.rating.toFixed(1)} out of 5 seller rating | ${product.category}`;
+  document.getElementById("detail-subtitle").innerHTML =
+    `${ratingStars(product.rating, { label: "out of 5 seller rating" })}<span>${escapeHtml(product.rating.toFixed(1))} seller rating · ${escapeHtml(product.category)}</span>`;
   document.getElementById("detail-price").textContent = `$${product.price.toFixed(2)}`;
   document.getElementById("detail-description").textContent = product.description;
 
