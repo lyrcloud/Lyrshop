@@ -24,7 +24,11 @@ const productFilterCount = document.getElementById("product-filter-count");
 const productShowMore = document.getElementById("product-show-more");
 const categoryInput = document.getElementById("product-category");
 const subcategoryInput = document.getElementById("product-subcategory");
+// Hidden: always the gallery's cover photo, which cards, the preview and AI listing read.
 const imageInput = document.getElementById("product-image");
+const productMediaList = document.getElementById("product-media");
+const productMediaPicker = document.getElementById("product-media-picker");
+const productMediaUrl = document.getElementById("product-media-url");
 const productEditId = document.getElementById("product-edit-id");
 const productSubmit = document.getElementById("product-submit");
 const productCancel = document.getElementById("product-cancel");
@@ -309,7 +313,7 @@ function startEditProduct(product) {
   categoryInput.value = product.category || "";
   updateSubcategoryOptions();
   subcategoryInput.value = product.subcategory || "";
-  imageInput.value = product.image_url || "";
+  setProductMedia(product);
   setProductOptions(product);
   resetAiAssist();
   productSubmit.textContent = "Update product";
@@ -653,6 +657,7 @@ function cancelProductEdit() {
   productSubmit.textContent = "List Product";
   productCancel.hidden = true;
   document.getElementById("product-form-title").textContent = "List a new product";
+  setProductMedia(null);
   setProductOptions(null);
   resetAiAssist();
   renderPreview();
@@ -685,6 +690,7 @@ async function submitProduct(event) {
     category: categoryInput.value.trim(),
     subcategory: subcategoryInput.value.trim(),
     image_url: imageInput.value.trim(),
+    media: productMedia,
     options: collectProductOptions(),
     measurements: collectMeasurements(),
     seller_email: session.email,
@@ -1198,7 +1204,9 @@ function initTabs() {
 // ── Image uploads ──────────────────────────────────────────────────────────────
 
 const UPLOAD_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const UPLOAD_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+const UPLOAD_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 // Same OAuth client as Google sign-in in auth.js; its JavaScript origins must include this site.
 const GOOGLE_CLIENT_ID = "238394195869-ohu6m0qm43k069a3r2sb3mak0r4g9obs.apps.googleusercontent.com";
 // Google Cloud API key with the Google Picker API enabled. Drive import stays off until it is set.
@@ -1226,12 +1234,16 @@ function loadScript(src) {
   return scriptLoads[src];
 }
 
-async function uploadImage(blob, filename) {
-  if (!UPLOAD_CONTENT_TYPES.includes(blob.type)) {
-    throw new Error("Choose a JPEG, PNG, WebP, or GIF image.");
+// Category images are photos only; product galleries also take videos.
+async function uploadImage(blob, filename, { allowVideo = false } = {}) {
+  const isVideo = allowVideo && UPLOAD_VIDEO_TYPES.includes(blob.type);
+  if (!isVideo && !UPLOAD_CONTENT_TYPES.includes(blob.type)) {
+    throw new Error(allowVideo
+      ? `${filename}: choose a JPEG, PNG, WebP or GIF photo, or an MP4, WebM or MOV video.`
+      : "Choose a JPEG, PNG, WebP, or GIF image.");
   }
-  if (blob.size > UPLOAD_MAX_BYTES) {
-    throw new Error("Images must be 10 MB or smaller.");
+  if (blob.size > (isVideo ? UPLOAD_VIDEO_MAX_BYTES : UPLOAD_MAX_BYTES)) {
+    throw new Error(isVideo ? `${filename}: videos must be 100 MB or smaller.` : "Images must be 10 MB or smaller.");
   }
 
   const signRes = await fetch(`${API_BASE_URL}/media/upload-url`, {
@@ -1305,7 +1317,7 @@ async function pickDriveImage() {
 }
 
 function initImagePickers() {
-  document.querySelectorAll(".image-picker").forEach((picker) => {
+  document.querySelectorAll(".image-picker[data-image-target]").forEach((picker) => {
     const target = document.getElementById(picker.dataset.imageTarget);
     const fileInput = picker.querySelector("input[type='file']");
     const status = picker.querySelector(".image-picker-status");
@@ -1328,7 +1340,6 @@ function initImagePickers() {
         target.value = await uploadImage(image.blob, image.name);
         target.dispatchEvent(new Event("input", { bubbles: true }));
         setStatus("Image uploaded.");
-        if (target === imageInput) fillFromPhoto({ overwrite: false });
       } catch (error) {
         setStatus(error.message || "Image upload failed.", true);
       } finally {
@@ -1351,6 +1362,153 @@ function initImagePickers() {
       run(pickDriveImage);
     });
   });
+}
+
+// ── Product photos and videos ─────────────────────────────────────────────────────
+// A product keeps an ordered gallery in `media`; its first photo is also saved as image_url, the cover every other
+// page shows. Older products only have image_url, which opens as a one-photo gallery.
+
+const MAX_PRODUCT_MEDIA = 12;
+const VIDEO_LINK_PATTERN = /\.(mp4|webm|mov)(?:[?#]|$)/i;
+let productMedia = [];
+
+function setProductMedia(product) {
+  if (Array.isArray(product?.media) && product.media.length) {
+    productMedia = product.media.map((item) => ({ type: item.type === "video" ? "video" : "image", url: item.url }));
+  } else {
+    productMedia = product?.image_url ? [{ type: "image", url: product.image_url }] : [];
+  }
+  renderProductMedia();
+}
+
+function renderProductMedia() {
+  const cover = productMedia.find((item) => item.type === "image");
+  productMediaList.innerHTML = productMedia.map((item, index) => {
+    const preview = item.type === "video"
+      ? `<video src="${escapeHtml(item.url)}" muted preload="metadata"></video><span class="media-tag">&#9654; Video</span>`
+      : `<img src="${escapeHtml(item.url)}" alt="" loading="lazy" />${item === cover ? '<span class="media-tag">Cover</span>' : ""}`;
+    return `
+      <li class="media-item">
+        ${preview}
+        <div class="media-actions">
+          <button type="button" data-media-move="-1" data-index="${index}" aria-label="Move earlier" ${index === 0 ? "disabled" : ""}>&#8592;</button>
+          <button type="button" data-media-move="1" data-index="${index}" aria-label="Move later" ${index === productMedia.length - 1 ? "disabled" : ""}>&#8594;</button>
+          <button type="button" data-media-remove data-index="${index}" aria-label="Remove">&times;</button>
+        </div>
+      </li>`;
+  }).join("");
+  productMediaList.hidden = !productMedia.length;
+
+  const coverUrl = cover?.url || "";
+  if (imageInput.value !== coverUrl) {
+    imageInput.value = coverUrl;
+    imageInput.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+}
+
+function handleProductMediaClick(event) {
+  const button = event.target.closest("button[data-index]");
+  if (!button) return;
+  const index = Number(button.dataset.index);
+  if (button.hasAttribute("data-media-remove")) {
+    productMedia.splice(index, 1);
+  } else {
+    const to = index + Number(button.dataset.mediaMove);
+    [productMedia[index], productMedia[to]] = [productMedia[to], productMedia[index]];
+  }
+  renderProductMedia();
+}
+
+function initProductMediaPicker() {
+  const fileInput = productMediaPicker.querySelector("input[type='file']");
+  const status = productMediaPicker.querySelector(".image-picker-status");
+  const buttons = productMediaPicker.querySelectorAll("button");
+
+  const setStatus = (text, isError = false) => {
+    status.textContent = text;
+    status.classList.toggle("is-error", isError);
+  };
+
+  // Uploads one file at a time so a failure names the file and keeps the ones already added.
+  const addFiles = async (files) => {
+    const room = MAX_PRODUCT_MEDIA - productMedia.length;
+    if (room <= 0) {
+      setStatus(`A product can have up to ${MAX_PRODUCT_MEDIA} photos and videos.`, true);
+      return;
+    }
+    const queue = files.slice(0, room);
+    const coverBefore = imageInput.value;
+    buttons.forEach((button) => { button.disabled = true; });
+    let error = null;
+    try {
+      for (const [index, file] of queue.entries()) {
+        setStatus(queue.length > 1 ? `Uploading ${index + 1} of ${queue.length}…` : "Uploading…");
+        const url = await uploadImage(file.blob, file.name, { allowVideo: true });
+        productMedia.push({ type: file.blob.type.startsWith("video/") ? "video" : "image", url });
+        renderProductMedia();
+      }
+    } catch (uploadError) {
+      error = uploadError;
+    } finally {
+      buttons.forEach((button) => { button.disabled = false; });
+    }
+    if (error) {
+      setStatus(error.message || "Upload failed.", true);
+    } else if (files.length > queue.length) {
+      setStatus(`Added ${queue.length}; a product can have up to ${MAX_PRODUCT_MEDIA} photos and videos.`, true);
+    } else {
+      setStatus(queue.length > 1 ? `${queue.length} files uploaded.` : "Uploaded.");
+    }
+    if (imageInput.value && imageInput.value !== coverBefore) fillFromPhoto({ overwrite: false });
+  };
+
+  productMediaPicker.querySelector("[data-media-source='device']").addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    const files = [...fileInput.files].map((file) => ({ blob: file, name: file.name }));
+    fileInput.value = "";
+    if (files.length) addFiles(files);
+  });
+
+  productMediaPicker.querySelector("[data-media-source='drive']").addEventListener("click", async () => {
+    if (!GOOGLE_PICKER_API_KEY) {
+      setStatus("Google Drive import isn't set up yet: a Google Picker API key is required.", true);
+      return;
+    }
+    try {
+      const image = await pickDriveImage();
+      if (image) addFiles([image]);
+    } catch (error) {
+      setStatus(error.message || "Google Drive import failed.", true);
+    }
+  });
+
+  const addLink = () => {
+    const url = productMediaUrl.value.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      setStatus("Links must start with https://", true);
+      return;
+    }
+    if (productMedia.length >= MAX_PRODUCT_MEDIA) {
+      setStatus(`A product can have up to ${MAX_PRODUCT_MEDIA} photos and videos.`, true);
+      return;
+    }
+    const coverBefore = imageInput.value;
+    productMedia.push({ type: VIDEO_LINK_PATTERN.test(url) ? "video" : "image", url });
+    productMediaUrl.value = "";
+    setStatus("");
+    renderProductMedia();
+    if (imageInput.value && imageInput.value !== coverBefore) fillFromPhoto({ overwrite: false });
+  };
+  productMediaPicker.querySelector("[data-media-source='link']").addEventListener("click", addLink);
+  productMediaUrl.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addLink();
+    }
+  });
+  productMediaList.addEventListener("click", handleProductMediaClick);
+  renderProductMedia();
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
@@ -1396,6 +1554,7 @@ categoryForm.addEventListener("submit", saveCategory);
 categoryCancel.addEventListener("click", resetCategoryForm);
 categoryList.addEventListener("click", handleCategoryClick);
 initImagePickers();
+initProductMediaPicker();
 
 async function initAdminPage() {
   if (!requireUser()) return;

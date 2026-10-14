@@ -36,7 +36,15 @@ function normalizeProduct(product) {
     original_price: Number(product.compare_at_price) || 0,
     rating: Number(product.rating) || 4,
     image_url: product.image_url || DETAIL_PLACEHOLDER_IMAGE_URL,
+    media: productMedia(product),
   };
+}
+
+// The seller's ordered photos and videos; listings from before galleries existed show their single photo.
+function productMedia(product) {
+  const media = (Array.isArray(product.media) ? product.media : [])
+    .filter((item) => item && item.url && (item.type === "image" || item.type === "video"));
+  return media.length ? media : [{ type: "image", url: product.image_url || DETAIL_PLACEHOLDER_IMAGE_URL }];
 }
 
 function escapeHtml(value) {
@@ -235,6 +243,7 @@ function bindZoom() {
   if (!canHover) stage.querySelector(".zoom-hint").textContent = "\u{1F50D} Tap to enlarge";
   if (canHover) {
     stage.addEventListener("pointermove", (event) => {
+      if (stage.classList.contains("is-video")) return;
       const box = stage.getBoundingClientRect();
       image.style.transformOrigin = `${((event.clientX - box.left) / box.width) * 100}% ${((event.clientY - box.top) / box.height) * 100}%`;
       image.style.transform = `scale(${ZOOM_SCALE})`;
@@ -263,7 +272,7 @@ function bindZoom() {
   };
 
   const open = () => {
-    if (!image.src) return;
+    if (!image.src || stage.classList.contains("is-video")) return;
     returnFocus = document.activeElement;
     zoomImage.src = image.src;
     zoomImage.alt = image.alt;
@@ -318,13 +327,64 @@ function renderProduct(product) {
   document.getElementById("detail-description").textContent = product.description;
 
 
-  const detailImage = document.getElementById("detail-image");
-  detailImage.src = product.image_url;
-  detailImage.alt = product.name;
+  renderGallery(product);
 
   renderSpecifics(product);
   renderOptions(product);
   renderMeasurements(product);
+}
+
+// ── Gallery ─────────────────────────────────────────────────────────────────────
+// Thumbnails switch the main viewer between photos (with zoom) and videos (with player controls).
+
+function showMedia(product, index) {
+  const item = product.media[index];
+  const stage = document.getElementById("zoom-stage");
+  const image = document.getElementById("detail-image");
+  const video = document.getElementById("detail-video");
+  const isVideo = item.type === "video";
+
+  video.pause();
+  stage.classList.toggle("is-video", isVideo);
+  image.hidden = isVideo;
+  video.hidden = !isVideo;
+  // A video plays inside the stage, so it is not a button that opens the photo viewer.
+  if (isVideo) {
+    stage.removeAttribute("role");
+    stage.removeAttribute("tabindex");
+    stage.removeAttribute("aria-label");
+    video.src = item.url;
+    video.setAttribute("aria-label", `${product.name} video`);
+  } else {
+    stage.setAttribute("role", "button");
+    stage.setAttribute("tabindex", "0");
+    stage.setAttribute("aria-label", "Open full-size photo");
+    video.removeAttribute("src");
+    video.load();
+    image.src = item.url;
+    image.alt = product.media.length > 1 ? `${product.name}, photo ${index + 1}` : product.name;
+  }
+  document.querySelectorAll("#gallery-thumbs .gallery-thumb").forEach((thumb, i) => {
+    thumb.classList.toggle("is-active", i === index);
+    thumb.setAttribute("aria-pressed", String(i === index));
+  });
+}
+
+function renderGallery(product) {
+  const thumbs = document.getElementById("gallery-thumbs");
+  thumbs.hidden = product.media.length < 2;
+  thumbs.innerHTML = product.media.map((item, index) => `
+    <button type="button" class="gallery-thumb${item.type === "video" ? " is-video" : ""}" data-media-index="${index}"
+      aria-label="Show ${item.type === "video" ? "video" : "photo"} ${index + 1} of ${product.media.length}">
+      ${item.type === "video"
+        ? `<video src="${escapeHtml(item.url)}#t=0.1" muted preload="metadata" aria-hidden="true"></video><span class="gallery-play" aria-hidden="true">&#9654;</span>`
+        : `<img src="${escapeHtml(item.url)}" alt="" loading="lazy" />`}
+    </button>`).join("");
+  thumbs.onclick = (event) => {
+    const thumb = event.target.closest("[data-media-index]");
+    if (thumb) showMedia(product, Number(thumb.dataset.mediaIndex));
+  };
+  showMedia(product, 0);
 }
 
 function renderWatchButton(button, product) {

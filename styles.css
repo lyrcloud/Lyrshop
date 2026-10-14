@@ -6133,3 +6133,178 @@ iframe.skiptranslate,
     max-width: 8.5rem;
   }
 }
+
+/* Product galleries: photo and video thumbnails on the listing (product.js renderGallery). */
+.main-product-image video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #000000;
+}
+
+.main-product-image [hidden],
+.gallery-thumbs[hidden],
+.media-manager[hidden] {
+  display: none;
+}
+
+.main-product-image.is-video {
+  cursor: auto;
+}
+
+.main-product-image.is-video .image-badge,
+.main-product-image.is-video .zoom-hint {
+  display: none;
+}
+
+.gallery-thumbs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.gallery-thumb {
+  position: relative;
+  flex: 0 0 4.5rem;
+  height: 4.5rem;
+  padding: 0;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #f3f5f7;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.gallery-thumb img,
+.gallery-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.gallery-thumb:hover {
+  border-color: var(--ink-soft);
+}
+
+.gallery-thumb.is-active {
+  border-color: var(--accent);
+}
+
+.gallery-thumb:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.gallery-play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 1.1rem;
+  background: rgba(17, 24, 39, 0.35);
+}
+
+/* Seller form gallery (admin.js renderProductMedia). */
+.media-field-label {
+  font-weight: 600;
+}
+
+.media-field-hint {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.media-manager {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.media-item {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f3f5f7;
+  overflow: hidden;
+}
+
+.media-item img,
+.media-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.media-tag {
+  position: absolute;
+  top: 0.3rem;
+  left: 0.3rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: rgba(17, 24, 39, 0.78);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.media-actions {
+  position: absolute;
+  right: 0.3rem;
+  bottom: 0.3rem;
+  left: 0.3rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.media-actions button {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+.media-actions button[data-media-remove] {
+  margin-left: auto;
+  color: #b91c1c;
+}
+
+.media-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.media-actions button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.media-link {
+  display: flex;
+  flex: 1 1 100%;
+  gap: 0.5rem;
+}
+
+.media-link input {
+  flex: 1;
+  min-width: 0;
+}

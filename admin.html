@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-1" />
+  <link rel="stylesheet" href="styles.css?v=20261014-2" />
 </head>
 <body>
   <header class="page-header">
@@ -111,14 +111,18 @@
           </div>
         </fieldset>
         <div class="image-field">
-        <label>
-          Image URL
-          <input type="url" id="product-image" placeholder="https://example.com/photo.jpg" />
-        </label>
-        <div class="image-picker" data-image-target="product-image">
-          <button type="button" class="button button-secondary" data-image-source="device">Browse computer</button>
-          <button type="button" class="button button-secondary" data-image-source="drive">Google Drive</button>
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+        <span class="media-field-label">Photos &amp; videos</span>
+        <p class="media-field-hint">Add up to 12. The first photo is the cover shown in search and on cards.</p>
+        <ul class="media-manager" id="product-media" aria-label="Product photos and videos"></ul>
+        <input type="hidden" id="product-image" />
+        <div class="image-picker" id="product-media-picker">
+          <button type="button" class="button button-secondary" data-media-source="device">Add photos &amp; videos</button>
+          <button type="button" class="button button-secondary" data-media-source="drive">Google Drive</button>
+          <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden />
+          <div class="media-link">
+            <input type="url" id="product-media-url" placeholder="Or paste a photo or video link (https://…)" aria-label="Photo or video link" />
+            <button type="button" class="button button-secondary" data-media-source="link">Add link</button>
+          </div>
           <p class="image-picker-status" role="status"></p>
         </div>
         <div class="ai-assist">
@@ -401,7 +405,7 @@
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261014-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261014-1"></script>
+  <script src="admin.js?v=20261014-2"></script>
   <script src="footer.js?v=20261014-1"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>

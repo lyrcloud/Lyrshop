@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-1" />
+  <link rel="stylesheet" href="styles.css?v=20261014-2" />
 </head>
 <body>
   <header class="header">
@@ -70,9 +70,11 @@
       <div class="gallery-panel">
         <div class="main-product-image" id="zoom-stage" role="button" tabindex="0" aria-label="Open full-size photo">
           <img id="detail-image" alt="" />
+          <video id="detail-video" controls playsinline preload="metadata" hidden></video>
           <div class="image-badge">Featured item</div>
           <span class="zoom-hint" aria-hidden="true">&#128269; Hover to zoom · click to enlarge</span>
         </div>
+        <div class="gallery-thumbs" id="gallery-thumbs" role="group" aria-label="Product photos and videos" hidden></div>
       </div>
 
       <section class="purchase-panel">
@@ -179,7 +181,7 @@
   <script src="locale.js?v=20261014-1"></script>
   <script src="categories.js?v=20261011-2"></script>
   <script src="ui.js?v=20261014-1"></script>
-  <script src="product.js?v=20261014-1"></script>
+  <script src="product.js?v=20261014-2"></script>
   <script src="footer.js?v=20261014-1"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>
