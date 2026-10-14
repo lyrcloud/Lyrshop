@@ -18,10 +18,19 @@ const quoteShippingButton = document.getElementById("quote-shipping-button");
 const detectLocationButton = document.getElementById("detect-location-button");
 const shippingRatesPanel = document.getElementById("shipping-rates");
 const shippingStatus = document.getElementById("shipping-status");
+const shippingCountrySelect = document.getElementById("shipping-country");
+const shippingZipLabel = document.getElementById("shipping-zip-label");
+const taxLabel = document.getElementById("tax-label");
+const currencyNote = document.getElementById("currency-note");
+const COUNTRY_KEY = "lyrshopShippingCountry";
+// Every country we can quote; names come from the browser in the shopper's language.
+const SHIP_COUNTRIES = "AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IM IN IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW".split(" ");
+// The quoted rates were for this country; they're cleared when the shopper picks another.
+let quotedCountry = "US";
 const PLACEHOLDER_IMAGE_URL = "logo.svg";
 const TAX_RATE = 0.0825;
 
-let shippingMethods = {
+const DOMESTIC_SHIPPING = {
   usps: {
     label: "USPS",
     carrier: "USPS",
@@ -44,6 +53,8 @@ let shippingMethods = {
     estimate: "2-5 business days",
   },
 };
+
+let shippingMethods = DOMESTIC_SHIPPING;
 
 const paymentMethods = {
   stripe: {
@@ -77,13 +88,18 @@ function getSelectedRadioValue(inputs, fallback) {
   return selected ? selected.value : fallback;
 }
 
+function shippingCountry() {
+  return shippingCountrySelect?.value || "US";
+}
+
 function getCheckoutTotals() {
   const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
   const shippingKey = getSelectedRadioValue(shippingMethodInputs, "usps");
   const paymentKey = getSelectedRadioValue(paymentMethodInputs, "stripe");
-  const shipping = shippingMethods[shippingKey] || shippingMethods.usps;
+  const shipping = shippingMethods[shippingKey] || Object.values(shippingMethods)[0];
   const payment = paymentMethods[paymentKey] || paymentMethods.stripe;
-  const tax = subtotal * TAX_RATE;
+  // US sales tax only; international buyers may owe import duties and taxes on delivery instead.
+  const tax = shippingCountry() === "US" ? subtotal * TAX_RATE : 0;
   // Nothing ships from an empty cart.
   const shippingCost = cart.length ? shipping.cost : 0;
   const total = subtotal + shippingCost + tax;
@@ -124,10 +140,6 @@ function getBrowserPosition() {
   });
 }
 
-function formatCurrency(amount) {
-  return Number(amount || 0).toFixed(2);
-}
-
 function normalizeShippingRate(rate) {
   const amount = Number(rate.amount);
   if (!rate.id || !Number.isFinite(amount)) return null;
@@ -150,7 +162,7 @@ function renderShippingRates(selectedKey = getSelectedRadioValue(shippingMethodI
         <strong>${escapeHtml(rate.carrier)}</strong>
         <small>${escapeHtml(rate.service)} | ${escapeHtml(rate.estimate)}</small>
       </span>
-      <em>$${formatCurrency(rate.cost)}</em>
+      <em>${formatPrice(rate.cost)}</em>
     </label>
   `).join("");
 
@@ -162,7 +174,8 @@ async function quoteShippingRates() {
   if (!shippingZipInput || !shippingStatus) return;
 
   const zip = shippingZipInput.value.trim();
-  if (!zip) {
+  const country = shippingCountry();
+  if (!zip && country === "US") {
     shippingStatus.textContent = "Enter a ZIP code to compare USPS, UPS, and FedEx.";
     return;
   }
@@ -179,7 +192,7 @@ async function quoteShippingRates() {
     const response = await fetch(`${API_BASE_URL}/shipping/rates`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ destination_zip: zip, items: cart }),
+      body: JSON.stringify({ destination_zip: zip, destination_country: country, items: cart }),
     });
 
     const json = await response.json();
@@ -193,6 +206,7 @@ async function quoteShippingRates() {
 
     const selectedKey = rates[0][0];
     shippingMethods = Object.fromEntries(rates);
+    quotedCountry = country;
     saveStoredZip(zip);
     renderShippingRates(selectedKey);
     renderCart();
@@ -317,14 +331,14 @@ function renderCart() {
             <a href="${escapeHtml(link)}" class="cart-line-name">${escapeHtml(item.name)}</a>
             ${item.variant ? `<small class="cart-line-variant">${escapeHtml(item.variant)}</small>` : ""}
             ${details.brand ? `<small>${escapeHtml(details.brand)}</small>` : ""}
-            <span class="cart-line-each">$${formatCurrency(item.price)} each</span>
+            <span class="cart-line-each">${formatPrice(item.price)} each</span>
           </div>
           <div class="cart-line-qty" role="group" aria-label="Quantity for ${escapeHtml(item.name)}">
             <button type="button" data-qty="${escapeHtml(item.key)}" data-step="-1" aria-label="Decrease quantity">&minus;</button>
             <span>${item.quantity}</span>
             <button type="button" data-qty="${escapeHtml(item.key)}" data-step="1" aria-label="Increase quantity">+</button>
           </div>
-          <strong class="cart-line-total">$${formatCurrency(item.price * item.quantity)}</strong>
+          <strong class="cart-line-total">${formatPrice(item.price * item.quantity)}</strong>
           <button type="button" class="cart-line-remove" data-remove="${escapeHtml(item.key)}">Remove</button>
         </article>`;
     }).join("");
@@ -338,10 +352,23 @@ function renderCart() {
   checkoutButton.disabled = !cart.length || checkoutInProgress;
 
   const totals = getCheckoutTotals();
-  cartSubtotal.textContent = totals.subtotal.toFixed(2);
-  shippingTotal.textContent = (cart.length ? totals.shipping.cost : 0).toFixed(2);
-  taxTotal.textContent = totals.tax.toFixed(2);
-  cartTotal.textContent = totals.total.toFixed(2);
+  cartSubtotal.textContent = formatPrice(totals.subtotal);
+  shippingTotal.textContent = formatPrice(cart.length ? totals.shipping.cost : 0);
+  taxTotal.textContent = formatPrice(totals.tax);
+  cartTotal.textContent = formatPrice(totals.total);
+  renderCurrencyNote(totals);
+}
+
+function renderCurrencyNote(totals) {
+  const international = shippingCountry() !== "US";
+  taxLabel.textContent = international ? "Import duties & taxes" : "Estimated tax";
+  const notes = [];
+  if (LyrLocale.isLocalCurrency()) {
+    notes.push(`Prices are shown in ${LyrLocale.currency()} at today's rate. Stripe charges in ${LyrLocale.currency()} where it supports it; otherwise you pay ${LyrLocale.formatUsd(totals.total)} USD.`);
+  }
+  if (international) notes.push("Import duties and local taxes, if any, are collected by the carrier on delivery.");
+  currencyNote.textContent = notes.join(" ");
+  currencyNote.hidden = !notes.length || !cart.length;
 }
 
 function setCheckoutState(message, inProgress = false) {
@@ -386,6 +413,8 @@ async function checkout() {
     shipping_method: totals.shipping.service,
     shipping_estimate: totals.shipping.estimate,
     shipping_carrier: totals.shipping.carrier,
+    shipping_country: shippingCountry(),
+    display_currency: LyrLocale.currency(),
     shipping_service: totals.shipping.service,
     payment_method: totals.payment.label,
     payment_gateway: totals.payment.gateway,
@@ -491,8 +520,61 @@ quoteShippingButton.addEventListener("click", quoteShippingRates);
 detectLocationButton.addEventListener("click", detectUserLocation);
 paymentMethodInputs.forEach((input) => input.addEventListener("change", renderCart));
 
+function initShippingCountry() {
+  let names;
+  try {
+    names = new Intl.DisplayNames([navigator.language || "en"], { type: "region" });
+  } catch {
+    names = { of: (code) => code };
+  }
+  shippingCountrySelect.innerHTML = SHIP_COUNTRIES
+    .map((code) => ({ code, name: names.of(code) || code }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(({ code, name }) => `<option value="${code}">${escapeHtml(name)}</option>`)
+    .join("");
+  let saved = null;
+  try { saved = localStorage.getItem(COUNTRY_KEY); } catch { /* storage blocked */ }
+  shippingCountrySelect.value = saved || LyrLocale.country() || "US";
+  if (!shippingCountrySelect.value) shippingCountrySelect.value = "US";
+  syncCountryFields();
+}
+
+// US addresses use a ZIP code; elsewhere the postal code is optional for an estimate.
+function syncCountryFields() {
+  const isUs = shippingCountry() === "US";
+  shippingZipLabel.textContent = isUs ? "Delivery ZIP code" : "Postal code (optional)";
+  shippingZipInput.placeholder = isUs ? "10001" : "";
+  shippingZipInput.inputMode = isUs ? "numeric" : "text";
+  detectLocationButton.hidden = !isUs;
+}
+
+shippingCountrySelect.addEventListener("change", () => {
+  try { localStorage.setItem(COUNTRY_KEY, shippingCountry()); } catch { /* storage blocked */ }
+  syncCountryFields();
+  if (shippingCountry() !== quotedCountry) {
+    quotedCountry = shippingCountry();
+    if (shippingCountry() === "US") {
+      shippingMethods = DOMESTIC_SHIPPING;
+      renderShippingRates();
+      shippingStatus.textContent = "Enter a ZIP code to compare USPS, UPS, and FedEx.";
+    } else {
+      shippingRatesPanel.innerHTML = "";
+      quoteShippingRates();
+    }
+  }
+  renderCart();
+});
+
+// Prices re-render when the visitor's currency is detected or changed.
+LyrLocale.onChange(() => {
+  renderShippingRates();
+  renderCart();
+});
+
+initShippingCountry();
 shippingZipInput.value = getStoredZip();
 renderCheckoutAccount();
 renderShippingRates();
 renderCart();
 loadProductDetails();
+if (shippingCountry() !== "US" && cart.length) quoteShippingRates();

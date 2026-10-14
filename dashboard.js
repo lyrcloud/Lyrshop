@@ -22,7 +22,7 @@ function myEscape(value) {
 }
 
 function money(value) {
-  return `$${Number(value || 0).toFixed(2)}`;
+  return formatPrice(value);
 }
 
 function formatDate(seconds) {
@@ -328,6 +328,7 @@ if (!user) {
 
   showSection();
   renderAll();
+  LyrLocale.onChange(renderAll);
   loadOrders();
   loadProducts();
 

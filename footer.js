@@ -45,7 +45,10 @@ function renderSiteFooter(footer) {
   footer.classList.add("site-footer");
   footer.innerHTML = `
     <div class="footer-columns">${columns}</div>
-    <p class="footer-legal">Copyright &copy; ${new Date().getFullYear()} Lyrshop. All rights reserved. Powered by Lyrcloud.</p>`;
+    <div class="footer-legal">
+      <p>Copyright &copy; ${new Date().getFullYear()} Lyrshop. All rights reserved. Powered by Lyrcloud.</p>
+      <div data-locale-picker></div>
+    </div>`;
 }
 
 document.querySelectorAll("footer[data-site-footer]").forEach(renderSiteFooter);

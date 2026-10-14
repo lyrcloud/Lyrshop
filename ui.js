@@ -300,7 +300,7 @@ function initSearchBox({ form, getProducts, getCategories, onChange, onSubmit, i
     const categories = getCategories().filter((c) => matchesSearch([c.label, c.name], terms)).slice(0, 3);
 
     const rows = [
-      ...products.map((p) => ({ kind: "Product", label: p.name, meta: `$${Number(p.price).toFixed(2)}`,
+      ...products.map((p) => ({ kind: "Product", label: p.name, meta: formatPrice(p.price),
         href: `product.html?id=${encodeURIComponent(p.id)}`, image: p.image_url })),
       ...brands.map((b) => ({ kind: "Brand", label: b, href: `index.html?view=brands&brand=${encodeURIComponent(b)}#product-list` })),
       ...categories.map((c) => ({ kind: "Category", label: c.label, href: `index.html?category=${encodeURIComponent(c.name)}#product-list` })),

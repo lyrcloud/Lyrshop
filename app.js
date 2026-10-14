@@ -502,8 +502,8 @@ function renderProductCards(products) {
           ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
           <div class="product-rating">${ratingStars(product.rating || 4)}</div>
           <div class="product-pricing">
-            <span class="current-price">$${product.price.toFixed(2)}</span>
-            ${isOnSale(product) ? `<span class="original-price">$${product.original_price.toFixed(2)}</span>` : ""}
+            <span class="current-price">${formatPrice(product.price)}</span>
+            ${isOnSale(product) ? `<span class="original-price">${formatPrice(product.original_price)}</span>` : ""}
           </div>
           ${product.options?.length
             ? `<a class="button button-primary add-cart-btn" href="${productUrl}">Choose options</a>`
@@ -701,6 +701,8 @@ function initStorefront() {
   bindHeroSlider();
   renderHeroSlider();
   bindProductListActions();
+  // Re-price the cards when the visitor's currency is detected or changed.
+  LyrLocale.onChange(() => { if (productsLoaded) refreshListing(); });
   searchBox = initSearchBox({
     form: searchForm,
     getProducts: () => allProducts,

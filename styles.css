@@ -6047,3 +6047,89 @@ body.zoom-open {
     align-items: flex-start;
   }
 }
+
+/* Language and currency pickers (locale.js), in the top bar and the footer. */
+.locale-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.locale-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.locale-select select {
+  width: auto;
+  max-width: 11rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0.2rem 1.6rem 0.2rem 0.5rem;
+  border: 1px solid #dfe3ea;
+  border-radius: 6px;
+  background-color: var(--surface);
+  color: #1b4d9b;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+footer.site-footer .footer-legal p {
+  margin: 0;
+}
+
+.currency-note {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.currency-note[hidden] {
+  display: none;
+}
+
+/* Google's website translator: keep the page in place and hide its toolbar and hover popups. */
+body {
+  top: 0 !important;
+  position: static !important;
+}
+
+.goog-te-banner-frame,
+body > .skiptranslate,
+iframe.skiptranslate,
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+}
+
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 860px) {
+  .utility-right > [data-locale-picker] {
+    display: inline-flex;
+  }
+
+  .locale-select select {
+    max-width: 8.5rem;
+  }
+}

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-13" />
+  <link rel="stylesheet" href="styles.css?v=20261014-1" />
 </head>
 <body>
   <header class="page-header">
@@ -52,12 +52,12 @@
           <textarea id="product-description" placeholder="A short product description."></textarea>
         </label>
         <label>
-          Price
+          Price (USD)
           <input type="number" id="product-price" min="0.01" step="0.01" placeholder="0.00" required />
           <small id="product-price-hint" class="field-hint" hidden></small>
         </label>
         <label>
-          Was price (optional)
+          Was price in USD (optional)
           <input type="number" id="product-compare-price" min="0.01" step="0.01" placeholder="Original price, shown crossed out" />
         </label>
         <label>
@@ -399,9 +399,10 @@
   </footer>
 
   <script src="auth.js?v=20261012-3"></script>
+  <script src="locale.js?v=20261014-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261012-9"></script>
-  <script src="footer.js?v=20261012-1"></script>
+  <script src="admin.js?v=20261014-1"></script>
+  <script src="footer.js?v=20261014-1"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>
 </html>

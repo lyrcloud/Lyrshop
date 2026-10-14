@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261012-13" />
+  <link rel="stylesheet" href="styles.css?v=20261014-1" />
 </head>
 <body class="checkout-body">
   <header class="checkout-header">
@@ -50,13 +50,15 @@
             <h2 id="shipping-heading"><span class="step-dot">2</span> Shipping</h2>
           </div>
           <div class="shipping-quote">
-            <label for="shipping-zip">Delivery ZIP code</label>
+            <label for="shipping-country">Ship to</label>
+            <select id="shipping-country" name="shipping-country" autocomplete="country"></select>
+            <label for="shipping-zip" id="shipping-zip-label">Delivery ZIP code</label>
             <div>
-              <input id="shipping-zip" name="shipping-zip" inputmode="numeric" autocomplete="postal-code" maxlength="10" placeholder="10001" />
+              <input id="shipping-zip" name="shipping-zip" autocomplete="postal-code" maxlength="12" placeholder="10001" />
               <button id="quote-shipping-button" class="small-button" type="button">Get rates</button>
             </div>
             <button id="detect-location-button" class="location-button" type="button">Use my location</button>
-            <p id="shipping-status">Enter a ZIP code to compare USPS, UPS, and FedEx.</p>
+            <p id="shipping-status">Choose where to ship, then get rates from USPS, UPS, FedEx and DHL.</p>
           </div>
           <div id="shipping-rates" class="shipping-rates"></div>
         </section>
@@ -69,7 +71,7 @@
             <input type="radio" name="payment-method" value="stripe" checked />
             <span>
               <strong>Stripe Checkout</strong>
-              <small>Cards and wallet payments. You'll enter card details on Stripe's secure page.</small>
+              <small>Cards, wallets and local payment methods, in your currency where Stripe supports it. You'll pay on Stripe's secure page.</small>
             </span>
           </label>
         </section>
@@ -80,21 +82,22 @@
         <div class="cart-summary">
           <div class="summary-row">
             <span>Items</span>
-            <strong>$<span id="cart-subtotal">0.00</span></strong>
+            <strong id="cart-subtotal">$0.00</strong>
           </div>
           <div class="summary-row">
             <span>Shipping</span>
-            <strong>$<span id="shipping-total">0.00</span></strong>
+            <strong id="shipping-total">$0.00</strong>
           </div>
           <div class="summary-row">
-            <span>Estimated tax</span>
-            <strong>$<span id="tax-total">0.00</span></strong>
+            <span id="tax-label">Estimated tax</span>
+            <strong id="tax-total">$0.00</strong>
           </div>
           <div class="total-row">
             <span>Total</span>
-            <strong>$<span id="cart-total">0.00</span></strong>
+            <strong id="cart-total">$0.00</strong>
           </div>
         </div>
+        <p id="currency-note" class="currency-note" hidden></p>
         <button id="checkout-button" class="button button-primary full-width" disabled>Checkout with Stripe</button>
         <p id="checkout-status" class="checkout-status" aria-live="polite"></p>
         <p class="checkout-muted checkout-fineprint">Payment is processed by Stripe. Lyrshop never sees your card number.</p>
@@ -107,8 +110,9 @@
   </footer>
 
   <script src="auth.js?v=20261012-3"></script>
-  <script src="ui.js?v=20261012-6"></script>
-  <script src="cart.js?v=20261012-3"></script>
+  <script src="locale.js?v=20261014-1"></script>
+  <script src="ui.js?v=20261014-1"></script>
+  <script src="cart.js?v=20261014-1"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>
 </html>

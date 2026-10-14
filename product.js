@@ -298,6 +298,14 @@ function bindZoom() {
   });
 }
 
+function renderPrice(product) {
+  document.getElementById("detail-price").textContent = formatPrice(product.price);
+  const originalPrice = document.getElementById("detail-original-price");
+  const wasPrice = product.original_price > product.price ? `Was ${formatPrice(product.original_price)}` : "";
+  const usdNote = LyrLocale.isLocalCurrency() ? `${LyrLocale.formatUsd(product.price)} USD` : "";
+  originalPrice.textContent = [wasPrice, wasPrice && product.sale_event, usdNote].filter(Boolean).join(" · ");
+}
+
 function renderProduct(product) {
   document.title = `${product.name} - Lyrshop`;
   document.getElementById("breadcrumb-category").textContent = product.category;
@@ -305,12 +313,10 @@ function renderProduct(product) {
   document.getElementById("detail-title").textContent = product.name;
   document.getElementById("detail-subtitle").innerHTML =
     `${ratingStars(product.rating, { label: "out of 5 seller rating" })}<span>${escapeHtml(product.rating.toFixed(1))} seller rating · ${escapeHtml(product.category)}</span>`;
-  document.getElementById("detail-price").textContent = `$${product.price.toFixed(2)}`;
+  renderPrice(product);
+  LyrLocale.onChange(() => renderPrice(product));
   document.getElementById("detail-description").textContent = product.description;
 
-  const originalPrice = document.getElementById("detail-original-price");
-  const wasPrice = product.original_price > product.price ? `Was $${product.original_price.toFixed(2)}` : "";
-  originalPrice.textContent = [wasPrice, wasPrice && product.sale_event].filter(Boolean).join(" · ");
 
   const detailImage = document.getElementById("detail-image");
   detailImage.src = product.image_url;
