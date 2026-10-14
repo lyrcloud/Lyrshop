@@ -310,7 +310,9 @@ function bindZoom() {
 function renderPrice(product) {
   document.getElementById("detail-price").textContent = formatPrice(product.price);
   const originalPrice = document.getElementById("detail-original-price");
-  const wasPrice = product.original_price > product.price ? `Was ${formatPrice(product.original_price)}` : "";
+  const wasPrice = product.original_price > product.price
+    ? `Was ${formatPrice(product.original_price)} (${Math.round(((product.original_price - product.price) / product.original_price) * 100)}% off)`
+    : "";
   const usdNote = LyrLocale.isLocalCurrency() ? `${LyrLocale.formatUsd(product.price)} USD` : "";
   originalPrice.textContent = [wasPrice, wasPrice && product.sale_event, usdNote].filter(Boolean).join(" · ");
 }

@@ -15,6 +15,7 @@ const priceInput = document.getElementById("product-price");
 const brandInput = document.getElementById("product-brand");
 const brandOptions = document.getElementById("brand-options");
 const comparePriceInput = document.getElementById("product-compare-price");
+const discountInput = document.getElementById("product-discount");
 const saleEventInput = document.getElementById("product-sale-event");
 const statusInput = document.getElementById("product-status");
 const productFilterSearch = document.getElementById("product-filter-search");
@@ -308,6 +309,7 @@ function startEditProduct(product) {
   brandInput.value = product.brand || "";
   comparePriceInput.value = product.compare_at_price || "";
   saleEventInput.value = product.sale_event || "";
+  syncDiscountFromPrices();
   // Opening a draft defaults to publishing it; the photo check in submitProduct still applies.
   statusInput.value = "published";
   categoryInput.value = product.category || "";
@@ -651,6 +653,41 @@ async function fillFromPhoto({ overwrite }) {
   }
 }
 
+// ── Discount ───────────────────────────────────────────────────────────────────
+// Only price and the "was" price are saved; the % off field is a calculator kept in step with them.
+
+function roundMoney(amount) {
+  return Math.round(amount * 100) / 100;
+}
+
+function syncDiscountFromPrices() {
+  const price = parseFloat(priceInput.value);
+  const was = parseFloat(comparePriceInput.value);
+  discountInput.value = price > 0 && was > price ? String(Math.round(((was - price) / was) * 100)) : "";
+}
+
+function applyDiscount() {
+  const percent = parseFloat(discountInput.value);
+  let was = parseFloat(comparePriceInput.value);
+  if (discountInput.value === "") {
+    // Clearing the discount puts the item back at its was price.
+    if (was > 0) {
+      priceInput.value = was.toFixed(2);
+      comparePriceInput.value = "";
+    }
+    renderPreview();
+    return;
+  }
+  if (!(percent > 0 && percent < 100)) return;
+  if (!(was > 0)) {
+    was = parseFloat(priceInput.value);
+    if (!(was > 0)) return;
+    comparePriceInput.value = was.toFixed(2);
+  }
+  priceInput.value = roundMoney(was * (1 - percent / 100)).toFixed(2);
+  renderPreview();
+}
+
 function cancelProductEdit() {
   form.reset();
   productEditId.value = "";
@@ -671,6 +708,10 @@ async function submitProduct(event) {
 
   const editId = productEditId.value;
   const comparePrice = comparePriceInput.value === "" ? "" : parseFloat(comparePriceInput.value);
+  if (discountInput.value !== "" && !(parseFloat(discountInput.value) > 0 && parseFloat(discountInput.value) < 100)) {
+    showMessage(message, "The discount must be between 1 and 99% off.", true);
+    return;
+  }
   if (comparePrice !== "" && !(comparePrice > parseFloat(priceInput.value))) {
     showMessage(message, "The was price must be higher than the price.", true);
     return;
@@ -1527,7 +1568,9 @@ productShowMore.addEventListener("click", () => {
 });
 nameInput.addEventListener("input", renderPreview);
 descriptionInput.addEventListener("input", renderPreview);
-priceInput.addEventListener("input", renderPreview);
+priceInput.addEventListener("input", () => { syncDiscountFromPrices(); renderPreview(); });
+comparePriceInput.addEventListener("input", syncDiscountFromPrices);
+discountInput.addEventListener("change", applyDiscount);
 [brandInput, comparePriceInput, saleEventInput].forEach((input) => input.addEventListener("input", renderPreview));
 categoryInput.addEventListener("input", () => { updateSubcategoryOptions(); renderProductOptions(); renderPreview(); });
 productOptionGroups.addEventListener("change", handleOptionChange);
