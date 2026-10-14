@@ -6392,14 +6392,14 @@ iframe.skiptranslate,
   display: none;
 }
 
-.calendar-form .checkbox-field {
+.admin-crud-form .checkbox-field {
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
 }
 
-.calendar-form .checkbox-field input {
+.admin-crud-form .checkbox-field input {
   width: auto;
 }
 
@@ -6445,14 +6445,589 @@ iframe.skiptranslate,
   color: var(--muted);
 }
 
-#calendar-table-body .table-actions {
+#calendar-table-body .table-actions,
+#coupon-table-body .table-actions {
   display: flex;
   flex-wrap: nowrap;
   gap: 0.35rem;
 }
 
-#calendar-table-body .table-actions .button {
+#calendar-table-body .table-actions .button,
+#coupon-table-body .table-actions .button {
   padding: 0.35rem 0.7rem;
   font-size: 0.85rem;
   white-space: nowrap;
+}
+
+/* ── Coupons, gift cards and points in the cart (cart.js renderTotals) ─────────── */
+.summary-discount strong {
+  color: var(--success);
+}
+
+.amount-due-row {
+  border-top: 1px dashed var(--line);
+}
+
+.checkout-codes {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 1rem 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.checkout-codes[hidden] {
+  display: none;
+}
+
+.code-form label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.code-form-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.code-form-row input {
+  flex: 1;
+  min-width: 0;
+  text-transform: uppercase;
+}
+
+.code-form-row input:disabled {
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+}
+
+.code-form-row .button {
+  padding: 0.5rem 0.9rem;
+}
+
+.code-status {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  color: var(--success);
+}
+
+.code-status:empty {
+  display: none;
+}
+
+.code-status.is-error {
+  color: #b91c1c;
+}
+
+.points-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.points-toggle[hidden],
+.points-earn[hidden] {
+  display: none;
+}
+
+.points-toggle input {
+  width: auto;
+}
+
+.points-earn {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* ── Tiers and badges (dashboard, product page) ─────────────────────────────────── */
+.tier-pill {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tier-pill[hidden] {
+  display: none;
+}
+
+.tier-bronze { background: #f6e7dc; border-color: #e3bfa3; color: #7c3f16; }
+.tier-silver { background: #eef1f5; border-color: #c7ced8; color: #374151; }
+.tier-gold { background: #fef3c7; border-color: #f4cf62; color: #854d0e; }
+.tier-platinum { background: #e0f2fe; border-color: #93c5fd; color: #1e3a8a; }
+
+.rewards-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rewards-strip[hidden] {
+  display: none;
+}
+
+.rewards-strip span {
+  color: var(--ink-soft);
+}
+
+.rewards-strip .rewards-strip-link {
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.rewards-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.rewards-card {
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #fff7ed 0%, #fdf2f8 100%);
+  border: 1px solid #fde2e1;
+}
+
+.rewards-points {
+  margin: 0.6rem 0 0;
+  font-size: 1.1rem;
+}
+
+.rewards-points strong {
+  font-size: 2.2rem;
+  letter-spacing: -0.02em;
+}
+
+.rewards-value,
+.tier-note {
+  margin: 0.25rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.tier-bar {
+  height: 0.5rem;
+  margin-top: 0.9rem;
+  border-radius: var(--radius-pill);
+  background: rgba(17, 24, 39, 0.08);
+  overflow: hidden;
+}
+
+.tier-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
+.rewards-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.rewards-stats div {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.rewards-stats dt {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.rewards-stats dd {
+  margin: 0.2rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.badge-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.badge-item {
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  padding: 0.9rem 0.6rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+  opacity: 0.55;
+}
+
+.badge-item.is-earned {
+  border-style: solid;
+  border-color: #f4cf62;
+  background: #fffbeb;
+  opacity: 1;
+}
+
+.badge-icon {
+  font-size: 1.6rem;
+  filter: grayscale(1);
+}
+
+.badge-item.is-earned .badge-icon {
+  filter: none;
+}
+
+.badge-item small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.points-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.points-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.points-history li span small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.points-history strong {
+  color: var(--success);
+  white-space: nowrap;
+}
+
+.points-history strong.is-negative {
+  color: #b91c1c;
+}
+
+.rewards-rules {
+  margin-top: 1rem;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.rewards-rules summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.seller-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.25rem 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.seller-badges[hidden] {
+  display: none;
+}
+
+.seller-badges li {
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: #fffbeb;
+  border: 1px solid #f4cf62;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ── Gift cards and affiliate (dashboard) ───────────────────────────────────────── */
+.gift-card-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.gift-card-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.gift-card-mini {
+  display: grid;
+  place-items: center;
+  width: 5.5rem;
+  height: 3.5rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e53238 0%, #f59e0b 100%);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.gift-card-info {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.gift-card-info span {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.gift-card-message {
+  margin: 0;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.gift-card-code {
+  justify-self: start;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.gift-card-send {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.gift-card-send-status {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--success);
+}
+
+.gift-card-send-status:empty {
+  display: none;
+}
+
+.gift-card-send-status.is-error {
+  color: #b91c1c;
+}
+
+.affiliate-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.affiliate-panel p {
+  margin: 0;
+}
+
+.affiliate-link {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.affiliate-link input {
+  flex: 1;
+  min-width: 0;
+}
+
+.affiliate-panel .rewards-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* ── Gift card page (giftcards.js) ──────────────────────────────────────────────── */
+.giftcard-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 16px 3rem;
+}
+
+.giftcard-hero h1 {
+  margin: 0 0 0.4rem;
+}
+
+.giftcard-hero p {
+  margin: 0 0 1.5rem;
+  color: var(--ink-soft);
+  max-width: 60ch;
+}
+
+.giftcard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.giftcard-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.giftcard-form fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.giftcard-form legend {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.giftcard-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.giftcard-presets .chip-button[aria-pressed="true"] {
+  border-color: var(--brand);
+  background: #fff1f1;
+  color: var(--brand);
+}
+
+.giftcard-custom,
+.giftcard-recipient label {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.giftcard-delivery {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.giftcard-recipient {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.giftcard-recipient[hidden] {
+  display: none;
+}
+
+.giftcard-message-field {
+  grid-column: 1 / -1;
+}
+
+.giftcard-preview-wrap {
+  position: sticky;
+  top: 1rem;
+}
+
+.giftcard-preview {
+  display: grid;
+  gap: 0.4rem;
+  aspect-ratio: 1.6 / 1;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #e53238 0%, #f59e0b 45%, #7c3aed 100%);
+  color: #ffffff;
+  box-shadow: var(--shadow-lg);
+  align-content: space-between;
+}
+
+.giftcard-preview-brand {
+  font-family: Georgia, serif;
+  font-size: 1.6rem;
+  font-style: italic;
+  font-weight: 700;
+}
+
+.giftcard-preview strong {
+  font-size: 2.4rem;
+  letter-spacing: -0.02em;
+}
+
+.giftcard-preview code {
+  justify-self: start;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.06em;
+}
+
+.giftcard-preview-message {
+  margin: 0.75rem 0 0;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.giftcard-preview-message[hidden] {
+  display: none;
+}
+
+.giftcard-steps {
+  margin: 1rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 760px) {
+  .rewards-overview,
+  .giftcard-layout,
+  .giftcard-recipient {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .giftcard-preview-wrap {
+    position: static;
+    order: -1;
+  }
+
+  .gift-card-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .affiliate-panel .rewards-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.summary-row[hidden],
+.total-row[hidden] {
+  display: none;
+}
+
+.my-block-header a.button-primary {
+  color: #ffffff;
 }

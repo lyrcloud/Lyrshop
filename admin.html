@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-3" />
+  <link rel="stylesheet" href="styles.css?v=20261014-4" />
 </head>
 <body>
   <header class="page-header">
@@ -30,6 +30,7 @@
       <button class="admin-tab admin-only" type="button" data-admin-section="users">Users</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="categories">Categories</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="calendar" hidden>Sales calendar</button>
+      <button class="admin-tab superadmin-only" type="button" data-admin-section="coupons" hidden>Coupons</button>
     </nav>
 
     <section class="admin-panel admin-section active" id="admin-products-section">
@@ -487,6 +488,75 @@
       </div>
     </section>
 
+    <section class="admin-panel admin-section superadmin-only" id="admin-coupons-section" hidden>
+      <div class="panel-header">
+        <h2>Coupon codes</h2>
+        <p>Shoppers enter these in the cart. The server checks every code at checkout, so limits and expiry dates always hold.</p>
+      </div>
+      <form id="coupon-admin-form" class="admin-crud-form">
+        <input type="hidden" id="coupon-edit-code" />
+        <label>
+          Code
+          <input type="text" id="coupon-code" maxlength="24" placeholder="WELCOME10" autocapitalize="characters" spellcheck="false" required />
+        </label>
+        <label>
+          Discount type
+          <select id="coupon-type">
+            <option value="percent">Percent off the items</option>
+            <option value="fixed">Amount off the items ($)</option>
+          </select>
+        </label>
+        <label>
+          <span id="coupon-value-label">Percent off</span>
+          <input type="number" id="coupon-value" min="0.5" max="1000" step="0.01" placeholder="10" required />
+        </label>
+        <label>
+          Minimum item total ($, optional)
+          <input type="number" id="coupon-min" min="0" step="0.01" placeholder="0" />
+        </label>
+        <label>
+          Total uses allowed (0 = unlimited)
+          <input type="number" id="coupon-max-uses" min="0" step="1" value="0" />
+        </label>
+        <label>
+          Expires after (optional)
+          <input type="date" id="coupon-expires" />
+        </label>
+        <label class="wide-field">
+          Description shown in the cart
+          <input type="text" id="coupon-description" maxlength="120" placeholder="10% off your first order" />
+        </label>
+        <label class="checkbox-field">
+          <input type="checkbox" id="coupon-once" />
+          One use per customer
+        </label>
+        <label class="checkbox-field">
+          <input type="checkbox" id="coupon-active" checked />
+          Active
+        </label>
+        <div class="admin-form-actions">
+          <button type="submit" id="coupon-submit" class="button button-primary">Create coupon</button>
+          <button type="button" id="coupon-cancel" class="button button-secondary">Cancel edit</button>
+        </div>
+      </form>
+      <div id="coupon-message" class="admin-message"></div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Discount</th>
+              <th>Rules</th>
+              <th>Used</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="coupon-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="admin-panel admin-section admin-only" id="admin-categories-section">
       <div class="panel-header">
         <h2>Category CRUD</h2>
@@ -535,8 +605,8 @@
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261014-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261014-4"></script>
-  <script src="footer.js?v=20261014-1"></script>
+  <script src="admin.js?v=20261014-5"></script>
+  <script src="footer.js?v=20261014-2"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>
 </html>

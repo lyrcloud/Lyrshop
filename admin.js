@@ -1431,6 +1431,155 @@ document.getElementById("calendar-cancel").addEventListener("click", () => { res
 calendarTableBody.addEventListener("click", handleCalendarTableClick);
 syncCalendarKind();
 
+// ── Coupons (super admin) ──────────────────────────────────────────────────────────
+
+const couponForm = document.getElementById("coupon-admin-form");
+const couponEditCode = document.getElementById("coupon-edit-code");
+const couponTypeInput = document.getElementById("coupon-type");
+const couponSubmit = document.getElementById("coupon-submit");
+const couponMessage = document.getElementById("coupon-message");
+const couponTableBody = document.getElementById("coupon-table-body");
+const couponField = (name) => document.getElementById(`coupon-${name}`);
+let adminCoupons = [];
+
+function describeCoupon(coupon) {
+  return coupon.type === "percent" ? `${Number(coupon.value)}% off` : `${formatMoney(coupon.value)} off`;
+}
+
+function couponState(coupon) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (!coupon.active) return ["Off", "is-off"];
+  if (coupon.expires && coupon.expires < today) return ["Expired", "is-off"];
+  if (coupon.max_uses && coupon.uses >= coupon.max_uses) return ["Used up", "is-off"];
+  return ["Active", "is-live"];
+}
+
+function renderCoupons() {
+  couponTableBody.innerHTML = adminCoupons.map((coupon) => {
+    const [label, tone] = couponState(coupon);
+    const rules = [
+      Number(coupon.min_subtotal) > 0 && `Min ${formatMoney(coupon.min_subtotal)}`,
+      coupon.once_per_customer && "Once per customer",
+      coupon.expires && `Until ${coupon.expires}`,
+    ].filter(Boolean).join(" · ") || "No limits";
+    return `
+      <tr>
+        <td><strong>${escapeHtml(coupon.code)}</strong>${coupon.description ? `<br /><small>${escapeHtml(coupon.description)}</small>` : ""}</td>
+        <td>${escapeHtml(describeCoupon(coupon))}</td>
+        <td>${escapeHtml(rules)}</td>
+        <td>${Number(coupon.uses || 0)}${coupon.max_uses ? ` / ${Number(coupon.max_uses)}` : ""}</td>
+        <td><span class="calendar-phase ${tone}">${label}</span></td>
+        <td class="table-actions">
+          <button class="button button-secondary" type="button" data-coupon-action="edit" data-code="${escapeHtml(coupon.code)}">Edit</button>
+          <button class="button button-secondary" type="button" data-coupon-action="toggle" data-code="${escapeHtml(coupon.code)}">${coupon.active ? "Turn off" : "Turn on"}</button>
+          <button class="button danger-button" type="button" data-coupon-action="delete" data-code="${escapeHtml(coupon.code)}">Delete</button>
+        </td>
+      </tr>`;
+  }).join("") || '<tr><td colspan="6">No coupons yet. Create one above.</td></tr>';
+}
+
+async function loadCoupons() {
+  try {
+    adminCoupons = (await authApi("/coupons")).coupons || [];
+    renderCoupons();
+  } catch (error) {
+    showMessage(couponMessage, error.message || "Could not load coupons.", true);
+  }
+}
+
+function syncCouponType() {
+  const percent = couponTypeInput.value === "percent";
+  document.getElementById("coupon-value-label").textContent = percent ? "Percent off (1–90)" : "Amount off ($)";
+  couponField("value").max = percent ? "90" : "1000";
+}
+
+function resetCouponForm() {
+  couponForm.reset();
+  couponEditCode.value = "";
+  couponField("code").disabled = false;
+  couponSubmit.textContent = "Create coupon";
+  syncCouponType();
+}
+
+function couponBody(source) {
+  return {
+    code: source.code,
+    type: source.type,
+    value: Number(source.value),
+    min_subtotal: Number(source.min_subtotal) || 0,
+    max_uses: Number(source.max_uses) || 0,
+    expires: source.expires || "",
+    description: source.description || "",
+    once_per_customer: Boolean(source.once_per_customer),
+    active: source.active !== false,
+  };
+}
+
+async function saveCoupon(event) {
+  event.preventDefault();
+  const editCode = couponEditCode.value;
+  const body = couponBody({
+    code: couponField("code").value.trim().toUpperCase(),
+    type: couponTypeInput.value,
+    value: couponField("value").value,
+    min_subtotal: couponField("min").value,
+    max_uses: couponField("max-uses").value,
+    expires: couponField("expires").value,
+    description: couponField("description").value.trim(),
+    once_per_customer: couponField("once").checked,
+    active: couponField("active").checked,
+  });
+  try {
+    await authApi(editCode ? `/coupons/${encodeURIComponent(editCode)}` : "/coupons", { method: editCode ? "PUT" : "POST", body });
+    resetCouponForm();
+    showMessage(couponMessage, editCode ? `${editCode} saved.` : `${body.code} created.`);
+    loadCoupons();
+  } catch (error) {
+    showMessage(couponMessage, error.message || "Could not save the coupon.", true);
+  }
+}
+
+async function handleCouponTableClick(event) {
+  const button = event.target.closest("[data-coupon-action]");
+  if (!button) return;
+  const coupon = adminCoupons.find((item) => item.code === button.dataset.code);
+  if (!coupon) return;
+  const action = button.dataset.couponAction;
+  if (action === "edit") {
+    couponEditCode.value = coupon.code;
+    couponField("code").value = coupon.code;
+    couponField("code").disabled = true;
+    couponTypeInput.value = coupon.type;
+    couponField("value").value = coupon.value;
+    couponField("min").value = Number(coupon.min_subtotal) || "";
+    couponField("max-uses").value = coupon.max_uses || 0;
+    couponField("expires").value = coupon.expires || "";
+    couponField("description").value = coupon.description || "";
+    couponField("once").checked = Boolean(coupon.once_per_customer);
+    couponField("active").checked = coupon.active !== false;
+    couponSubmit.textContent = "Save coupon";
+    syncCouponType();
+    couponForm.scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+  if (action === "delete" && !confirm(`Delete coupon ${coupon.code}? Shoppers won't be able to use it any more.`)) return;
+  try {
+    const path = `/coupons/${encodeURIComponent(coupon.code)}`;
+    if (action === "delete") await authApi(path, { method: "DELETE" });
+    else await authApi(path, { method: "PUT", body: couponBody({ ...coupon, active: !coupon.active }) });
+    showMessage(couponMessage, action === "delete" ? `${coupon.code} deleted.` : `${coupon.code} turned ${coupon.active ? "off" : "on"}.`);
+    loadCoupons();
+  } catch (error) {
+    showMessage(couponMessage, error.message || "Could not update the coupon.", true);
+  }
+}
+
+couponTypeInput.addEventListener("change", syncCouponType);
+couponForm.addEventListener("submit", saveCoupon);
+document.getElementById("coupon-cancel").addEventListener("click", () => { resetCouponForm(); showMessage(couponMessage, ""); });
+couponTableBody.addEventListener("click", handleCouponTableClick);
+syncCouponType();
+
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 
 function initTabs() {
@@ -1839,6 +1988,7 @@ async function initAdminPage() {
   loadAttributes();
   if (session.role === "superadmin") {
     loadCalendar();
+    loadCoupons();
     document.getElementById("attributes-intro").textContent =
       "Colors, sizes and other options buyers choose from. As super admin you can edit or delete every attribute.";
   }

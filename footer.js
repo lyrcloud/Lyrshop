@@ -8,6 +8,7 @@ const FOOTER_COLUMNS = [
       ["All brands", "index.html?view=brands#product-list"],
       ["Watchlist", "index.html?view=watchlist#product-list"],
       ["Cart", "cart.html"],
+      ["Gift cards", "giftcards.html"],
     ],
   },
   {
@@ -22,6 +23,8 @@ const FOOTER_COLUMNS = [
     links: [
       ["Summary", "dashboard.html#summary"],
       ["Purchases", "dashboard.html#purchases"],
+      ["Rewards & badges", "dashboard.html#rewards"],
+      ["Affiliate program", "dashboard.html#affiliate"],
       ["Recently viewed", "dashboard.html#recently-viewed"],
       ["Account", "dashboard.html#account"],
     ],

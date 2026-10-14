@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-3" />
+  <link rel="stylesheet" href="styles.css?v=20261014-4" />
 </head>
 <body>
   <header class="page-header compact-header">
@@ -42,12 +42,16 @@
         <a href="#recently-viewed" data-section-link="recently-viewed">Recently viewed</a>
         <a href="#purchases" data-section-link="purchases">Purchases</a>
         <a href="#watchlist" data-section-link="watchlist">Watchlist</a>
+        <a href="#rewards" data-section-link="rewards">Rewards &amp; badges</a>
+        <a href="#gift-cards" data-section-link="gift-cards">Gift cards</a>
+        <a href="#affiliate" data-section-link="affiliate">Affiliate</a>
         <a href="admin.html">Selling</a>
       </nav>
 
       <div class="my-content">
         <section class="my-section" data-section="summary" aria-labelledby="summary-title">
           <h2 id="summary-title" class="visually-hidden">Summary</h2>
+          <a href="#rewards" class="rewards-strip" id="summary-rewards" hidden></a>
           <div class="my-block">
             <div class="my-block-header">
               <h3>Purchases</h3>
@@ -93,6 +97,47 @@
           <div id="watchlist-list" class="my-items"></div>
         </section>
 
+        <section class="my-section" data-section="rewards" aria-labelledby="rewards-title" hidden>
+          <div class="my-block-header">
+            <h2 id="rewards-title">Rewards &amp; badges</h2>
+          </div>
+          <div id="rewards-overview" class="rewards-overview"><p class="my-empty">Loading your rewards…</p></div>
+          <div class="my-block">
+            <div class="my-block-header"><h3>Badges</h3></div>
+            <ul id="badge-list" class="badge-list"></ul>
+          </div>
+          <div class="my-block">
+            <div class="my-block-header"><h3>Points activity</h3></div>
+            <ul id="points-history" class="points-history"></ul>
+          </div>
+          <details class="rewards-rules">
+            <summary>How points work</summary>
+            <ul id="rewards-rules"></ul>
+          </details>
+        </section>
+
+        <section class="my-section" data-section="gift-cards" aria-labelledby="gift-cards-title" hidden>
+          <div class="my-block-header">
+            <h2 id="gift-cards-title">Gift cards</h2>
+            <a href="giftcards.html" class="button button-primary">Buy a gift card</a>
+          </div>
+          <div class="my-block">
+            <div class="my-block-header"><h3>Sent to you</h3></div>
+            <div id="gift-cards-received" class="gift-card-list"></div>
+          </div>
+          <div class="my-block">
+            <div class="my-block-header"><h3>Cards you bought</h3></div>
+            <div id="gift-cards-bought" class="gift-card-list"></div>
+          </div>
+        </section>
+
+        <section class="my-section" data-section="affiliate" aria-labelledby="affiliate-title" hidden>
+          <div class="my-block-header">
+            <h2 id="affiliate-title">Affiliate program</h2>
+          </div>
+          <div id="affiliate-panel" class="affiliate-panel"><p class="my-empty">Loading…</p></div>
+        </section>
+
         <section class="my-section" data-section="account" aria-labelledby="account-title" hidden>
           <div class="my-block-header">
             <h2 id="account-title">Personal info</h2>
@@ -133,9 +178,9 @@
 
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261014-1"></script>
-  <script src="ui.js?v=20261014-2"></script>
-  <script src="dashboard.js?v=20261014-1"></script>
-  <script src="footer.js?v=20261014-1"></script>
+  <script src="ui.js?v=20261014-3"></script>
+  <script src="dashboard.js?v=20261014-2"></script>
+  <script src="footer.js?v=20261014-2"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>
 </html>

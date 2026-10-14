@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lyrshop Gift Cards</title>
+  <meta name="description" content="Buy a Lyrshop gift card and email it to someone, or keep it for yourself." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=20261014-4" />
+</head>
+<body>
+  <header class="page-header compact-header">
+    <a href="index.html" aria-label="Lyrshop home">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+        <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238">lyrshop</text>
+      </svg>
+    </a>
+    <div class="header-actions">
+      <a href="index.html" class="button button-secondary">Shop</a>
+      <a href="dashboard.html#gift-cards" class="button button-secondary">My gift cards</a>
+      <a href="cart.html" class="button button-secondary">Cart <span class="count-badge" data-count="cart" hidden></span></a>
+    </div>
+  </header>
+
+  <main class="giftcard-page">
+    <section class="giftcard-hero">
+      <h1>Lyrshop gift cards</h1>
+      <p>The easy gift: email a card to someone now, or keep it for yourself. Balances never expire and carry over until they're used up.</p>
+    </section>
+
+    <div class="giftcard-layout">
+      <form id="giftcard-form" class="giftcard-form" novalidate>
+        <fieldset class="giftcard-amounts">
+          <legend>Amount</legend>
+          <div class="giftcard-presets" id="giftcard-presets"></div>
+          <label class="giftcard-custom">
+            Or enter an amount ($5–$500)
+            <input type="number" id="giftcard-amount" min="5" max="500" step="1" value="50" required />
+          </label>
+        </fieldset>
+
+        <fieldset class="giftcard-delivery">
+          <legend>Delivery</legend>
+          <label class="checkout-option">
+            <input type="radio" name="delivery" value="email" checked />
+            <span><strong>Email it to someone</strong><small>We email the code as soon as your payment clears.</small></span>
+          </label>
+          <label class="checkout-option">
+            <input type="radio" name="delivery" value="me" />
+            <span><strong>Keep it for me</strong><small>The code appears under My Lyrshop › Gift cards. You can send it later.</small></span>
+          </label>
+        </fieldset>
+
+        <div class="giftcard-recipient" id="giftcard-recipient">
+          <label>
+            Recipient email
+            <input type="email" id="giftcard-email" autocomplete="off" placeholder="friend@example.com" />
+          </label>
+          <label>
+            Recipient name (optional)
+            <input type="text" id="giftcard-name" maxlength="60" placeholder="Sam" />
+          </label>
+          <label>
+            From
+            <input type="text" id="giftcard-from" maxlength="60" placeholder="Your name" />
+          </label>
+          <label class="giftcard-message-field">
+            Message (optional)
+            <textarea id="giftcard-message" maxlength="300" rows="3" placeholder="Happy birthday!"></textarea>
+          </label>
+        </div>
+
+        <button type="submit" id="giftcard-submit" class="button button-primary full-width">Buy gift card</button>
+        <p id="giftcard-status" class="checkout-status" role="status"></p>
+        <p class="checkout-muted checkout-fineprint">Payment is processed by Stripe. Gift cards can't be bought with points or other gift cards.</p>
+      </form>
+
+      <aside class="giftcard-preview-wrap" aria-label="Preview">
+        <div class="giftcard-preview">
+          <span class="giftcard-preview-brand">lyrshop</span>
+          <strong id="preview-amount">$50.00</strong>
+          <span id="preview-to">Gift card</span>
+          <code>LYR-XXXX-XXXX-XXXX</code>
+        </div>
+        <p id="preview-message" class="giftcard-preview-message" hidden></p>
+        <ol class="giftcard-steps">
+          <li>Pick an amount and who it's for.</li>
+          <li>Pay securely with Stripe.</li>
+          <li>We email the code, or keep it in your account.</li>
+          <li>They enter it in the Gift card box at checkout.</li>
+        </ol>
+      </aside>
+    </div>
+  </main>
+
+  <footer data-site-footer>
+    <p>&copy; 2026 Lyrshop. Powered by Lyrcloud.</p>
+  </footer>
+
+  <script src="auth.js?v=20261012-3"></script>
+  <script src="locale.js?v=20261014-1"></script>
+  <script src="ui.js?v=20261014-3"></script>
+  <script src="giftcards.js?v=20261014-1"></script>
+  <script src="footer.js?v=20261014-2"></script>
+  <script src="lyrbot.js?v=20261012-1"></script>
+</body>
+</html>

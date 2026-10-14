@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-3" />
+  <link rel="stylesheet" href="styles.css?v=20261014-4" />
 </head>
 <body class="checkout-body">
   <header class="checkout-header">
@@ -84,6 +84,10 @@
             <span>Items</span>
             <strong id="cart-subtotal">$0.00</strong>
           </div>
+          <div class="summary-row summary-discount" id="discount-row" hidden>
+            <span id="discount-label">Coupon</span>
+            <strong id="discount-total">−$0.00</strong>
+          </div>
           <div class="summary-row">
             <span>Shipping</span>
             <strong id="shipping-total">$0.00</strong>
@@ -96,6 +100,41 @@
             <span>Total</span>
             <strong id="cart-total">$0.00</strong>
           </div>
+          <div class="summary-row summary-discount" id="gift-card-row" hidden>
+            <span>Gift card</span>
+            <strong id="gift-card-total">−$0.00</strong>
+          </div>
+          <div class="summary-row summary-discount" id="points-row" hidden>
+            <span id="points-label">Points</span>
+            <strong id="points-total">−$0.00</strong>
+          </div>
+          <div class="total-row amount-due-row" id="amount-due-row" hidden>
+            <span>To pay</span>
+            <strong id="amount-due">$0.00</strong>
+          </div>
+        </div>
+        <div class="checkout-codes needs-items" hidden>
+          <form class="code-form" id="coupon-form" data-code-kind="coupon">
+            <label for="coupon-input">Coupon code</label>
+            <div class="code-form-row">
+              <input type="text" id="coupon-input" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. WELCOME10" />
+              <button type="submit" class="button button-secondary">Apply</button>
+            </div>
+            <p class="code-status" role="status"></p>
+          </form>
+          <form class="code-form" id="gift-card-form" data-code-kind="gift_card">
+            <label for="gift-card-input">Gift card</label>
+            <div class="code-form-row">
+              <input type="text" id="gift-card-input" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="LYR-XXXX-XXXX-XXXX" />
+              <button type="submit" class="button button-secondary">Apply</button>
+            </div>
+            <p class="code-status" role="status"></p>
+          </form>
+          <label class="points-toggle" id="points-toggle" hidden>
+            <input type="checkbox" id="use-points" />
+            <span id="points-toggle-text">Use my points</span>
+          </label>
+          <p class="checkout-muted points-earn" id="points-earn" hidden></p>
         </div>
         <p id="currency-note" class="currency-note" hidden></p>
         <button id="checkout-button" class="button button-primary full-width" disabled>Checkout with Stripe</button>
@@ -111,8 +150,8 @@
 
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261014-1"></script>
-  <script src="ui.js?v=20261014-2"></script>
-  <script src="cart.js?v=20261014-2"></script>
+  <script src="ui.js?v=20261014-3"></script>
+  <script src="cart.js?v=20261014-3"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>
 </html>

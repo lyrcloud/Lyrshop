@@ -22,11 +22,27 @@ const shippingCountrySelect = document.getElementById("shipping-country");
 const shippingZipLabel = document.getElementById("shipping-zip-label");
 const taxLabel = document.getElementById("tax-label");
 const currencyNote = document.getElementById("currency-note");
+const discountRow = document.getElementById("discount-row");
+const giftCardRow = document.getElementById("gift-card-row");
+const pointsRow = document.getElementById("points-row");
+const amountDueRow = document.getElementById("amount-due-row");
+const pointsToggle = document.getElementById("points-toggle");
+const usePointsInput = document.getElementById("use-points");
+const pointsEarn = document.getElementById("points-earn");
 const COUNTRY_KEY = "lyrshopShippingCountry";
 // Every country we can quote; names come from the browser in the shopper's language.
 const SHIP_COUNTRIES = "AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IM IN IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW".split(" ");
 // The quoted rates were for this country; they're cleared when the shopper picks another.
 let quotedCountry = "US";
+// The ZIP the current carrier rates were quoted for; the server re-quotes the same rates at checkout.
+let quotedZip = "";
+// Codes the shopper applied; the server checks them on every quote and again at checkout.
+const appliedCodes = { coupon: "", gift_card: "" };
+let usePoints = false;
+// The server's latest price check of this exact cart, shown in place of the browser's estimate.
+let serverQuote = null;
+let quoteRequest = 0;
+let quoteTimer = null;
 const PLACEHOLDER_IMAGE_URL = "logo.svg";
 const TAX_RATE = 0.0825;
 
@@ -207,6 +223,7 @@ async function quoteShippingRates() {
     const selectedKey = rates[0][0];
     shippingMethods = Object.fromEntries(rates);
     quotedCountry = country;
+    quotedZip = zip;
     saveStoredZip(zip);
     renderShippingRates(selectedKey);
     renderCart();
@@ -351,12 +368,123 @@ function renderCart() {
   steps[1].classList.toggle("is-current", cart.length > 0);
   checkoutButton.disabled = !cart.length || checkoutInProgress;
 
-  const totals = getCheckoutTotals();
-  cartSubtotal.textContent = formatPrice(totals.subtotal);
-  shippingTotal.textContent = formatPrice(cart.length ? totals.shipping.cost : 0);
-  taxTotal.textContent = formatPrice(totals.tax);
-  cartTotal.textContent = formatPrice(totals.total);
-  renderCurrencyNote(totals);
+  serverQuote = null;
+  renderTotals();
+  scheduleQuote();
+}
+
+// ── Server quote: coupons, gift cards and points ───────────────────────────────
+// The browser's totals are only an estimate shown while the server prices the cart; checkout uses the server's.
+
+function shippingRequest() {
+  return {
+    country: shippingCountry(),
+    zip: shippingMethods === DOMESTIC_SHIPPING ? "" : quotedZip,
+    method: getSelectedRadioValue(shippingMethodInputs, "usps"),
+  };
+}
+
+function checkoutRequest() {
+  return {
+    items: cart.map(({ id, name, variant, options }) => ({ id, name, ...(variant ? { variant, options } : {}) })),
+    shipping: shippingRequest(),
+    coupon_code: appliedCodes.coupon,
+    gift_card_code: appliedCodes.gift_card,
+    use_points: usePoints,
+    ref: readReferral(),
+  };
+}
+
+function authHeaders() {
+  const token = getCurrentUser()?.token;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
+function scheduleQuote() {
+  window.clearTimeout(quoteTimer);
+  if (!cart.length) return;
+  quoteTimer = window.setTimeout(fetchQuote, 250);
+}
+
+async function fetchQuote() {
+  const request = ++quoteRequest;
+  try {
+    const response = await fetch(`${API_BASE_URL}/checkout/quote`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(checkoutRequest()),
+    });
+    if (!(response.headers.get("Content-Type") || "").includes("application/json")) return;
+    const json = await response.json();
+    if (request !== quoteRequest) return;
+    if (!response.ok) {
+      setCheckoutState(json.message || "");
+      return;
+    }
+    serverQuote = json;
+    renderCodeStatus("coupon", json.errors?.coupon, json.coupon && `${json.coupon.code} applied${json.coupon.description ? `: ${json.coupon.description}` : ""}.`);
+    renderCodeStatus("gift_card", json.errors?.gift_card,
+      json.gift_card && `Gift card ${json.gift_card.code} applied. ${formatPrice(json.gift_card.remaining_after)} will be left on it.`);
+    renderTotals();
+  } catch (error) {
+    console.warn("Checkout quote unavailable; showing the browser's estimate.", error);
+  }
+}
+
+function codeForm(kind) {
+  return document.querySelector(`.code-form[data-code-kind="${kind}"]`);
+}
+
+function renderCodeStatus(kind, error, appliedText) {
+  const form = codeForm(kind);
+  const status = form.querySelector(".code-status");
+  const input = form.querySelector("input");
+  const button = form.querySelector("button");
+  if (error) appliedCodes[kind] = "";
+  const applied = Boolean(appliedCodes[kind] && appliedText);
+  input.disabled = applied;
+  button.textContent = applied ? "Remove" : "Apply";
+  status.classList.toggle("is-error", Boolean(error));
+  status.textContent = error || (applied ? appliedText : "");
+}
+
+function renderTotals() {
+  const estimate = getCheckoutTotals();
+  const quote = serverQuote;
+  const money = quote
+    ? { subtotal: quote.subtotal, discount: quote.discount_total, shipping: quote.shipping_total, tax: quote.tax_total,
+        total: quote.total, giftCard: quote.gift_card_applied, points: quote.points_value, due: quote.amount_due }
+    : { subtotal: estimate.subtotal, discount: 0, shipping: cart.length ? estimate.shipping.cost : 0, tax: estimate.tax,
+        total: estimate.total, giftCard: 0, points: 0, due: estimate.total };
+  cartSubtotal.textContent = formatPrice(money.subtotal);
+  shippingTotal.textContent = formatPrice(money.shipping);
+  taxTotal.textContent = formatPrice(money.tax);
+  cartTotal.textContent = formatPrice(money.total);
+  discountRow.hidden = !(money.discount > 0);
+  document.getElementById("discount-label").textContent = quote?.coupon ? `Coupon ${quote.coupon.code}` : "Coupon";
+  document.getElementById("discount-total").textContent = `−${formatPrice(money.discount)}`;
+  giftCardRow.hidden = !(money.giftCard > 0);
+  document.getElementById("gift-card-total").textContent = `−${formatPrice(money.giftCard)}`;
+  pointsRow.hidden = !(money.points > 0);
+  document.getElementById("points-label").textContent = quote ? `${quote.points_redeemed.toLocaleString()} points` : "Points";
+  document.getElementById("points-total").textContent = `−${formatPrice(money.points)}`;
+  amountDueRow.hidden = money.due === money.total;
+  document.getElementById("amount-due").textContent = formatPrice(money.due);
+  checkoutButton.textContent = checkoutInProgress ? checkoutButton.textContent
+    : quote && cart.length && money.due === 0 ? "Place order" : "Checkout with Stripe";
+
+  const signedIn = Boolean(getCurrentUser());
+  const available = quote?.points_available || 0;
+  pointsToggle.hidden = !signedIn || available <= 0;
+  usePointsInput.checked = usePoints;
+  document.getElementById("points-toggle-text").textContent =
+    `Use my ${available.toLocaleString()} points (worth ${formatPrice(quote?.points_available_value || 0)})`;
+  pointsEarn.hidden = !quote || !quote.points_earned;
+  pointsEarn.textContent = quote
+    ? (signedIn ? `You'll earn ${quote.points_earned.toLocaleString()} points with this order.`
+      : `Sign in to earn ${quote.points_earned.toLocaleString()} points with this order.`)
+    : "";
+  renderCurrencyNote({ total: money.due });
 }
 
 function renderCurrencyNote(totals) {
@@ -413,92 +541,51 @@ async function checkout() {
     return;
   }
 
-  setCheckoutState("Starting Stripe checkout...", true);
-  const totals = getCheckoutTotals();
-  const order = {
-    items: cart,
-    subtotal: totals.subtotal,
-    shipping_total: totals.shipping.cost,
-    tax_total: totals.tax,
-    total: totals.total,
-    shipping_method: totals.shipping.service,
-    shipping_estimate: totals.shipping.estimate,
-    shipping_carrier: totals.shipping.carrier,
-    shipping_country: shippingCountry(),
-    display_currency: LyrLocale.currency(),
-    shipping_service: totals.shipping.service,
-    payment_method: totals.payment.label,
-    payment_gateway: totals.payment.gateway,
-    payment_status: "pending",
-    user_email: user.email,
-  };
-
-  let savedOrder = { ...order };
-  let orderWasAccepted = false;
-  let checkoutUrl = "";
-  let stripeConfigured = false;
-
+  setCheckoutState("Starting checkout...", true);
+  let result;
   try {
-    const sessionResponse = await fetch(`${API_BASE_URL}/checkout/session`, {
+    // The server prices the cart, applies codes and points, saves the order and opens Stripe for what's left.
+    const response = await fetch(`${API_BASE_URL}/checkout/session`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify({
-        ...order,
+        ...checkoutRequest(),
+        display_currency: LyrLocale.currency(),
         success_url: `${window.location.origin}/dashboard.html`,
         cancel_url: `${window.location.origin}/cart.html`,
       }),
     });
-    const sessionJson = await sessionResponse.json();
-    if (!sessionResponse.ok) {
-      setCheckoutState("Stripe checkout failed: " + (sessionJson.message || "unknown error"));
-      return;
-    }
-
-    savedOrder.stripe_session_id = sessionJson.session_id;
-    checkoutUrl = sessionJson.checkout_url;
-    stripeConfigured = Boolean(sessionJson.stripe_configured);
-
-    const response = await fetch(`${API_BASE_URL}/orders`, {
-      method: "POST",
-      // The sign-in token ties the order to this account, so it shows under Purchases on any device.
-      headers: { "Content-Type": "application/json", ...(user.token ? { Authorization: `Bearer ${user.token}` } : {}) },
-      body: JSON.stringify(savedOrder),
-    });
-
-    if (response.ok) {
-      const json = await response.json();
-      savedOrder = json.order || order;
-      orderWasAccepted = true;
-    } else {
-      const error = await response.json();
-      setCheckoutState("Checkout failed: " + (error.message || "unknown error"));
+    result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setCheckoutState(response.status === 401 ? "Please sign in again to check out." : (result.message || "Checkout failed. Please try again."));
+      scheduleQuote();
       return;
     }
   } catch (error) {
-    console.warn("Checkout backend unavailable, saving order in browser history.", error);
-    orderWasAccepted = true;
-  }
-
-  if (orderWasAccepted) {
-    saveOrderForCurrentUser(savedOrder);
-    cart = [];
-    saveCart();
-    renderCart();
-    if (stripeConfigured && checkoutUrl) {
-      setCheckoutState("Redirecting to Stripe...", true);
-      window.location.href = checkoutUrl;
-      return;
-    }
-    if (stripeConfigured && !checkoutUrl) {
-      setCheckoutState("Stripe checkout failed: no checkout URL returned. Contact support.");
-      return;
-    }
-    setCheckoutState("Order placed! Stripe payments are not configured — redirecting to your orders...");
-    setTimeout(() => { window.location.href = "dashboard.html"; }, 2000);
+    console.warn("Checkout failed.", error);
+    setCheckoutState("We couldn't reach checkout. Check your connection and try again.");
     return;
   }
 
-  setCheckoutState("");
+  saveOrderForCurrentUser(result.order);
+  cart = [];
+  appliedCodes.coupon = "";
+  appliedCodes.gift_card = "";
+  usePoints = false;
+  saveCart();
+  renderCart();
+  if (result.paid) {
+    setCheckoutState("Order placed and paid with your gift card and points. Taking you to your orders...", true);
+    setTimeout(() => { window.location.href = "dashboard.html"; }, 1500);
+    return;
+  }
+  if (result.stripe_configured && result.checkout_url) {
+    setCheckoutState("Redirecting to Stripe...", true);
+    window.location.href = result.checkout_url;
+    return;
+  }
+  setCheckoutState("Order placed! Stripe payments are not configured — redirecting to your orders...");
+  setTimeout(() => { window.location.href = "dashboard.html"; }, 2000);
 }
 
 function renderCheckoutAccount() {
@@ -564,6 +651,7 @@ shippingCountrySelect.addEventListener("change", () => {
   syncCountryFields();
   if (shippingCountry() !== quotedCountry) {
     quotedCountry = shippingCountry();
+    quotedZip = "";
     if (shippingCountry() === "US") {
       shippingMethods = DOMESTIC_SHIPPING;
       renderShippingRates();
@@ -580,6 +668,29 @@ shippingCountrySelect.addEventListener("change", () => {
 LyrLocale.onChange(() => {
   renderShippingRates();
   renderCart();
+});
+
+document.querySelectorAll(".code-form").forEach((form) => form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const kind = form.dataset.codeKind;
+  const input = form.querySelector("input");
+  if (appliedCodes[kind]) {
+    appliedCodes[kind] = "";
+    input.value = "";
+    renderCodeStatus(kind, "", "");
+  } else {
+    appliedCodes[kind] = input.value.trim().toUpperCase();
+    if (!appliedCodes[kind]) return;
+    form.querySelector(".code-status").textContent = "Checking...";
+  }
+  serverQuote = null;
+  renderTotals();
+  fetchQuote();
+}));
+
+usePointsInput.addEventListener("change", () => {
+  usePoints = usePointsInput.checked;
+  fetchQuote();
 });
 
 initShippingCountry();

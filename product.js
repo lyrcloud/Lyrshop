@@ -329,6 +329,7 @@ function renderProduct(product) {
 
   renderGallery(product);
 
+  renderSeller(product);
   renderSpecifics(product);
   renderOptions(product);
   renderMeasurements(product);
@@ -385,6 +386,29 @@ function renderGallery(product) {
     if (thumb) showMedia(product, Number(thumb.dataset.mediaIndex));
   };
   showMedia(product, 0);
+}
+
+// The seller's loyalty tier and selling badges, earned from paid sales (GET /rewards/seller).
+async function renderSeller(product) {
+  if (product.seller_name) document.getElementById("seller-name").textContent = product.seller_name;
+  if (!product.seller_email) return;
+  try {
+    const response = await fetch(`${DETAIL_API_BASE_URL}/rewards/seller?account=${encodeURIComponent(product.seller_email)}`);
+    if (!response.ok || !(response.headers.get("Content-Type") || "").includes("application/json")) return;
+    const seller = await response.json();
+    const tier = document.getElementById("seller-tier");
+    tier.textContent = `${seller.tier} seller`;
+    tier.className = `tier-pill tier-${seller.tier.toLowerCase()}`;
+    tier.hidden = false;
+    if (seller.items_sold) {
+      document.getElementById("seller-summary").textContent = `${seller.items_sold.toLocaleString()} item${seller.items_sold === 1 ? "" : "s"} sold`;
+    }
+    const badges = document.getElementById("seller-badges");
+    badges.innerHTML = seller.badges.map((badge) => `<li title="${escapeHtml(badge.description)}">&#127941; ${escapeHtml(badge.label)}</li>`).join("");
+    badges.hidden = !seller.badges.length;
+  } catch (error) {
+    console.warn("Seller badges unavailable.", error);
+  }
 }
 
 function renderWatchButton(button, product) {

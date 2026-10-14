@@ -29,6 +29,29 @@ function timeUntilEndOf(isoDate) {
   return `${Math.floor(hours / 24)} days`;
 }
 
+// Affiliate links (lyrshop.com/?ref=CODE) credit the referrer for orders placed within REFERRAL_DAYS.
+const REFERRAL_KEY = "lyrshopReferral";
+const REFERRAL_DAYS = 30;
+
+function captureReferral() {
+  const code = new URLSearchParams(window.location.search).get("ref");
+  if (!code || !/^[A-Za-z0-9]{4,16}$/.test(code)) return;
+  try {
+    localStorage.setItem(REFERRAL_KEY, JSON.stringify({ code: code.toUpperCase(), at: Date.now() }));
+  } catch { /* storage blocked */ }
+}
+
+function readReferral() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(REFERRAL_KEY) || "null");
+    return saved && Date.now() - saved.at < REFERRAL_DAYS * 86400000 ? saved.code : "";
+  } catch {
+    return "";
+  }
+}
+
+captureReferral();
+
 function readStoredList(key) {
   try {
     const value = JSON.parse(localStorage.getItem(key) || "[]");

@@ -5,7 +5,7 @@ const MY_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.lo
 const MY_PLACEHOLDER_IMAGE_URL = "logo.svg";
 const SUMMARY_ORDER_COUNT = 3;
 const SUMMARY_ITEM_COUNT = 6;
-const SECTIONS = ["summary", "recently-viewed", "purchases", "watchlist", "account"];
+const SECTIONS = ["summary", "recently-viewed", "purchases", "watchlist", "rewards", "gift-cards", "affiliate", "account"];
 
 const user = getCurrentUser();
 let myOrders = null;
@@ -62,6 +62,175 @@ function showSection() {
   document.getElementById("my-sidebar").hidden = isAccount;
 }
 
+// ── Rewards, gift cards and affiliate ───────────────────────────────────────────
+// All from GET /rewards/me; points and badges change only when the server confirms a payment.
+
+let rewards = null;
+
+const BADGE_ICONS = {
+  "first-purchase": "&#128717;", "loyal-shopper": "&#128150;", "big-spender": "&#128142;", "first-sale": "&#127991;",
+  "rising-seller": "&#128200;", "power-seller": "&#9889;", "affiliate": "&#129309;", "super-affiliate": "&#127942;",
+  "gift-giver": "&#127873;",
+};
+
+function tierProgress(data) {
+  if (!data.next_tier) return `<p class="tier-note">You're at the top tier. Thank you!</p>`;
+  const floor = data.rules.tiers.find((tier) => tier.name === data.tier)?.points || 0;
+  const goal = data.points_lifetime + data.next_tier.points_needed;
+  const percent = Math.min(100, Math.round(((data.points_lifetime - floor) / Math.max(1, goal - floor)) * 100));
+  return `
+    <div class="tier-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"
+      aria-label="Progress to ${myEscape(data.next_tier.name)}"><span style="width: ${percent}%"></span></div>
+    <p class="tier-note">${data.next_tier.points_needed.toLocaleString()} more points to reach <strong>${myEscape(data.next_tier.name)}</strong>.</p>`;
+}
+
+function renderRewards() {
+  if (!rewards) return;
+  const data = rewards;
+  const earned = data.badges.filter((badge) => badge.earned);
+  const strip = document.getElementById("summary-rewards");
+  strip.hidden = false;
+  strip.innerHTML = `<span class="tier-pill tier-${data.tier.toLowerCase()}">${myEscape(data.tier)}</span>
+    <strong>${data.points.toLocaleString()} points</strong><span>worth ${money(data.points_value)} · ${earned.length} badge${earned.length === 1 ? "" : "s"}</span>
+    <span class="rewards-strip-link">Rewards &rsaquo;</span>`;
+
+  document.getElementById("rewards-overview").innerHTML = `
+    <div class="rewards-card">
+      <span class="tier-pill tier-${data.tier.toLowerCase()}">${myEscape(data.tier)} member</span>
+      <p class="rewards-points"><strong>${data.points.toLocaleString()}</strong> points</p>
+      <p class="rewards-value">Worth ${money(data.points_value)} at checkout · ${data.points_lifetime.toLocaleString()} earned in total</p>
+      ${tierProgress(data)}
+    </div>
+    <dl class="rewards-stats">
+      <div><dt>Paid orders</dt><dd>${data.stats.orders_paid}</dd></div>
+      <div><dt>Items sold</dt><dd>${data.stats.items_sold}</dd></div>
+      <div><dt>Referred orders</dt><dd>${data.stats.referral_orders}</dd></div>
+      <div><dt>Gift cards sent</dt><dd>${data.stats.gift_cards_sent}</dd></div>
+    </dl>`;
+  document.getElementById("badge-list").innerHTML = data.badges.map((badge) => `
+    <li class="badge-item${badge.earned ? " is-earned" : ""}" title="${myEscape(badge.description)}">
+      <span class="badge-icon" aria-hidden="true">${BADGE_ICONS[badge.id] || "&#11088;"}</span>
+      <strong>${myEscape(badge.label)}</strong>
+      <small>${badge.earned ? "Earned" : myEscape(badge.description)}</small>
+    </li>`).join("");
+  document.getElementById("points-history").innerHTML = data.history.length
+    ? data.history.map((entry) => `
+      <li>
+        <span>${myEscape(entry.note)}<small>${formatDate(entry.at)}</small></span>
+        <strong class="${entry.points < 0 ? "is-negative" : ""}">${entry.points > 0 ? "+" : ""}${Number(entry.points).toLocaleString()}</strong>
+      </li>`).join("")
+    : '<li class="my-empty">No points yet. You earn points when an order is paid, when your items sell, and when people you refer buy.</li>';
+  const rules = data.rules;
+  document.getElementById("rewards-rules").innerHTML = `
+    <li>Buying: ${rules.points_per_dollar_spent} point for every $1 of items (after coupons), once the payment clears.</li>
+    <li>Selling: ${rules.points_per_dollar_sold} point for every $1 of your items sold.</li>
+    <li>Affiliate: ${Math.round(rules.affiliate_rate * 100)}% of what your referrals spend, paid as points.</li>
+    <li>Spending: ${rules.points_per_dollar} points = $1 off at checkout. Points from refunded orders are taken back.</li>
+    <li>Tiers: ${rules.tiers.slice().reverse().map((tier) => `${myEscape(tier.name)} ${tier.points.toLocaleString()}+`).join(" · ")} lifetime points.</li>`;
+  renderGiftCards();
+  renderAffiliate();
+}
+
+function giftCardStatus(card) {
+  if (card.status === "active") return card.balance > 0 ? `Balance ${money(card.balance)}` : "Used up";
+  return { pending: "Waiting for payment", cancelled: "Cancelled (not paid)", refunded: "Refunded" }[card.status] || card.status;
+}
+
+function renderGiftCards() {
+  const received = rewards.gift_cards_received;
+  document.getElementById("gift-cards-received").innerHTML = received.length
+    ? received.map((card) => `
+      <article class="gift-card-row">
+        <div class="gift-card-mini" aria-hidden="true">${money(card.amount)}</div>
+        <div class="gift-card-info">
+          <strong>From ${myEscape(card.sender_name || "a friend")}</strong>
+          ${card.message ? `<p class="gift-card-message">“${myEscape(card.message)}”</p>` : ""}
+          <span>${giftCardStatus(card)}</span>
+          <code class="gift-card-code">${myEscape(card.code)}</code>
+        </div>
+        <button type="button" class="button button-secondary" data-copy="${myEscape(card.code)}">Copy code</button>
+      </article>`).join("")
+    : '<p class="my-empty">No gift cards sent to you yet.</p>';
+  const bought = rewards.gift_cards;
+  document.getElementById("gift-cards-bought").innerHTML = bought.length
+    ? bought.map((card) => `
+      <article class="gift-card-row">
+        <div class="gift-card-mini" aria-hidden="true">${money(card.amount)}</div>
+        <div class="gift-card-info">
+          <strong>${card.recipient_email ? `For ${myEscape(card.recipient_name || card.recipient_email)}` : "For you"}</strong>
+          <span>${giftCardStatus(card)} · bought ${formatDate(card.created_at)}${card.sent_at ? ` · emailed ${formatDate(card.sent_at)}` : ""}</span>
+          ${card.code ? `<code class="gift-card-code">${myEscape(card.code)}</code>` : ""}
+          ${card.status === "active" ? `
+          <form class="gift-card-send" data-send-card="${myEscape(card.code)}">
+            <input type="email" name="recipient_email" placeholder="Recipient email" value="${myEscape(card.recipient_email || "")}" required aria-label="Recipient email" />
+            <input type="text" name="recipient_name" placeholder="Their name (optional)" value="${myEscape(card.recipient_name || "")}" aria-label="Recipient name" />
+            <input type="text" name="message" placeholder="Message (optional)" value="${myEscape(card.message || "")}" maxlength="300" aria-label="Message" />
+            <button type="submit" class="button button-primary">${card.sent_at ? "Send again" : "Send by email"}</button>
+            <p class="gift-card-send-status" role="status"></p>
+          </form>` : ""}
+        </div>
+        ${card.code ? `<button type="button" class="button button-secondary" data-copy="${myEscape(card.code)}">Copy code</button>` : ""}
+      </article>`).join("")
+    : '<p class="my-empty">You haven\'t bought any gift cards. <a href="giftcards.html">Buy one</a> for a friend or for yourself.</p>';
+}
+
+function renderAffiliate() {
+  const referral = rewards.referral;
+  document.getElementById("affiliate-panel").innerHTML = `
+    <p>Share your link. When someone buys within 30 days of opening it, you earn <strong>${Math.round(referral.rate * 100)}%</strong>
+      of their item total as points (100 points = $1). Your own orders don't count.</p>
+    <div class="affiliate-link">
+      <input type="text" readonly value="${myEscape(referral.link)}" aria-label="Your affiliate link" />
+      <button type="button" class="button button-primary" data-copy="${myEscape(referral.link)}">Copy link</button>
+    </div>
+    <p class="checkout-muted">Your code: <code>${myEscape(referral.code)}</code>. Add <code>?ref=${myEscape(referral.code)}</code> to any Lyrshop page link.</p>
+    <dl class="rewards-stats">
+      <div><dt>Referred orders</dt><dd>${referral.orders}</dd></div>
+      <div><dt>Points earned</dt><dd>${referral.points.toLocaleString()}</dd></div>
+      <div><dt>Worth</dt><dd>${money(referral.points / 100)}</dd></div>
+    </dl>`;
+}
+
+async function loadRewards() {
+  try {
+    rewards = await authApi("/rewards/me");
+    renderRewards();
+  } catch (error) {
+    const message = `<p class="my-empty">${myEscape(error.status === 401 ? "Please sign in again to see your rewards." : "Rewards are unavailable right now.")}</p>`;
+    ["rewards-overview", "affiliate-panel", "gift-cards-bought"].forEach((id) => { document.getElementById(id).innerHTML = message; });
+  }
+}
+
+async function copyText(button) {
+  try {
+    await navigator.clipboard.writeText(button.dataset.copy);
+    const label = button.textContent;
+    button.textContent = "Copied!";
+    setTimeout(() => { button.textContent = label; }, 1500);
+  } catch {
+    window.prompt("Copy this:", button.dataset.copy);
+  }
+}
+
+async function sendGiftCard(form) {
+  const status = form.querySelector(".gift-card-send-status");
+  const button = form.querySelector("button");
+  button.disabled = true;
+  status.textContent = "Sending…";
+  status.classList.remove("is-error");
+  try {
+    const fields = Object.fromEntries(new FormData(form));
+    await authApi(`/giftcards/${encodeURIComponent(form.dataset.sendCard)}/send`, { method: "POST", body: fields });
+    status.textContent = `Sent to ${fields.recipient_email}.`;
+    loadRewards();
+  } catch (error) {
+    status.textContent = error.message || "Couldn't send the gift card.";
+    status.classList.add("is-error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
 // ── Purchases ──────────────────────────────────────────────────────────────────
 
 // One row per product with a quantity; the order keeps one entry per unit.
@@ -97,7 +266,14 @@ function statusTone(order) {
 function renderOrder(order) {
   const items = groupItems(order.items);
   const first = items[0] || {};
+  const isGiftCard = order.kind === "giftcard";
   const image = productsById.get(String(first.id))?.image_url || MY_PLACEHOLDER_IMAGE_URL;
+  const link = isGiftCard ? "#gift-cards" : first.id ? productUrl(first.id) : "#purchases";
+  const savings = [
+    Number(order.discount_total) > 0 && `${order.coupon_code ? `Coupon ${myEscape(order.coupon_code)}` : "Coupon"} −${money(order.discount_total)}`,
+    Number(order.gift_card_applied) > 0 && `Gift card −${money(order.gift_card_applied)}`,
+    Number(order.points_redeemed) > 0 && `${Number(order.points_redeemed).toLocaleString()} points −${money(order.points_value)}`,
+  ].filter(Boolean);
   const others = items.length - 1;
   const tracking = order.tracking_number
     ? `<p class="my-order-tracking">${myEscape(order.shipping_carrier || "Tracking")} <strong>${myEscape(order.tracking_number)}</strong></p>`
@@ -110,18 +286,19 @@ function renderOrder(order) {
         <span>Order number <strong>${myEscape(String(order.id).slice(0, 8).toUpperCase())}</strong></span>
       </div>
       <div class="my-order-body">
-        <a class="my-thumb" href="${first.id ? productUrl(first.id) : "#purchases"}">
+        <a class="my-thumb" href="${link}">
           <img src="${myEscape(image)}" alt="" loading="lazy" />
         </a>
         <div class="my-order-info">
           <p class="my-order-status ${statusTone(order)}">${myEscape(deliveryLine(order))}</p>
           <p>
-            <a href="${first.id ? productUrl(first.id) : "#purchases"}">${myEscape(first.name || "Order")}</a>
+            <a href="${link}">${myEscape(first.name || "Order")}</a>
             ${first.quantity > 1 ? `<span class="my-muted">× ${first.quantity}</span>` : ""}
           </p>
           ${first.variant ? `<p class="my-muted">${myEscape(first.variant)}</p>` : ""}
           ${others > 0 ? `<p class="my-muted">and ${others} more item${others === 1 ? "" : "s"}</p>` : ""}
           ${tracking}
+          ${savings.length ? `<p class="my-muted">${savings.join(" · ")}</p>` : ""}
         </div>
         <div class="my-order-badges">
           <span class="status-badge status-payment-${myEscape(order.payment_status || "pending")}">${myEscape(order.payment_status || "pending")}</span>
@@ -331,12 +508,22 @@ if (!user) {
   LyrLocale.onChange(renderAll);
   loadOrders();
   loadProducts();
+  loadRewards();
 
   window.addEventListener("hashchange", () => {
     showSection();
     window.scrollTo({ top: 0 });
   });
+  document.querySelector(".my-content").addEventListener("submit", (event) => {
+    const form = event.target.closest("[data-send-card]");
+    if (form) {
+      event.preventDefault();
+      sendGiftCard(form);
+    }
+  });
   document.querySelector(".my-content").addEventListener("click", (event) => {
+    const copy = event.target.closest("[data-copy]");
+    if (copy) copyText(copy);
     const unwatch = event.target.closest("[data-unwatch]");
     if (unwatch) {
       toggleWatchlist(unwatch.dataset.unwatch);
