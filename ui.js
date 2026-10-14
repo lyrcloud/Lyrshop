@@ -3,6 +3,32 @@
 const WATCHLIST_KEY = "lyrshopWatchlist";
 const CART_KEY = "shopCart";
 
+// What a shopper pays now. While a sales-calendar event is open the server adds event_price to the trending and new
+// listings it discounts; otherwise it is the seller's price with their optional "was" price.
+function listingPrices(product) {
+  const price = Number(product.price);
+  const eventPrice = Number(product.event_price);
+  if (eventPrice > 0 && eventPrice < price) {
+    return { price: eventPrice, original_price: Number(product.event_was_price) || price, sale_event: product.event_name || "" };
+  }
+  // Only a real seller-set "was" price is shown; never invent a discount.
+  return { price, original_price: Number(product.compare_at_price) || 0, sale_event: product.sale_event || "" };
+}
+
+// "Oct 31" for a calendar date like "2026-10-31" (the sales calendar runs on UTC days).
+function formatEventDate(isoDate) {
+  const [year, month, day] = String(isoDate).split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+// "3 days" or "5 hours" until the end of a UTC calendar day.
+function timeUntilEndOf(isoDate) {
+  const [year, month, day] = String(isoDate).split("-").map(Number);
+  const hours = Math.max(1, Math.ceil((Date.UTC(year, month - 1, day + 1) - Date.now()) / 3600000));
+  if (hours < 48) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  return `${Math.floor(hours / 24)} days`;
+}
+
 function readStoredList(key) {
   try {
     const value = JSON.parse(localStorage.getItem(key) || "[]");

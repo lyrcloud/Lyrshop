@@ -1229,6 +1229,208 @@ function handleCategoryClick(event) {
   showMessage(categoryMessage, "Category deleted.");
 }
 
+// ── Sales calendar (super admin) ──────────────────────────────────────────────────
+// Events live on the server (/calendar). The server works out each event's sale window and adds the discounts to
+// listings as they are read, so this tab only edits the calendar.
+
+const calendarForm = document.getElementById("calendar-form");
+const calendarEditId = document.getElementById("calendar-edit-id");
+const calendarKind = document.getElementById("calendar-kind");
+const calendarMonth = document.getElementById("calendar-month");
+const calendarWeekday = document.getElementById("calendar-weekday");
+const calendarSubmit = document.getElementById("calendar-submit");
+const calendarMessage = document.getElementById("calendar-message-box");
+const calendarSummary = document.getElementById("calendar-summary");
+const calendarTableBody = document.getElementById("calendar-table-body");
+const calendarField = (name) => document.getElementById(`calendar-${name}`);
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+// Monday first, matching Python's date.weekday() on the server.
+const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const WEEK_NAMES = { 1: "First", 2: "Second", 3: "Third", 4: "Fourth", "-1": "Last" };
+const CALENDAR_PHASES = {
+  live: ["Live now", "is-live"],
+  early: ["Early deals", "is-early"],
+  upcoming: ["Scheduled", ""],
+  off: ["Turned off", "is-off"],
+  past: ["Ended", "is-off"],
+};
+let calendarEvents = [];
+
+calendarMonth.innerHTML = MONTH_NAMES.map((name, index) => `<option value="${index + 1}">${name}</option>`).join("");
+calendarWeekday.innerHTML = WEEKDAY_NAMES.map((name, index) => `<option value="${index}">${name}</option>`).join("");
+
+// "Oct 31, 2026" for a calendar date like "2026-10-31" (calendar days are UTC).
+function calendarDate(isoDate, withYear = true) {
+  if (!isoDate) return "—";
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(undefined,
+    { month: "short", day: "numeric", ...(withYear ? { year: "numeric" } : {}), timeZone: "UTC" });
+}
+
+function describeRule(rule) {
+  if (rule.kind === "once") return `Once, ${calendarDate(rule.date)}`;
+  const month = MONTH_NAMES[rule.month - 1];
+  if (rule.kind === "yearly") return `Every ${month} ${rule.day}`;
+  const offset = Number(rule.offset_days) || 0;
+  const shift = offset ? ` ${offset > 0 ? "+" : "−"} ${Math.abs(offset)} ${Math.abs(offset) === 1 ? "day" : "days"}` : "";
+  return `${WEEK_NAMES[rule.week]} ${WEEKDAY_NAMES[rule.weekday]} of ${month}${shift}`;
+}
+
+function renderCalendar(data) {
+  calendarEvents = data.events || [];
+  const { active, upcoming } = data;
+  if (active) {
+    calendarSummary.innerHTML = `<strong>${active.phase === "live" ? "Live now" : "Early deals running"}: ${escapeHtml(active.name)}</strong>
+      · discounts up to ${active.max_discount}% until ${escapeHtml(calendarDate(active.closes))}. The home page banner and first slide show this event.`;
+  } else {
+    calendarSummary.innerHTML = upcoming
+      ? `No sale running today. <strong>Next: ${escapeHtml(upcoming.name)}</strong> on ${escapeHtml(calendarDate(upcoming.date))}; early deals start ${escapeHtml(calendarDate(upcoming.opens))}.`
+      : "No sale running today and none scheduled.";
+  }
+  calendarSummary.dataset.tone = active ? "live" : "";
+
+  calendarTableBody.innerHTML = calendarEvents.map((event) => {
+    const [label, tone] = CALENDAR_PHASES[event.phase] || CALENDAR_PHASES.upcoming;
+    const dealsWindow = event.opens
+      ? (event.opens === event.closes ? calendarDate(event.opens, false) : `${calendarDate(event.opens, false)} – ${calendarDate(event.closes, false)}`)
+      : "—";
+    return `
+      <tr>
+        <td><span class="calendar-swatch" style="background: ${escapeHtml(event.tone)}"></span><strong>${escapeHtml(event.name)}</strong></td>
+        <td>${escapeHtml(describeRule(event.rule))}</td>
+        <td>${escapeHtml(calendarDate(event.date))}</td>
+        <td>${escapeHtml(dealsWindow)}</td>
+        <td>${Number(event.max_discount)}%</td>
+        <td><span class="calendar-phase ${tone}">${label}</span></td>
+        <td class="table-actions">
+          <button class="button button-secondary" type="button" data-calendar-action="edit" data-id="${escapeHtml(event.id)}">Edit</button>
+          <button class="button button-secondary" type="button" data-calendar-action="toggle" data-id="${escapeHtml(event.id)}">${event.enabled === false ? "Turn on" : "Turn off"}</button>
+          <button class="button danger-button" type="button" data-calendar-action="delete" data-id="${escapeHtml(event.id)}">Delete</button>
+        </td>
+      </tr>`;
+  }).join("") || '<tr><td colspan="7">No events yet. Add one above.</td></tr>';
+}
+
+async function loadCalendar() {
+  try {
+    renderCalendar(await authApi("/calendar"));
+  } catch (error) {
+    showMessage(calendarMessage, error.message || "Could not load the sales calendar.", true);
+  }
+}
+
+function syncCalendarKind() {
+  calendarForm.querySelectorAll("[data-calendar-kinds]").forEach((field) => {
+    field.hidden = !field.dataset.calendarKinds.split(" ").includes(calendarKind.value);
+  });
+}
+
+function resetCalendarForm() {
+  calendarForm.reset();
+  calendarEditId.value = "";
+  calendarSubmit.textContent = "Add event";
+  syncCalendarKind();
+}
+
+function editCalendarEvent(event) {
+  const rule = event.rule || {};
+  calendarEditId.value = event.id;
+  calendarField("name").value = event.name || "";
+  calendarKind.value = rule.kind || "yearly";
+  calendarMonth.value = String(rule.month || 1);
+  calendarField("day").value = rule.day || 1;
+  calendarField("week").value = String(rule.week || 1);
+  calendarWeekday.value = String(rule.weekday ?? 0);
+  calendarField("offset").value = rule.offset_days || 0;
+  calendarField("date").value = rule.date || "";
+  calendarField("lead").value = event.lead_days ?? 7;
+  calendarField("duration").value = event.duration_days ?? 1;
+  calendarField("max").value = event.max_discount ?? 45;
+  calendarField("headline").value = event.headline || "";
+  calendarField("message").value = event.message || "";
+  calendarField("image").value = event.image_url || "";
+  calendarField("tone").value = event.tone || "#fde2e1";
+  calendarField("enabled").checked = event.enabled !== false;
+  calendarSubmit.textContent = "Save event";
+  syncCalendarKind();
+  showMessage(calendarMessage, "");
+  calendarForm.scrollIntoView({ behavior: "smooth" });
+}
+
+function readCalendarForm() {
+  const kind = calendarKind.value;
+  const month = Number(calendarMonth.value);
+  const rule = kind === "once"
+    ? { kind, date: calendarField("date").value }
+    : kind === "yearly"
+      ? { kind, month, day: Number(calendarField("day").value) }
+      : { kind, month, week: Number(calendarField("week").value), weekday: Number(calendarWeekday.value), offset_days: Number(calendarField("offset").value) || 0 };
+  return {
+    name: calendarField("name").value.trim(),
+    rule,
+    lead_days: Number(calendarField("lead").value),
+    duration_days: Number(calendarField("duration").value),
+    max_discount: Number(calendarField("max").value),
+    headline: calendarField("headline").value.trim(),
+    message: calendarField("message").value.trim(),
+    image_url: calendarField("image").value.trim(),
+    tone: calendarField("tone").value,
+    enabled: calendarField("enabled").checked,
+  };
+}
+
+// Saving sends every field, so an event read back from the server can be re-sent as it is.
+function eventBody(event) {
+  const { name, rule, lead_days, duration_days, max_discount, headline, message, image_url, tone, enabled } = event;
+  return { name, rule, lead_days, duration_days, max_discount, headline, message, image_url, tone, enabled };
+}
+
+async function saveCalendarEvent(event) {
+  event.preventDefault();
+  const editId = calendarEditId.value;
+  try {
+    const data = await authApi(editId ? `/calendar/${encodeURIComponent(editId)}` : "/calendar", {
+      method: editId ? "PUT" : "POST",
+      body: readCalendarForm(),
+    });
+    renderCalendar(data);
+    resetCalendarForm();
+    showMessage(calendarMessage, editId ? "Event saved." : "Event added.");
+  } catch (error) {
+    showMessage(calendarMessage, error.message || "Could not save the event.", true);
+  }
+}
+
+async function handleCalendarTableClick(event) {
+  const button = event.target.closest("[data-calendar-action]");
+  if (!button) return;
+  const calendarEvent = calendarEvents.find((item) => item.id === button.dataset.id);
+  if (!calendarEvent) return;
+  const action = button.dataset.calendarAction;
+  if (action === "edit") {
+    editCalendarEvent(calendarEvent);
+    return;
+  }
+  if (action === "delete" && !confirm(`Delete ${calendarEvent.name} from the sales calendar?`)) return;
+  try {
+    const path = `/calendar/${encodeURIComponent(calendarEvent.id)}`;
+    const data = action === "delete"
+      ? await authApi(path, { method: "DELETE" })
+      : await authApi(path, { method: "PUT", body: { ...eventBody(calendarEvent), enabled: calendarEvent.enabled === false } });
+    renderCalendar(data);
+    showMessage(calendarMessage, action === "delete" ? `${calendarEvent.name} deleted.` : `${calendarEvent.name} turned ${calendarEvent.enabled === false ? "on" : "off"}.`);
+  } catch (error) {
+    showMessage(calendarMessage, error.message || "Could not update the event.", true);
+  }
+}
+
+calendarKind.addEventListener("change", syncCalendarKind);
+calendarForm.addEventListener("submit", saveCalendarEvent);
+document.getElementById("calendar-cancel").addEventListener("click", () => { resetCalendarForm(); showMessage(calendarMessage, ""); });
+calendarTableBody.addEventListener("click", handleCalendarTableClick);
+syncCalendarKind();
+
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 
 function initTabs() {
@@ -1636,6 +1838,7 @@ async function initAdminPage() {
   initTabs();
   loadAttributes();
   if (session.role === "superadmin") {
+    loadCalendar();
     document.getElementById("attributes-intro").textContent =
       "Colors, sizes and other options buyers choose from. As super admin you can edit or delete every attribute.";
   }

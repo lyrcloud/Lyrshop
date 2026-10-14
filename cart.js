@@ -386,6 +386,17 @@ async function loadProductDetails() {
     if (!response.ok) return;
     const json = await response.json();
     productDetails = new Map((json.products || []).map((product) => [String(product.id), product]));
+    // Cart prices follow the listing, so a sales-calendar discount reaches items already in the cart and ends with it.
+    let repriced = false;
+    cart.forEach((item) => {
+      const product = productDetails.get(String(item.id));
+      const { price } = product ? listingPrices(product) : {};
+      if (price > 0 && price !== item.price) {
+        item.price = price;
+        repriced = true;
+      }
+    });
+    if (repriced) saveCart();
     renderCart();
   } catch (error) {
     console.warn("Product details unavailable; showing the cart without photos.", error);

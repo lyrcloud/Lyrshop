@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-2" />
+  <link rel="stylesheet" href="styles.css?v=20261014-3" />
 </head>
 <body>
   <header class="page-header">
@@ -29,6 +29,7 @@
       <button class="admin-tab admin-only" type="button" data-admin-section="orders">Orders</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="users">Users</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="categories">Categories</button>
+      <button class="admin-tab superadmin-only" type="button" data-admin-section="calendar" hidden>Sales calendar</button>
     </nav>
 
     <section class="admin-panel admin-section active" id="admin-products-section">
@@ -362,6 +363,130 @@
       </div>
     </section>
 
+    <section class="admin-panel admin-section superadmin-only" id="admin-calendar-section" hidden>
+      <div class="panel-header">
+        <h2>E-commerce sales calendar</h2>
+        <p>Special shopping days run themselves: before each one, trending and new items are discounted automatically and the home page banner and slides switch to the event.</p>
+      </div>
+      <div id="calendar-summary" class="calendar-summary" role="status"></div>
+      <details class="calendar-rules">
+        <summary>How automatic discounts work</summary>
+        <ul>
+          <li><strong>Early deals</strong> start the set number of days before the event; the event days themselves get the biggest discounts.</li>
+          <li>The <strong>top 25% best sellers</strong> of the last 30 days get the full maximum, other trending items 80% of it, and <strong>new arrivals</strong> (listed in the last 30 days, or the 24 newest) 60%.</li>
+          <li>Early deals are 70% of those amounts. Every discount is rounded to a 5% step and never goes above the event's maximum (at most 45%).</li>
+          <li>Discounts are taken off the seller's was price when there is one, and a seller's own deeper sale is kept. Stored prices never change, so prices go back by themselves when the event ends.</li>
+          <li>When two events overlap, the one that ends first is shown. Dates follow UTC days.</li>
+        </ul>
+      </details>
+      <form id="calendar-form" class="admin-crud-form calendar-form">
+        <input type="hidden" id="calendar-edit-id" />
+        <label>
+          Event name
+          <input type="text" id="calendar-name" maxlength="60" placeholder="Black Friday" required />
+        </label>
+        <label>
+          Happens
+          <select id="calendar-kind">
+            <option value="yearly">Every year on a date</option>
+            <option value="weekday">Every year on a weekday (e.g. 4th Thursday)</option>
+            <option value="once">Once, on a date</option>
+          </select>
+        </label>
+        <label data-calendar-kinds="weekday">
+          Which week
+          <select id="calendar-week">
+            <option value="1">First</option>
+            <option value="2">Second</option>
+            <option value="3">Third</option>
+            <option value="4">Fourth</option>
+            <option value="-1">Last</option>
+          </select>
+        </label>
+        <label data-calendar-kinds="weekday">
+          Weekday
+          <select id="calendar-weekday"></select>
+        </label>
+        <label data-calendar-kinds="yearly weekday">
+          Month
+          <select id="calendar-month"></select>
+        </label>
+        <label data-calendar-kinds="yearly">
+          Day
+          <input type="number" id="calendar-day" min="1" max="31" value="1" />
+        </label>
+        <label data-calendar-kinds="weekday">
+          Days after that weekday
+          <input type="number" id="calendar-offset" min="-14" max="14" value="0" />
+        </label>
+        <label data-calendar-kinds="once">
+          Date
+          <input type="date" id="calendar-date" />
+        </label>
+        <label>
+          Early deals start (days before)
+          <input type="number" id="calendar-lead" min="0" max="30" value="7" required />
+        </label>
+        <label>
+          Event lasts (days)
+          <input type="number" id="calendar-duration" min="1" max="14" value="1" required />
+        </label>
+        <label>
+          Maximum discount (%)
+          <input type="number" id="calendar-max" min="5" max="45" value="45" required />
+        </label>
+        <label>
+          Banner headline
+          <input type="text" id="calendar-headline" maxlength="80" placeholder="Our biggest sale of the year" />
+        </label>
+        <label class="wide-field">
+          Banner message
+          <input type="text" id="calendar-message" maxlength="160" placeholder="Doorbusters on trending and new items." />
+        </label>
+        <div class="image-field">
+        <label>
+          Banner image URL
+          <input type="url" id="calendar-image" placeholder="https://example.com/banner.jpg" />
+        </label>
+        <div class="image-picker" data-image-target="calendar-image">
+          <button type="button" class="button button-secondary" data-image-source="device">Browse computer</button>
+          <button type="button" class="button button-secondary" data-image-source="drive">Google Drive</button>
+          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+          <p class="image-picker-status" role="status"></p>
+        </div>
+        </div>
+        <label>
+          Banner color
+          <input type="color" id="calendar-tone" value="#fde2e1" />
+        </label>
+        <label class="checkbox-field">
+          <input type="checkbox" id="calendar-enabled" checked />
+          Turned on
+        </label>
+        <div class="admin-form-actions">
+          <button type="submit" id="calendar-submit" class="button button-primary">Add event</button>
+          <button type="button" id="calendar-cancel" class="button button-secondary">Cancel edit</button>
+        </div>
+      </form>
+      <div id="calendar-message-box" class="admin-message"></div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Happens</th>
+              <th>Next date</th>
+              <th>Deals window</th>
+              <th>Max off</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="calendar-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
     <section class="admin-panel admin-section admin-only" id="admin-categories-section">
       <div class="panel-header">
         <h2>Category CRUD</h2>
@@ -410,7 +535,7 @@
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261014-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261014-3"></script>
+  <script src="admin.js?v=20261014-4"></script>
   <script src="footer.js?v=20261014-1"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>

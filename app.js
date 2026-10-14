@@ -331,12 +331,63 @@ const HERO_PROMOS = [
     cta: "Browse brands", href: "index.html?view=brands#product-list", image: "1441986300917-64674bd600d8", tone: "#e3efe6" },
 ];
 let heroSlides = [];
+// GET /calendar: the open sales-calendar event (if any) and the next one, which drive the banner and first slides.
+let salesCalendar = null;
+const UPCOMING_SLIDE_DAYS = 45;
+const EVENT_FALLBACK_IMAGE = "1607082348824-0a96f2a4b9da";
 let heroIndex = 0;
 let heroTimer = null;
 
+// The best discount the open event currently gives, from the listings the server marked down.
+function bestEventDiscount(event) {
+  return allProducts.reduce((best, product) => (product.event_name === event.name ? Math.max(best, Number(product.event_discount) || 0) : best), 0);
+}
+
+function eventDealsHref(event) {
+  return `index.html?view=deals&event=${encodeURIComponent(event.name)}#product-list`;
+}
+
+function activeEventSlide() {
+  const active = salesCalendar?.active;
+  if (!active) return null;
+  const best = bestEventDiscount(active) || active.max_discount;
+  return {
+    eyebrow: active.phase === "live" ? `${active.name} · ends in ${timeUntilEndOf(active.closes)}` : `Early ${active.name} deals`,
+    title: `${active.headline || active.name}: up to ${best}% off`,
+    text: active.phase === "live"
+      ? `${active.message || ""} Trending and new items are marked down today.`.trim()
+      : `${active.message || ""} Up to ${active.max_discount}% off on ${formatEventDate(active.date)}.`.trim(),
+    cta: "Shop the sale",
+    href: eventDealsHref(active),
+    imageUrl: active.image_url || HERO_IMAGE(EVENT_FALLBACK_IMAGE),
+    tone: active.tone,
+  };
+}
+
+function upcomingEvent() {
+  const next = salesCalendar?.upcoming;
+  const daysAway = next ? (Date.parse(`${next.opens}T00:00:00Z`) - Date.now()) / 86400000 : Infinity;
+  return daysAway <= UPCOMING_SLIDE_DAYS ? next : null;
+}
+
+function upcomingEventSlide() {
+  const next = upcomingEvent();
+  if (!next) return null;
+  return {
+    eyebrow: `Coming ${formatEventDate(next.date)}`,
+    title: next.headline || next.name,
+    text: `Deals up to ${next.max_discount}% off on trending and new items start ${formatEventDate(next.opens)}.`,
+    cta: "Shop trending now",
+    href: "index.html?sort=trending#product-list",
+    imageUrl: next.image_url || HERO_IMAGE(EVENT_FALLBACK_IMAGE),
+    tone: next.tone,
+  };
+}
+
 function buildHeroSlides() {
   const events = new Map();
-  allProducts.filter(isOnSale).forEach((product) => {
+  // The open calendar event has its own slide, so its markdowns are not counted again below.
+  allProducts.filter((product) => isOnSale(product) && !(salesCalendar?.active && product.sale_event === salesCalendar.active.name)).forEach((product) => {
     const name = product.sale_event || "Sale";
     const event = events.get(name) || { count: 0, best: 0 };
     event.count += 1;
@@ -354,7 +405,45 @@ function buildHeroSlides() {
       image: "1607082348824-0a96f2a4b9da",
       tone: "#fde2e1",
     }));
-  return [...saleSlides, ...HERO_PROMOS];
+  return [activeEventSlide(), ...saleSlides, upcomingEventSlide(), ...HERO_PROMOS].filter(Boolean);
+}
+
+// The strip above the slider: the open event with its countdown, or a heads-up for the next one.
+function renderEventBanner() {
+  const banner = document.getElementById("event-banner");
+  if (!banner) return;
+  const active = salesCalendar?.active;
+  const next = upcomingEvent();
+  let text = "";
+  let link = "";
+  if (active) {
+    const best = bestEventDiscount(active) || active.max_discount;
+    text = active.phase === "live"
+      ? `<strong>${escapeHtml(active.name)} is on:</strong> up to ${best}% off trending &amp; new items · ends in ${escapeHtml(timeUntilEndOf(active.closes))}`
+      : `<strong>Early ${escapeHtml(active.name)} deals:</strong> up to ${best}% off now, up to ${active.max_discount}% on ${escapeHtml(formatEventDate(active.date))}`;
+    link = `<a href="${escapeHtml(eventDealsHref(active))}">Shop the sale &rsaquo;</a>`;
+  } else if (next) {
+    text = `<strong>${escapeHtml(next.name)}</strong> deals up to ${next.max_discount}% off start ${escapeHtml(formatEventDate(next.opens))}`;
+  }
+  banner.hidden = !text;
+  banner.style.setProperty("--event-tone", (active || next)?.tone || "#fde2e1");
+  banner.innerHTML = text ? `<span class="event-banner-icon" aria-hidden="true">&#127881;</span><p>${text}</p>${link}` : "";
+}
+
+async function loadSalesCalendar() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/calendar`);
+    // CloudFront answers unknown paths with the storefront page, so only JSON counts.
+    if (!response.ok || !(response.headers.get("Content-Type") || "").includes("application/json")) return;
+    salesCalendar = await response.json();
+  } catch (error) {
+    console.warn("Sales calendar unavailable.", error);
+    return;
+  }
+  renderEventBanner();
+  renderHeroSlider();
+  // Keep the countdown current while the page stays open.
+  window.setInterval(renderEventBanner, 60000);
 }
 
 function goToHeroSlide(index) {
@@ -397,7 +486,7 @@ function renderHeroSlider() {
         <a href="${escapeHtml(slide.href)}" class="button button-dark">${escapeHtml(slide.cta)}</a>
       </div>
       <div class="market-hero-visual" aria-hidden="true">
-        <img src="${HERO_IMAGE(slide.image)}" alt="" ${i === 0 ? "" : 'loading="lazy"'} />
+        <img src="${escapeHtml(slide.imageUrl || HERO_IMAGE(slide.image))}" alt="" ${i === 0 ? "" : 'loading="lazy"'} />
       </div>
     </article>
   `).join("");
@@ -575,9 +664,7 @@ async function loadProducts() {
 
         return {
           ...p,
-          price,
-          // Only a real seller-set "was" price is shown; never invent a discount.
-          original_price: Number(p.compare_at_price) || 0,
+          ...listingPrices(p),
           rating: Number(p.rating) || 4,
           created_at: Number(p.created_at) || 0,
           // Units sold in the last 30 days, counted by the server.
@@ -597,6 +684,7 @@ async function loadProducts() {
     refreshListing();
     // Rebuild once products arrive so real sale events get their own slides.
     if (allProducts.some(isOnSale)) renderHeroSlider();
+    renderEventBanner();
     window.clearTimeout(timeoutId);
   }
 }
@@ -700,6 +788,7 @@ function initStorefront() {
   bindCategoryMenu();
   bindHeroSlider();
   renderHeroSlider();
+  loadSalesCalendar();
   bindProductListActions();
   // Re-price the cards when the visitor's currency is detected or changed.
   LyrLocale.onChange(() => { if (productsLoaded) refreshListing(); });

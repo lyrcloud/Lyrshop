@@ -31,9 +31,7 @@ function normalizeProduct(product) {
   if (!Number.isFinite(price)) return null;
   return {
     ...product,
-    price,
-    // Only a real seller-set "was" price is shown; never invent a discount.
-    original_price: Number(product.compare_at_price) || 0,
+    ...listingPrices(product),
     rating: Number(product.rating) || 4,
     image_url: product.image_url || DETAIL_PLACEHOLDER_IMAGE_URL,
     media: productMedia(product),
