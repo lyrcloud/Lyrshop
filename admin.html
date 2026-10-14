@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-4" />
+  <link rel="stylesheet" href="styles.css?v=20261014-5" />
 </head>
 <body>
   <header class="page-header">
@@ -36,6 +36,7 @@
       <button class="admin-tab admin-only" type="button" data-admin-section="categories">Categories</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="calendar" hidden>Sales calendar</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="coupons" hidden>Coupons</button>
+      <button class="admin-tab superadmin-only" type="button" data-admin-section="business" hidden>Business accounts <span class="count-badge" id="business-pending-count" hidden></span></button>
     </nav>
 
     <section class="admin-panel admin-section active" id="admin-products-section">
@@ -72,6 +73,12 @@
           <input type="number" id="product-discount" min="1" max="99" step="1" placeholder="e.g. 20" />
           <small class="field-hint">Sets the price from the was price. With no was price, the current price becomes the was price.</small>
         </label>
+        <fieldset class="wholesale-tiers wide-field">
+          <legend>Wholesale pricing for business buyers (optional)</legend>
+          <p class="field-hint">Approved business accounts pay these unit prices when they buy at least the quantity shown. Retail shoppers always pay the price above.</p>
+          <div id="wholesale-rows" class="wholesale-rows"></div>
+          <button type="button" id="wholesale-add" class="button button-secondary">Add a quantity tier</button>
+        </fieldset>
         <label>
           Sale event (optional)
           <input type="text" id="product-sale-event" list="sale-event-options" placeholder="e.g. Black Friday" />
@@ -562,6 +569,26 @@
       </div>
     </section>
 
+    <section class="admin-panel admin-section superadmin-only" id="admin-business-section" hidden>
+      <div class="panel-header">
+        <h2>Business accounts (B2B)</h2>
+        <p>Approved businesses get sellers' wholesale prices. Only turn on tax exemption after you've checked the business's resale or exemption certificate; exempt businesses pay no sales tax at checkout.</p>
+      </div>
+      <div class="admin-filters">
+        <label>
+          Show
+          <select id="business-filter">
+            <option value="pending">Waiting for review</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="">All</option>
+          </select>
+        </label>
+      </div>
+      <div id="business-message" class="admin-message"></div>
+      <div id="business-list" class="business-list"></div>
+    </section>
+
     <section class="admin-panel admin-section admin-only" id="admin-categories-section">
       <div class="panel-header">
         <h2>Category CRUD</h2>
@@ -610,7 +637,7 @@
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261014-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261014-5"></script>
+  <script src="admin.js?v=20261014-6"></script>
   <script src="footer.js?v=20261014-2"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>

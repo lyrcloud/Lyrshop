@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-4" />
+  <link rel="stylesheet" href="styles.css?v=20261014-5" />
 </head>
 <body>
   <header class="header">
@@ -101,11 +101,7 @@
           <div>
             <dt>Quantity</dt>
             <dd>
-              <select id="quantity-select" aria-label="Quantity">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-              </select>
+              <input type="number" id="quantity-select" class="quantity-input" min="1" max="500" step="1" value="1" inputmode="numeric" aria-label="Quantity" />
               <span class="availability">More than 10 available</span>
             </dd>
           </div>
@@ -119,6 +115,14 @@
           <strong id="detail-price">$0.00</strong>
           <span id="detail-original-price" class="detail-original-price"></span>
         </div>
+        <section class="wholesale-box" id="wholesale-box" aria-labelledby="wholesale-title" hidden>
+          <h2 id="wholesale-title">Business pricing</h2>
+          <table class="wholesale-table">
+            <thead><tr><th>Quantity</th><th>Unit price</th><th>You save</th></tr></thead>
+            <tbody id="wholesale-body"></tbody>
+          </table>
+          <p class="wholesale-note" id="wholesale-note"></p>
+        </section>
 
         <div class="purchase-actions">
           <button class="button buy-now-button" id="buy-now-button" type="button">Buy It Now</button>
@@ -189,7 +193,7 @@
   <script src="locale.js?v=20261014-1"></script>
   <script src="categories.js?v=20261011-2"></script>
   <script src="ui.js?v=20261014-3"></script>
-  <script src="product.js?v=20261014-5"></script>
+  <script src="product.js?v=20261014-6"></script>
   <script src="footer.js?v=20261014-2"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>

@@ -493,12 +493,69 @@ function renderProfile(account) {
   document.getElementById("profile-email").textContent = getAccountContact(account);
   document.getElementById("profile-provider").textContent = account.provider || "—";
   document.getElementById("profile-role").textContent = roleLabels[account.role] || "Customer";
+  renderBusiness(account);
+}
+
+// ── Business account (B2B) ─────────────────────────────────────────────────────
+// Shoppers apply here; the super admin approves them before wholesale prices or tax exemption apply.
+
+const BUSINESS_STATUS_TEXT = {
+  pending: "Your application is being reviewed. You'll keep retail prices until it's approved.",
+  approved: "Approved. You see sellers' wholesale prices on bulk quantities.",
+  rejected: "Your application wasn't approved. Update your details and apply again, or contact support@lyrshop.com.",
+};
+
+function renderBusiness(account) {
+  const info = account.business || {};
+  const approved = info.status === "approved";
+  document.getElementById("profile-buyer-type").textContent = approved
+    ? `Business — ${info.company}${info.tax_exempt ? " (tax-exempt)" : ""}` : "Personal (retail prices)";
+  const status = document.getElementById("business-status");
+  status.dataset.status = info.status || "";
+  status.textContent = info.status
+    ? `${BUSINESS_STATUS_TEXT[info.status] || ""}${approved && info.tax_exempt ? " Your orders are tax-exempt." : ""}${approved && info.wants_tax_exempt && !info.tax_exempt ? " Tax exemption is pending your certificate: email it to support@lyrshop.com." : ""}`
+    : "Buying for a business? Apply for wholesale prices on bulk orders and, with a resale certificate, tax-exempt checkout.";
+  const form = document.getElementById("business-form");
+  if (document.activeElement?.form !== form) {
+    for (const field of ["company", "tax_id", "phone", "address", "website", "industry"]) form.elements[field].value = info[field] || "";
+    form.elements.country.value = info.country || LyrLocale.country() || "US";
+    form.elements.wants_tax_exempt.checked = Boolean(info.wants_tax_exempt);
+  }
+  document.getElementById("business-submit").textContent = info.status ? "Update business details" : "Apply for a business account";
+}
+
+function bindBusinessForm() {
+  const form = document.getElementById("business-form");
+  const names = new Intl.DisplayNames([navigator.language || "en"], { type: "region" });
+  form.elements.country.innerHTML = "AE AR AT AU BD BE BR CA CH CL CN CO CZ DE DK EG ES FI FR GB GH GR HK ID IE IL IN IT JP KE KR LK MX MY NG NL NO NZ PH PK PL PT QA RO SA SE SG TH TR TW UA US VN ZA"
+    .split(" ").map((code) => ({ code, name: names.of(code) || code })).sort((a, b) => a.name.localeCompare(b.name))
+    .map(({ code, name }) => `<option value="${code}">${myEscape(name)}</option>`).join("");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const message = document.getElementById("business-message");
+    const fields = Object.fromEntries(new FormData(form));
+    fields.wants_tax_exempt = form.elements.wants_tax_exempt.checked;
+    const current = getCurrentUser()?.business;
+    if (current?.status === "approved" && !confirm("Changing your business details sends your account back for review, and wholesale prices pause until it's approved again. Continue?")) return;
+    message.textContent = "Sending…";
+    message.classList.remove("is-error");
+    try {
+      const { user: updated } = await authApi("/business/apply", { method: "POST", body: fields });
+      setCurrentUser(updated, getCurrentUser().token);
+      renderProfile(updated);
+      message.textContent = updated.business.status === "approved" ? "No changes needed." : "Application sent. We'll review it shortly.";
+    } catch (error) {
+      message.textContent = error.message || "Couldn't send your application.";
+      message.classList.add("is-error");
+    }
+  });
 }
 
 if (!user) {
   window.location.href = "auth.html";
 } else {
   bindProfileForm();
+  bindBusinessForm();
   renderProfile(user);
   // The role can change after sign-in (the super admin grants or removes admin access).
   refreshCurrentUser().then((fresh) => fresh && renderProfile(fresh));

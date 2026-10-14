@@ -212,7 +212,8 @@ function renderMeasurements(product) {
     .join("");
 }
 
-function addProductToCart(product, quantity) {
+function addProductToCart(product, requested) {
+  const quantity = Math.min(MAX_QUANTITY, Math.max(1, Math.round(Number(requested)) || 1));
   const cart = readCart();
   const options = Object.fromEntries((product.options || []).map((option) => [option.name, chosenOptions[option.name]]));
   const variant = variantLabel(product);
@@ -330,6 +331,7 @@ function renderProduct(product) {
   renderGallery(product);
 
   renderSeller(product);
+  renderWholesale(product);
   renderSpecifics(product);
   renderOptions(product);
   renderMeasurements(product);
@@ -388,6 +390,50 @@ function renderGallery(product) {
   showMedia(product, 0);
 }
 
+// ── Business (B2B) pricing ──────────────────────────────────────────────────────
+// Approved business accounts pay the tier price for the quantity they buy; the server applies it at checkout.
+
+const MAX_QUANTITY = 500;
+
+function isApprovedBusiness() {
+  return getCurrentUser()?.business?.status === "approved";
+}
+
+function tierFor(product, quantity) {
+  return (product.wholesale_tiers || []).filter((tier) => quantity >= Number(tier.min_qty)).pop() || null;
+}
+
+function renderWholesale(product) {
+  const tiers = product.wholesale_tiers || [];
+  const box = document.getElementById("wholesale-box");
+  box.hidden = !tiers.length;
+  if (!tiers.length) return;
+  const quantity = Number(document.getElementById("quantity-select").value) || 1;
+  const active = isApprovedBusiness() ? tierFor(product, quantity) : null;
+  document.getElementById("wholesale-body").innerHTML = tiers.map((tier) => {
+    const price = Number(tier.price);
+    const unitPrice = Math.min(price, product.price);
+    const saving = Math.round((1 - unitPrice / product.price) * 100);
+    return `
+      <tr class="${active && Number(active.min_qty) === Number(tier.min_qty) ? "is-active" : ""}">
+        <td>${Number(tier.min_qty).toLocaleString()}+ units</td>
+        <td>${formatPrice(unitPrice)} each</td>
+        <td>${saving > 0 ? `${saving}%` : "—"}</td>
+      </tr>`;
+  }).join("");
+  const note = document.getElementById("wholesale-note");
+  const status = getCurrentUser()?.business?.status;
+  if (isApprovedBusiness()) {
+    note.innerHTML = active
+      ? `Your business price: <strong>${formatPrice(Math.min(Number(active.price), product.price))} each</strong> for ${quantity.toLocaleString()} units.`
+      : `Buy ${Number(tiers[0].min_qty).toLocaleString()} or more to get your business price.`;
+  } else if (status === "pending") {
+    note.textContent = "Your business account is being reviewed. These prices apply once it's approved.";
+  } else {
+    note.innerHTML = `For approved business accounts. <a href="${getCurrentUser() ? "dashboard.html#account" : "auth.html"}">Apply for a business account</a> to buy at these prices.`;
+  }
+}
+
 // The seller's loyalty tier and selling badges, earned from paid sales (GET /rewards/seller).
 async function renderSeller(product) {
   if (product.seller_name) document.getElementById("seller-name").textContent = product.seller_name;
@@ -420,6 +466,11 @@ function renderWatchButton(button, product) {
 
 function bindActions(product) {
   const quantitySelect = document.getElementById("quantity-select");
+  // Keep the quantity a whole number the cart accepts, and show which business tier it reaches.
+  quantitySelect.addEventListener("change", () => {
+    quantitySelect.value = Math.min(MAX_QUANTITY, Math.max(1, Math.round(Number(quantitySelect.value) || 1)));
+  });
+  quantitySelect.addEventListener("input", () => renderWholesale(product));
   const cartButton = document.getElementById("detail-cart-button");
   bindOptions();
   cartButton.addEventListener("click", () => {

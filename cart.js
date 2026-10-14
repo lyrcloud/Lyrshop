@@ -45,6 +45,7 @@ let quoteRequest = 0;
 let quoteTimer = null;
 const PLACEHOLDER_IMAGE_URL = "logo.svg";
 const TAX_RATE = 0.0825;
+const MAX_CART_UNITS = 500;
 
 const DOMESTIC_SHIPPING = {
   usps: {
@@ -319,7 +320,9 @@ function setQuantity(key, quantity) {
   const sample = cart.find((item) => lineKey(item) === key);
   if (!sample) return;
   const others = cart.filter((item) => lineKey(item) !== key);
-  cart = [...others, ...Array.from({ length: Math.max(0, quantity) }, () => ({ ...sample }))];
+  // Checkout accepts up to MAX_CART_UNITS units in one order.
+  const allowed = Math.min(Math.max(0, quantity), MAX_CART_UNITS - others.length);
+  cart = [...others, ...Array.from({ length: allowed }, () => ({ ...sample }))];
   saveCart();
   renderCart();
 }
@@ -342,13 +345,14 @@ function renderCart() {
       const image = details.image_url || PLACEHOLDER_IMAGE_URL;
       const link = `product.html?id=${encodeURIComponent(item.id)}`;
       return `
-        <article class="cart-line">
+        <article class="cart-line" data-line-id="${escapeHtml(item.id)}" data-quantity="${item.quantity}">
           <a href="${escapeHtml(link)}" class="cart-line-image"><img src="${escapeHtml(image)}" alt="" loading="lazy" /></a>
           <div class="cart-line-info">
             <a href="${escapeHtml(link)}" class="cart-line-name">${escapeHtml(item.name)}</a>
             ${item.variant ? `<small class="cart-line-variant">${escapeHtml(item.variant)}</small>` : ""}
             ${details.brand ? `<small>${escapeHtml(details.brand)}</small>` : ""}
             <span class="cart-line-each">${formatPrice(item.price)} each</span>
+            <span class="cart-line-business" hidden>Business price</span>
           </div>
           <div class="cart-line-qty" role="group" aria-label="Quantity for ${escapeHtml(item.name)}">
             <button type="button" data-qty="${escapeHtml(item.key)}" data-step="-1" aria-label="Decrease quantity">&minus;</button>
@@ -485,6 +489,24 @@ function renderTotals() {
       : `Sign in to earn ${quote.points_earned.toLocaleString()} points with this order.`)
     : "";
   renderCurrencyNote({ total: money.due });
+  renderBusinessPricing(quote);
+}
+
+// Approved business accounts get wholesale tier prices from the server's quote; show them on each line.
+function renderBusinessPricing(quote) {
+  const prices = new Map((quote?.items || []).map((item) => [String(item.id), item.price]));
+  cartItems.querySelectorAll(".cart-line[data-line-id]").forEach((line) => {
+    const sample = cart.find((item) => String(item.id) === line.dataset.lineId);
+    const price = prices.get(line.dataset.lineId) ?? sample?.price ?? 0;
+    const business = Boolean(quote) && quote.buyer_type === "business" && sample && price < sample.price;
+    line.querySelector(".cart-line-each").textContent = `${formatPrice(price)} each`;
+    line.querySelector(".cart-line-total").textContent = formatPrice(price * Number(line.dataset.quantity));
+    line.querySelector(".cart-line-business").hidden = !business;
+  });
+  const savings = document.getElementById("business-savings");
+  savings.hidden = !(quote?.wholesale_savings > 0);
+  savings.textContent = quote?.wholesale_savings > 0 ? `Business pricing saved you ${formatPrice(quote.wholesale_savings)}.` : "";
+  if (quote?.tax_exempt) taxLabel.textContent = "Tax (exempt business)";
 }
 
 function renderCurrencyNote(totals) {

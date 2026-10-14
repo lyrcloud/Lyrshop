@@ -316,6 +316,7 @@ function startEditProduct(product) {
   updateSubcategoryOptions();
   subcategoryInput.value = product.subcategory || "";
   setProductMedia(product);
+  setWholesaleTiers(product.wholesale_tiers);
   setProductOptions(product);
   resetAiAssist();
   productSubmit.textContent = "Update product";
@@ -552,6 +553,46 @@ function collectMeasurements() {
     .filter((row) => row.label && row.value);
 }
 
+// ── Wholesale tiers ────────────────────────────────────────────────────────────
+// Unit prices for approved business buyers by minimum quantity; the server checks each tier is cheaper.
+
+const wholesaleRows = document.getElementById("wholesale-rows");
+const MAX_WHOLESALE_TIERS = 5;
+
+function addWholesaleRow(minQty = "", price = "") {
+  if (wholesaleRows.children.length >= MAX_WHOLESALE_TIERS) return;
+  const row = document.createElement("div");
+  row.className = "wholesale-row";
+  row.innerHTML = `
+    <label>Min. quantity<input type="number" class="wholesale-qty" min="2" max="10000" step="1" value="${escapeHtml(minQty)}" placeholder="10" /></label>
+    <label>Unit price (USD)<input type="number" class="wholesale-price" min="0.01" step="0.01" value="${escapeHtml(price)}" placeholder="0.00" /></label>
+    <button type="button" class="link-button" data-remove-wholesale aria-label="Remove tier">Remove</button>`;
+  wholesaleRows.appendChild(row);
+  document.getElementById("wholesale-add").hidden = wholesaleRows.children.length >= MAX_WHOLESALE_TIERS;
+}
+
+function setWholesaleTiers(tiers) {
+  wholesaleRows.innerHTML = "";
+  (tiers || []).forEach((tier) => addWholesaleRow(tier.min_qty, tier.price));
+  document.getElementById("wholesale-add").hidden = false;
+}
+
+function collectWholesaleTiers() {
+  return [...wholesaleRows.querySelectorAll(".wholesale-row")]
+    .map((row) => ({ min_qty: Number(row.querySelector(".wholesale-qty").value), price: Number(row.querySelector(".wholesale-price").value) }))
+    .filter((tier) => tier.min_qty && tier.price);
+}
+
+document.getElementById("wholesale-add").addEventListener("click", () => {
+  addWholesaleRow();
+  wholesaleRows.lastElementChild?.querySelector("input").focus();
+});
+wholesaleRows.addEventListener("click", (event) => {
+  if (!event.target.closest("[data-remove-wholesale]")) return;
+  event.target.closest(".wholesale-row").remove();
+  document.getElementById("wholesale-add").hidden = false;
+});
+
 function setProductOptions(product) {
   optionSelections = new Map((product?.options || []).map((option) => [option.name, new Set(option.values)]));
   measurementRows.innerHTML = "";
@@ -695,6 +736,7 @@ function cancelProductEdit() {
   productCancel.hidden = true;
   document.getElementById("product-form-title").textContent = "List a new product";
   setProductMedia(null);
+  setWholesaleTiers([]);
   setProductOptions(null);
   resetAiAssist();
   renderPreview();
@@ -732,6 +774,7 @@ async function submitProduct(event) {
     subcategory: subcategoryInput.value.trim(),
     image_url: imageInput.value.trim(),
     media: productMedia,
+    wholesale_tiers: collectWholesaleTiers(),
     options: collectProductOptions(),
     measurements: collectMeasurements(),
     seller_email: session.email,
@@ -1580,6 +1623,87 @@ document.getElementById("coupon-cancel").addEventListener("click", () => { reset
 couponTableBody.addEventListener("click", handleCouponTableClick);
 syncCouponType();
 
+// ── Business accounts (super admin) ───────────────────────────────────────────────
+
+const businessList = document.getElementById("business-list");
+const businessFilter = document.getElementById("business-filter");
+const businessMessage = document.getElementById("business-message");
+const BUSINESS_STATUS_LABELS = { pending: ["Waiting for review", "is-early"], approved: ["Approved", "is-live"], rejected: ["Rejected", "is-off"] };
+let businessApplications = [];
+
+function renderBusinessApplications() {
+  const pending = businessApplications.filter((app) => app.business.status === "pending").length;
+  const badge = document.getElementById("business-pending-count");
+  badge.textContent = pending;
+  badge.hidden = !pending;
+  const shown = businessApplications.filter((app) => !businessFilter.value || app.business.status === businessFilter.value);
+  businessList.innerHTML = shown.map((app) => {
+    const info = app.business;
+    const [label, tone] = BUSINESS_STATUS_LABELS[info.status] || [info.status, ""];
+    return `
+      <article class="business-card" data-account="${escapeHtml(app.account)}">
+        <header>
+          <div>
+            <h3>${escapeHtml(info.company)}</h3>
+            <p>${escapeHtml(app.name)} · ${escapeHtml(app.email || app.account)}</p>
+          </div>
+          <span class="calendar-phase ${tone}">${label}${info.status === "approved" && info.tax_exempt ? " · tax-exempt" : ""}</span>
+        </header>
+        <dl class="business-facts">
+          <div><dt>Tax ID</dt><dd>${escapeHtml(info.tax_id)}</dd></div>
+          <div><dt>Country</dt><dd>${escapeHtml(info.country)}</dd></div>
+          <div><dt>Address</dt><dd>${escapeHtml(info.address)}</dd></div>
+          ${info.phone ? `<div><dt>Phone</dt><dd>${escapeHtml(info.phone)}</dd></div>` : ""}
+          ${info.industry ? `<div><dt>Industry</dt><dd>${escapeHtml(info.industry)}</dd></div>` : ""}
+          ${info.website ? `<div><dt>Website</dt><dd><a href="${escapeHtml(info.website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(info.website)}</a></dd></div>` : ""}
+          <div><dt>Applied</dt><dd>${escapeHtml(new Date(Number(info.applied_at) * 1000).toLocaleDateString())}${info.wants_tax_exempt ? " · asks for tax exemption" : ""}</dd></div>
+        </dl>
+        <div class="business-review">
+          <label class="checkbox-field"><input type="checkbox" data-business-exempt ${info.tax_exempt ? "checked" : ""} /> Tax-exempt (certificate checked)</label>
+          <input type="text" data-business-note maxlength="300" placeholder="Note for your records (optional)" value="${escapeHtml(info.note || "")}" aria-label="Review note" />
+          <button type="button" class="button button-primary" data-business-action="approved">${info.status === "approved" ? "Save" : "Approve"}</button>
+          ${info.status === "rejected" ? "" : '<button type="button" class="button danger-button" data-business-action="rejected">Reject</button>'}
+        </div>
+      </article>`;
+  }).join("") || `<p class="my-empty">${{
+    pending: "No applications waiting for review.", approved: "No approved business accounts yet.",
+    rejected: "No rejected applications.", "": "No business account applications yet.",
+  }[businessFilter.value]}</p>`;
+}
+
+async function loadBusinessApplications() {
+  try {
+    businessApplications = (await authApi("/business/applications")).applications || [];
+    renderBusinessApplications();
+  } catch (error) {
+    showMessage(businessMessage, error.message || "Could not load business accounts.", true);
+  }
+}
+
+async function reviewBusiness(event) {
+  const button = event.target.closest("[data-business-action]");
+  if (!button) return;
+  const card = button.closest(".business-card");
+  const status = button.dataset.businessAction;
+  const company = card.querySelector("h3").textContent;
+  if (status === "rejected" && !confirm(`Reject ${company}? They'll go back to retail prices.`)) return;
+  button.disabled = true;
+  try {
+    await authApi(`/business/applications/${encodeURIComponent(card.dataset.account)}`, {
+      method: "PUT",
+      body: { status, tax_exempt: card.querySelector("[data-business-exempt]").checked, note: card.querySelector("[data-business-note]").value },
+    });
+    showMessage(businessMessage, status === "approved" ? `${company} is approved.` : `${company} was rejected.`);
+    loadBusinessApplications();
+  } catch (error) {
+    showMessage(businessMessage, error.message || "Could not save the review.", true);
+    button.disabled = false;
+  }
+}
+
+businessFilter.addEventListener("change", renderBusinessApplications);
+businessList.addEventListener("click", reviewBusiness);
+
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 
 function initTabs() {
@@ -1989,6 +2113,7 @@ async function initAdminPage() {
   if (session.role === "superadmin") {
     loadCalendar();
     loadCoupons();
+    loadBusinessApplications();
     document.getElementById("attributes-intro").textContent =
       "Colors, sizes and other options buyers choose from. As super admin you can edit or delete every attribute.";
   }

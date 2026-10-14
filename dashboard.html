@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-4" />
+  <link rel="stylesheet" href="styles.css?v=20261014-5" />
 </head>
 <body>
   <header class="page-header compact-header">
@@ -171,7 +171,27 @@
             <div><dt>Email / Mobile</dt><dd id="profile-email"></dd></div>
             <div><dt>Sign-in method</dt><dd id="profile-provider"></dd></div>
             <div><dt>Access</dt><dd id="profile-role"></dd></div>
+            <div><dt>Account type</dt><dd id="profile-buyer-type"></dd></div>
           </dl>
+
+          <div class="my-block business-block" id="business-block">
+            <div class="my-block-header"><h3>Business account (B2B)</h3></div>
+            <p id="business-status" class="business-status"></p>
+            <form id="business-form" class="business-form">
+              <label>Company legal name<input type="text" name="company" maxlength="100" required /></label>
+              <label>Tax ID (EIN, VAT or GST)<input type="text" name="tax_id" maxlength="30" required /></label>
+              <label>Country of registration<select name="country" id="business-country" required></select></label>
+              <label>Business phone (optional)<input type="tel" name="phone" maxlength="30" /></label>
+              <label class="wide">Business address<input type="text" name="address" maxlength="200" required /></label>
+              <label>Website (optional)<input type="text" name="website" maxlength="200" placeholder="https://" /></label>
+              <label>Industry (optional)<input type="text" name="industry" maxlength="60" placeholder="e.g. Retail store" /></label>
+              <label class="checkbox-field wide"><input type="checkbox" name="wants_tax_exempt" /> We buy for resale or are tax-exempt (we'll ask for your certificate)</label>
+              <div class="profile-form-actions wide">
+                <button type="submit" class="button button-primary" id="business-submit">Apply for a business account</button>
+                <span id="business-message" class="profile-message" role="status"></span>
+              </div>
+            </form>
+          </div>
         </section>
       </div>
     </div>
@@ -184,7 +204,7 @@
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261014-1"></script>
   <script src="ui.js?v=20261014-3"></script>
-  <script src="dashboard.js?v=20261014-2"></script>
+  <script src="dashboard.js?v=20261014-3"></script>
   <script src="footer.js?v=20261014-2"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>

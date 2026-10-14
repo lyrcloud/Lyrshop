@@ -7031,3 +7031,242 @@ iframe.skiptranslate,
 .my-block-header a.button-primary {
   color: #ffffff;
 }
+
+/* ── Business (B2B) buying ─────────────────────────────────────────────────────── */
+.bulk-badge {
+  display: inline-block;
+  margin: 0 0 0.4rem 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.quantity-input {
+  width: 6rem;
+}
+
+.wholesale-box {
+  margin: 1rem 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius);
+  background: #f0f9ff;
+}
+
+.wholesale-box[hidden] {
+  display: none;
+}
+
+.wholesale-box h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.wholesale-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.wholesale-table th,
+.wholesale-table td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid #dbeafe;
+  text-align: left;
+}
+
+.wholesale-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.wholesale-table tr.is-active td {
+  background: #dbeafe;
+  font-weight: 700;
+}
+
+.wholesale-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.cart-line-business {
+  display: inline-block;
+  justify-self: start;
+  align-self: start;
+  width: fit-content;
+  padding: 0.05rem 0.45rem;
+  border-radius: 4px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cart-line-business[hidden],
+.business-savings[hidden] {
+  display: none;
+}
+
+.business-savings {
+  margin: 0 0 0.25rem;
+  color: #075985;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* Seller form wholesale tiers (admin.js addWholesaleRow) */
+.wholesale-tiers {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.wholesale-tiers legend {
+  padding: 0 0.3rem;
+  font-weight: 700;
+}
+
+.wholesale-rows {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.wholesale-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.wholesale-row label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+}
+
+/* Dashboard business account panel */
+.business-status {
+  margin: 0 0 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+}
+
+.business-status[data-status="approved"] { background: #ecfdf3; border-color: #a7f3d0; }
+.business-status[data-status="pending"] { background: #fffbeb; border-color: #fcd34d; }
+.business-status[data-status="rejected"] { background: #fef2f2; border-color: #fecaca; }
+
+.business-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.business-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.business-form .wide {
+  grid-column: 1 / -1;
+}
+
+.business-form .checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.business-form .checkbox-field input {
+  width: auto;
+}
+
+/* Admin business review (admin.js renderBusinessApplications) */
+.business-list {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.business-card {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.business-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.business-card h3 {
+  margin: 0;
+}
+
+.business-card header p {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+}
+
+.business-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.8rem 0;
+}
+
+.business-facts dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.business-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.business-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.business-review input[type="text"] {
+  flex: 1 1 14rem;
+}
+
+.business-review .checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.business-review .checkbox-field input {
+  width: auto;
+}
+
+#admin-business-section .admin-filters label {
+  display: inline-grid;
+  gap: 0.3rem;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .business-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

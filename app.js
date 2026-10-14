@@ -589,6 +589,7 @@ function renderProductCards(products) {
           <h3 class="product-name"><a href="${productUrl}">${escapeHtml(product.name)}</a></h3>
           <p class="product-desc">${escapeHtml(product.description)}</p>
           ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
+          ${product.wholesale_tiers?.length ? `<span class="bulk-badge" title="Wholesale prices for approved business accounts">Bulk pricing</span>` : ""}
           <div class="product-rating">${ratingStars(product.rating || 4)}</div>
           <div class="product-pricing">
             <span class="current-price">${formatPrice(product.price)}</span>
