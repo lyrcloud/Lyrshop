@@ -42,7 +42,6 @@ let serverQuote = null;
 let quoteRequest = 0;
 let quoteTimer = null;
 const PLACEHOLDER_IMAGE_URL = "logo.svg";
-const TAX_RATE = 0.0825;
 const MAX_CART_UNITS = 500;
 
 const DOMESTIC_SHIPPING = {
@@ -113,8 +112,8 @@ function getCheckoutTotals() {
   const paymentKey = getSelectedRadioValue(paymentMethodInputs, "stripe");
   const shipping = shippingMethods[shippingKey] || Object.values(shippingMethods)[0];
   const payment = paymentMethods[paymentKey] || paymentMethods.stripe;
-  // US sales tax only; international buyers may owe import duties and taxes on delivery instead.
-  const tax = shippingCountry() === "US" ? subtotal * TAX_RATE : 0;
+  // Tax depends on the delivery state or country (some have none), so only the server's quote shows it.
+  const tax = 0;
   // Nothing ships from an empty cart.
   const shippingCost = cart.length ? shipping.cost : 0;
   const total = subtotal + shippingCost + tax;
@@ -382,6 +381,8 @@ function shippingRequest() {
   return {
     country: shippingCountry(),
     zip: shippingMethods === DOMESTIC_SHIPPING ? "" : quotedZip,
+    // Picks the state's sales tax even before carrier rates are quoted.
+    tax_zip: shippingZipInput.value.trim(),
     method: getSelectedRadioValue(shippingMethodInputs, "usps"),
   };
 }
@@ -504,17 +505,18 @@ function renderBusinessPricing(quote) {
   const savings = document.getElementById("business-savings");
   savings.hidden = !(quote?.wholesale_savings > 0);
   savings.textContent = quote?.wholesale_savings > 0 ? `Business pricing saved you ${formatPrice(quote.wholesale_savings)}.` : "";
-  if (quote?.tax_exempt) taxLabel.textContent = "Tax (exempt business)";
 }
 
 function renderCurrencyNote(totals) {
-  const international = shippingCountry() !== "US";
-  taxLabel.textContent = international ? "Import duties & taxes" : "Estimated tax";
+  // Tax-free places (no sales tax or VAT, or a tax-exempt business) get no tax line at all, just a short note.
+  const tax = serverQuote?.tax_info;
+  document.getElementById("tax-row").hidden = !tax || tax.tax_free;
+  if (tax) taxLabel.textContent = tax.label;
   const notes = [];
   if (LyrLocale.isLocalCurrency()) {
     notes.push(`Prices are shown in ${LyrLocale.currency()} at today's rate. Stripe charges in ${LyrLocale.currency()} where it supports it; otherwise you pay ${LyrLocale.formatUsd(totals.total)} USD.`);
   }
-  if (international) notes.push("Import duties and local taxes, if any, are collected by the carrier on delivery.");
+  if (tax?.note) notes.push(tax.note);
   currencyNote.textContent = notes.join(" ");
   currencyNote.hidden = !notes.length || !cart.length;
 }
@@ -658,6 +660,9 @@ function syncCountryFields() {
   shippingZipInput.inputMode = isUs ? "numeric" : "text";
   detectLocationButton.hidden = !isUs;
 }
+
+// A new ZIP can change the state's sales tax, or make the order tax-free.
+shippingZipInput.addEventListener("input", scheduleQuote);
 
 shippingCountrySelect.addEventListener("change", () => {
   try { localStorage.setItem(COUNTRY_KEY, shippingCountry()); } catch { /* storage blocked */ }

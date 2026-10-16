@@ -1107,7 +1107,7 @@ function openOrder(order) {
     <ul>${items.map((item) => `<li>${escapeHtml(item.name)}${item.variant ? ` <small>${escapeHtml(item.variant)}</small>` : ""} <span>${formatMoney(item.price)}</span></li>`).join("")}</ul>
     <p>
       Subtotal ${formatMoney(order.subtotal ?? order.total)} · Shipping ${formatMoney(order.shipping_total)}
-      · Tax ${formatMoney(order.tax_total)} · <strong>Total ${formatMoney(order.total)}</strong>
+      ${Number(order.tax_total) > 0 ? `· Tax ${formatMoney(order.tax_total)}${order.tax_place ? ` (${escapeHtml(order.tax_place)})` : ""} ` : ""}· <strong>Total ${formatMoney(order.total)}</strong>
     </p>
     <p>
       Paid with ${escapeHtml(order.payment_method || "—")} via ${escapeHtml(order.payment_gateway || "—")}
