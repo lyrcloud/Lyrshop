@@ -461,7 +461,9 @@ function renderTotals() {
         total: estimate.total, giftCard: 0, points: 0, due: estimate.total };
   cartSubtotal.textContent = formatPrice(money.subtotal);
   shippingTotal.textContent = formatPrice(money.shipping);
-  taxTotal.textContent = formatPrice(money.tax);
+  // Abroad, VAT/GST is an estimate the carrier collects on delivery; it isn't part of the total.
+  const onDelivery = quote?.tax_info?.due_on_delivery;
+  taxTotal.textContent = formatPrice(onDelivery ?? money.tax);
   cartTotal.textContent = formatPrice(money.total);
   discountRow.hidden = !(money.discount > 0);
   document.getElementById("discount-label").textContent = quote?.coupon ? `Coupon ${quote.coupon.code}` : "Coupon";
@@ -511,7 +513,12 @@ function renderCurrencyNote(totals) {
   // Tax-free places (no sales tax or VAT, or a tax-exempt business) get no tax line at all, just a short note.
   const tax = serverQuote?.tax_info;
   document.getElementById("tax-row").hidden = !tax || tax.tax_free;
-  if (tax) taxLabel.textContent = tax.label;
+  if (tax) {
+    const place = tax.place || (tax.country && LyrLocale.countryName(tax.country));
+    taxLabel.textContent = tax.tax_name
+      ? `Estimated ${tax.tax_name} (${place}, ${Number((tax.rate * 100).toFixed(3))}%), due on delivery`
+      : tax.label;
+  }
   const notes = [];
   if (LyrLocale.isLocalCurrency()) {
     notes.push(`Prices are shown in ${LyrLocale.currency()} at today's rate. Stripe charges in ${LyrLocale.currency()} where it supports it; otherwise you pay ${LyrLocale.formatUsd(totals.total)} USD.`);
