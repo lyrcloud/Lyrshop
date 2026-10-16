@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-5" />
+  <link rel="stylesheet" href="styles.css?v=20261015-1" />
 </head>
 <body>
   <header class="page-header">
@@ -106,6 +106,23 @@
           Subcategory
           <input type="text" id="product-subcategory" list="subcategory-options" placeholder="Select a subcategory" />
           <datalist id="subcategory-options"></datalist>
+        </label>
+        <label>
+          Item location: country
+          <select id="product-country"></select>
+          <small class="field-hint">Shoppers in this country and region see your item first.</small>
+        </label>
+        <label>
+          City (optional)
+          <input type="text" id="product-city" maxlength="60" placeholder="e.g. Mumbai" />
+          <small class="field-hint">Shoppers in the same city see it at the very top.</small>
+        </label>
+        <label class="regional-pricing-field wide-field">
+          <input type="checkbox" id="product-regional-pricing" />
+          <span>
+            Fair price for each country
+            <small class="field-hint">Shoppers in countries where things cost less than in yours pay less, down to half your price. Your price is never raised.</small>
+          </span>
         </label>
         <fieldset id="product-options" class="product-options" hidden>
           <legend>Options buyers choose</legend>
@@ -635,9 +652,9 @@
   </footer>
 
   <script src="auth.js?v=20261012-3"></script>
-  <script src="locale.js?v=20261014-1"></script>
+  <script src="locale.js?v=20261015-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261014-6"></script>
+  <script src="admin.js?v=20261015-1"></script>
   <script src="footer.js?v=20261014-2"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>

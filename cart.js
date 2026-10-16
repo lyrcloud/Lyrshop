@@ -30,8 +30,6 @@ const pointsToggle = document.getElementById("points-toggle");
 const usePointsInput = document.getElementById("use-points");
 const pointsEarn = document.getElementById("points-earn");
 const COUNTRY_KEY = "lyrshopShippingCountry";
-// Every country we can quote; names come from the browser in the shopper's language.
-const SHIP_COUNTRIES = "AD AE AF AG AI AL AM AO AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GT GU GW GY HK HN HR HT HU ID IE IL IM IN IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TG TH TJ TL TM TN TO TR TT TV TW TZ UA UG US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW".split(" ");
 // The quoted rates were for this country; they're cleared when the shopper picks another.
 let quotedCountry = "US";
 // The ZIP the current carrier rates were quoted for; the server re-quotes the same rates at checkout.
@@ -532,7 +530,8 @@ function setCheckoutState(message, inProgress = false) {
 
 async function loadProductDetails() {
   try {
-    const response = await fetch(`${API_BASE_URL}/products`);
+    // Regional prices follow the ship-to country, the same way checkout prices them.
+    const response = await fetch(shopperProductsUrl(API_BASE_URL, shippingCountry()));
     if (!response.ok) return;
     const json = await response.json();
     productDetails = new Map((json.products || []).map((product) => [String(product.id), product]));
@@ -641,15 +640,7 @@ detectLocationButton.addEventListener("click", detectUserLocation);
 paymentMethodInputs.forEach((input) => input.addEventListener("change", renderCart));
 
 function initShippingCountry() {
-  let names;
-  try {
-    names = new Intl.DisplayNames([navigator.language || "en"], { type: "region" });
-  } catch {
-    names = { of: (code) => code };
-  }
-  shippingCountrySelect.innerHTML = SHIP_COUNTRIES
-    .map((code) => ({ code, name: names.of(code) || code }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+  shippingCountrySelect.innerHTML = LyrLocale.countryOptions()
     .map(({ code, name }) => `<option value="${code}">${escapeHtml(name)}</option>`)
     .join("");
   let saved = null;
@@ -674,6 +665,7 @@ shippingCountrySelect.addEventListener("change", () => {
   if (shippingCountry() !== quotedCountry) {
     quotedCountry = shippingCountry();
     quotedZip = "";
+    loadProductDetails();
     if (shippingCountry() === "US") {
       shippingMethods = DOMESTIC_SHIPPING;
       renderShippingRates();

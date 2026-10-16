@@ -35,8 +35,10 @@ let searchQuery = pageParams.get("search") || "";
 let activeView = pageParams.get("view") || "";
 let activeBrand = pageParams.get("brand") || "";
 let activeEvent = pageParams.get("event") || "";
-const DEFAULT_SORT = "latest";
+const DEFAULT_SORT = "nearby";
 let activeSort = pageParams.get("sort") || DEFAULT_SORT;
+// "country" or "region" keeps only items listed near the shopper; empty shows everywhere.
+let activeNear = pageParams.get("near") || "";
 let productsLoaded = false;
 let searchBox = null;
 
@@ -44,6 +46,8 @@ let searchBox = null;
 const byNewest = (a, b) => b.created_at - a.created_at;
 
 const SORTS = {
+  // Like a local marketplace: nearest first, then the prices that suit the shopper's country, then newest.
+  nearby: { label: "Best for your location", compare: (a, b) => b.nearby - a.nearby || b.price_fit - a.price_fit || byNewest(a, b) },
   latest: { label: "Latest uploads", compare: byNewest },
   trending: { label: "Trending", compare: (a, b) => b.trending - a.trending || byNewest(a, b) },
   featured: { label: "Featured", compare: null },
@@ -188,6 +192,11 @@ function getFilteredProducts() {
     filtered = filtered.filter((p) => (p.brand || "").toLowerCase() === activeBrand.toLowerCase());
   }
 
+  if (activeNear) {
+    const minimum = activeNear === "country" ? 3 : 2;
+    filtered = filtered.filter((p) => p.nearby >= minimum);
+  }
+
   if (searchQuery.trim()) {
     const terms = getSearchTerms(searchQuery);
     filtered = filtered.filter((p) => matchesSearch(productSearchFields(p), terms));
@@ -279,6 +288,7 @@ function renderListingToolbar() {
     activeSubcategory && { key: "subcategory", label: activeSubcategory },
     activeBrand && { key: "brand", label: activeBrand },
     activeEvent && { key: "event", label: activeEvent },
+    activeNear && { key: "near", label: activeNear === "country" ? "In your country" : "In your region" },
   ].filter(Boolean);
   active.innerHTML = chips.map((chip) => `
     <button type="button" class="active-filter" data-clear="${chip.key}" aria-label="Remove filter ${escapeHtml(chip.label)}">
@@ -286,6 +296,8 @@ function renderListingToolbar() {
     </button>`).join("")
     + (chips.length > 1 ? `<button type="button" class="active-filter-reset" data-clear="all">Clear all</button>` : "");
   sortSelect.value = SORTS[activeSort] ? activeSort : DEFAULT_SORT;
+  const nearSelect = document.getElementById("near-select");
+  if (nearSelect) nearSelect.value = activeNear;
 }
 
 function clearFilter(key) {
@@ -294,6 +306,7 @@ function clearFilter(key) {
   if (key === "subcategory") activeSubcategory = "";
   if (key === "brand" || key === "all") activeBrand = "";
   if (key === "event" || key === "all") activeEvent = "";
+  if (key === "near" || key === "all") activeNear = "";
   if (key === "all") activeView = "";
   refreshListing();
 }
@@ -308,6 +321,7 @@ function syncListingUrl() {
   if (activeBrand) params.set("brand", activeBrand);
   if (activeEvent) params.set("event", activeEvent);
   if (activeSort !== DEFAULT_SORT) params.set("sort", activeSort);
+  if (activeNear) params.set("near", activeNear);
   const query = params.toString();
   history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
 }
@@ -590,6 +604,8 @@ function renderProductCards(products) {
           <p class="product-desc">${escapeHtml(product.description)}</p>
           ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
           ${product.wholesale_tiers?.length ? `<span class="bulk-badge" title="Wholesale prices for approved business accounts">Bulk pricing</span>` : ""}
+          ${product.regional_factor ? `<span class="regional-badge" title="The seller lowered this price for shoppers in your country">Fair price for your country</span>` : ""}
+          <p class="product-location${product.nearby >= 3 ? " is-local" : ""}" title="${escapeHtml(product.nearby_label || "Item location")}">&#128205; ${escapeHtml(itemLocationLabel(product))}</p>
           <div class="product-rating">${ratingStars(product.rating || 4)}</div>
           <div class="product-pricing">
             <span class="current-price">${formatPrice(product.price)}</span>
@@ -646,6 +662,10 @@ function bindProductListActions() {
     activeSort = event.target.value;
     refreshListing();
   });
+  document.getElementById("near-select")?.addEventListener("change", (event) => {
+    activeNear = event.target.value;
+    refreshListing();
+  });
 }
 
 async function loadProducts() {
@@ -653,7 +673,7 @@ async function loadProducts() {
   const timeoutId = window.setTimeout(() => controller.abort(), PRODUCT_REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/products`, { signal: controller.signal });
+    const response = await fetch(shopperProductsUrl(API_BASE_URL), { signal: controller.signal });
     if (!response.ok) {
       throw new Error(`Product request failed with ${response.status}`);
     }
@@ -670,6 +690,9 @@ async function loadProducts() {
           created_at: Number(p.created_at) || 0,
           // Units sold in the last 30 days, counted by the server.
           trending: Number(p.trending) || 0,
+          // How near the item is (0 abroad … 4 same city) and how well its price suits the shopper's country.
+          nearby: Number(p.nearby) || 0,
+          price_fit: Number(p.price_fit) || 0,
           image_url: p.image_url || PLACEHOLDER_IMAGE_URL,
         };
       })

@@ -17,6 +17,9 @@ const brandOptions = document.getElementById("brand-options");
 const comparePriceInput = document.getElementById("product-compare-price");
 const discountInput = document.getElementById("product-discount");
 const saleEventInput = document.getElementById("product-sale-event");
+const countryInput = document.getElementById("product-country");
+const cityInput = document.getElementById("product-city");
+const regionalPricingInput = document.getElementById("product-regional-pricing");
 const statusInput = document.getElementById("product-status");
 const productFilterSearch = document.getElementById("product-filter-search");
 const productFilterStatus = document.getElementById("product-filter-status");
@@ -309,6 +312,10 @@ function startEditProduct(product) {
   brandInput.value = product.brand || "";
   comparePriceInput.value = product.compare_at_price || "";
   saleEventInput.value = product.sale_event || "";
+  // Listings from before item locations were all listed from the US.
+  countryInput.value = product.location?.country || "US";
+  cityInput.value = product.location?.city || "";
+  regionalPricingInput.checked = Boolean(product.regional_pricing);
   syncDiscountFromPrices();
   // Opening a draft defaults to publishing it; the photo check in submitProduct still applies.
   statusInput.value = "published";
@@ -729,8 +736,15 @@ function applyDiscount() {
   renderPreview();
 }
 
+// New listings default to the country the seller is browsing from.
+function resetItemLocation() {
+  countryInput.value = LyrLocale.country() || "US";
+  if (!countryInput.value) countryInput.value = "US";
+}
+
 function cancelProductEdit() {
   form.reset();
+  resetItemLocation();
   productEditId.value = "";
   productSubmit.textContent = "List Product";
   productCancel.hidden = true;
@@ -775,6 +789,8 @@ async function submitProduct(event) {
     image_url: imageInput.value.trim(),
     media: productMedia,
     wholesale_tiers: collectWholesaleTiers(),
+    location: { country: countryInput.value, city: cityInput.value.trim() },
+    regional_pricing: regionalPricingInput.checked,
     options: collectProductOptions(),
     measurements: collectMeasurements(),
     seller_email: session.email,
@@ -2128,5 +2144,9 @@ async function initAdminPage() {
     renderCategories();
   }
 }
+
+countryInput.innerHTML = LyrLocale.countryOptions()
+  .map(({ code, name }) => `<option value="${code}">${escapeHtml(name)}</option>`).join("");
+resetItemLocation();
 
 initAdminPage();

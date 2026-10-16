@@ -118,7 +118,7 @@ async function fetchProducts() {
   const timeoutId = window.setTimeout(() => controller.abort(), DETAIL_REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${DETAIL_API_BASE_URL}/products`, { signal: controller.signal });
+    const response = await fetch(shopperProductsUrl(DETAIL_API_BASE_URL), { signal: controller.signal });
     if (!response.ok) throw new Error(`Product request failed with ${response.status}`);
     const json = await response.json();
     const products = (json.products || []).map(normalizeProduct).filter(Boolean);
@@ -139,7 +139,7 @@ function renderSpecifics(product) {
       : "Unbranded"],
     ["Category", escapeHtml(product.category)],
     ["Model", escapeHtml(product.id.toUpperCase())],
-    ["Item location", "United States"],
+    ["Item location", escapeHtml(itemLocationLabel(product)) + (product.nearby_label ? ` <small>(${escapeHtml(product.nearby_label.toLowerCase())})</small>` : "")],
     ["Returns", "30 days"],
   ];
 
@@ -313,7 +313,8 @@ function renderPrice(product) {
     ? `Was ${formatPrice(product.original_price)} (${Math.round(((product.original_price - product.price) / product.original_price) * 100)}% off)`
     : "";
   const usdNote = LyrLocale.isLocalCurrency() ? `${LyrLocale.formatUsd(product.price)} USD` : "";
-  originalPrice.textContent = [wasPrice, wasPrice && product.sale_event, usdNote].filter(Boolean).join(" · ");
+  const regionalNote = product.regional_factor ? `Fair price for your country (listed at ${formatPrice(product.list_price)})` : "";
+  originalPrice.textContent = [wasPrice, wasPrice && product.sale_event, regionalNote, usdNote].filter(Boolean).join(" · ");
 }
 
 function renderProduct(product) {

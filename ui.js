@@ -3,6 +3,17 @@
 const WATCHLIST_KEY = "lyrshopWatchlist";
 const CART_KEY = "shopCart";
 
+// The storefront as this shopper sees it: the server adds regional prices and nearby/price_fit ranking for the
+// country (CloudFront's guess when /locale hasn't answered yet). Pass a country to override, e.g. the cart's ship-to.
+function shopperProductsUrl(apiBase, country) {
+  return `${apiBase}/products?country=${encodeURIComponent(country || LyrLocale.country() || "auto")}`;
+}
+
+// "Mumbai, India" for a product's {country, city}; listings from before item locations were all from the US.
+function itemLocationLabel(product) {
+  return [product.location?.city, LyrLocale.countryName(product.location?.country || "US")].filter(Boolean).join(", ");
+}
+
 // What a shopper pays now. While a sales-calendar event is open the server adds event_price to the trending and new
 // listings it discounts; otherwise it is the seller's price with their optional "was" price.
 function listingPrices(product) {

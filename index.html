@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261014-5" />
+  <link rel="stylesheet" href="styles.css?v=20261015-1" />
 </head>
 <body>
   <header class="header">
@@ -107,8 +107,17 @@
         <p id="listing-count" class="listing-count" aria-live="polite"></p>
         <div id="active-filters" class="active-filters"></div>
         <label class="sort-control">
+          <span>Location</span>
+          <select id="near-select">
+            <option value="">Anywhere</option>
+            <option value="region">In your region</option>
+            <option value="country">In your country</option>
+          </select>
+        </label>
+        <label class="sort-control">
           <span>Sort by</span>
           <select id="sort-select">
+            <option value="nearby">Best for your location</option>
             <option value="latest">Latest uploads</option>
             <option value="trending">Trending</option>
             <option value="featured">Featured</option>
@@ -130,10 +139,10 @@
   </footer>
 
   <script src="auth.js?v=20261012-3"></script>
-  <script src="locale.js?v=20261014-1"></script>
+  <script src="locale.js?v=20261015-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="ui.js?v=20261014-3"></script>
-  <script src="app.js?v=20261014-3"></script>
+  <script src="ui.js?v=20261015-1"></script>
+  <script src="app.js?v=20261015-1"></script>
   <script src="footer.js?v=20261014-2"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>
