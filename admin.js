@@ -1355,6 +1355,8 @@ async function saveCjLink() {
   const listing = adminProducts.find((item) => item.id === document.getElementById("cj-link-product").value);
   if (!listing) return;
   const link = { pid: cjProduct.product.pid, variants: {} };
+  // Keep the ship-from warehouse when relinking the same CJ product (imports set it).
+  if (listing.cj?.from && listing.cj.pid === link.pid) link.from = listing.cj.from;
   document.querySelectorAll("#cj-link-rows [data-cj-label]").forEach((select) => {
     if (!select.value) return;
     if (select.dataset.cjLabel) link.variants[select.dataset.cjLabel] = select.value;

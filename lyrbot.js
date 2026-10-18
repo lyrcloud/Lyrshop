@@ -134,7 +134,8 @@
       const res = await fetch(`${API_BASE_URL}/assistant/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        // On a product page the server adds that listing's details, so Lyrbot can answer questions about it.
+        body: JSON.stringify({ messages: history, product_id: document.body.dataset.productId || undefined }),
       });
       const isJson = (res.headers.get("Content-Type") || "").includes("application/json");
       const data = isJson ? await res.json() : {};
@@ -169,6 +170,14 @@
       toggle.focus();
     }
   }
+
+  // Lets a page open the chat with a question, e.g. the product page's "Ask Lyrbot about this item".
+  window.LyrBot = {
+    ask(question) {
+      if (panel.hidden) setOpen(true);
+      ask(question);
+    },
+  };
 
   toggle.addEventListener("click", () => setOpen(panel.hidden));
   root.querySelector(".lyrbot-close").addEventListener("click", () => setOpen(false));

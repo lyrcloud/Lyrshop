@@ -77,9 +77,11 @@
       if (!res.ok || !isJson) return;
       const data = await res.json();
       const before = activeCurrency();
+      const countryBefore = locale.country;
       locale = { ...data, saved_at: Date.now() };
       storage.set(LOCALE_KEY, JSON.stringify(locale));
-      if (activeCurrency() !== before) notify();
+      // Pages also follow the country (sizes, shipping estimates), not just the currency.
+      if (activeCurrency() !== before || locale.country !== countryBefore) notify();
       else renderPickers();
     } catch (error) {
       console.warn("Locale lookup failed; showing USD.", error);

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261018-2" />
+  <link rel="stylesheet" href="styles.css?v=20261018-3" />
 </head>
 <body>
   <header class="header">
@@ -74,11 +74,17 @@
 
     <section class="listing-shell" id="listing-shell">
       <div class="gallery-panel">
-        <div class="main-product-image" id="zoom-stage" role="button" tabindex="0" aria-label="Open full-size photo">
-          <img id="detail-image" alt="" />
-          <video id="detail-video" controls playsinline preload="metadata" hidden></video>
-          <div class="image-badge">Featured item</div>
-          <span class="zoom-hint" aria-hidden="true">&#128269; Hover to zoom · click to enlarge</span>
+        <div class="gallery-stage-wrap" id="gallery-stage-wrap" aria-roledescription="carousel" aria-label="Product photos">
+          <div class="main-product-image" id="zoom-stage" role="button" tabindex="0" aria-label="Open full-size photo">
+            <img id="detail-image" alt="" />
+            <video id="detail-video" controls playsinline preload="metadata" hidden></video>
+            <div class="image-badge">Featured item</div>
+            <span class="zoom-hint" aria-hidden="true">&#128269; Hover to zoom · click to enlarge</span>
+          </div>
+          <button type="button" class="gallery-nav gallery-prev" id="gallery-prev" aria-label="Previous photo" hidden>&#8249;</button>
+          <button type="button" class="gallery-nav gallery-next" id="gallery-next" aria-label="Next photo" hidden>&#8250;</button>
+          <button type="button" class="gallery-autoplay" id="gallery-autoplay" aria-pressed="true" hidden>Pause slideshow</button>
+          <div class="gallery-dots" id="gallery-dots" hidden></div>
         </div>
         <div class="gallery-thumbs" id="gallery-thumbs" role="group" aria-label="Product photos and videos" hidden></div>
       </div>
@@ -92,6 +98,7 @@
         <ul class="seller-badges" id="seller-badges" hidden></ul>
         <h1 id="detail-title">Loading product...</h1>
         <p class="detail-subtitle" id="detail-subtitle">Checking current listing details.</p>
+        <ul class="live-signals" id="live-signals" aria-live="polite" hidden></ul>
 
         <dl class="listing-facts">
           <div>
@@ -109,6 +116,10 @@
 
         <div id="detail-options" class="detail-options"></div>
         <p id="option-error" class="option-error" role="alert"></p>
+        <div class="size-help" id="size-help" hidden>
+          <button type="button" class="size-guide-button" id="size-guide-button">&#128207; Size guide &amp; conversions</button>
+          <span class="size-note" id="size-note" hidden>Asian sizing: this item usually runs 1–2 sizes smaller than US/EU sizes. Check the chest size in the guide.</span>
+        </div>
 
         <div class="price-block">
           <span class="price-label">Price</span>
@@ -128,12 +139,13 @@
           <button class="button buy-now-button" id="buy-now-button" type="button">Buy It Now</button>
           <button class="button detail-cart-button" id="detail-cart-button" type="button">Add to cart</button>
           <button class="button watch-button" type="button">Add to Watchlist</button>
+          <button class="button share-button" id="share-button" type="button" aria-label="Share this item">&#10150; Share</button>
         </div>
 
         <div class="shipping-box">
-          <div>
+          <div id="shipping-estimate">
             <strong>Shipping</strong>
-            <span>Free standard shipping. Estimated delivery in 3-5 business days.</span>
+            <span>Checking shipping to your country...</span>
           </div>
           <div>
             <strong>Returns</strong>
@@ -144,6 +156,12 @@
             <span>Secure checkout powered by Lyrshop.</span>
           </div>
         </div>
+
+        <section class="ask-item" aria-labelledby="ask-item-title">
+          <h2 id="ask-item-title">&#129302; Questions about this item?</h2>
+          <p>Lyrbot, our AI assistant, answers from this listing's details.</p>
+          <div class="ask-item-chips" id="ask-item-chips"></div>
+        </section>
       </section>
     </section>
 
@@ -175,7 +193,34 @@
         <li>Covered by the Lyrshop checkout record in your account dashboard.</li>
       </ul>
     </section>
+
+    <section class="detail-section similar-section" id="similar-section" aria-labelledby="similar-title" hidden>
+      <h2 id="similar-title">Similar items</h2>
+      <div class="similar-row" id="similar-items"></div>
+    </section>
   </main>
+
+  <div class="buy-bar" id="buy-bar" hidden>
+    <img id="buy-bar-image" alt="" />
+    <div class="buy-bar-text">
+      <strong id="buy-bar-name"></strong>
+      <span id="buy-bar-price"></span>
+    </div>
+    <button type="button" class="button buy-bar-button" id="buy-bar-button">Add to cart</button>
+  </div>
+
+  <dialog class="size-guide" id="size-guide" aria-labelledby="size-guide-title">
+    <div class="size-guide-head">
+      <h2 id="size-guide-title">Size guide</h2>
+      <div class="size-unit-toggle" role="group" aria-label="Units">
+        <button type="button" data-unit="cm" aria-pressed="false">cm</button>
+        <button type="button" data-unit="in" aria-pressed="false">in</button>
+      </div>
+      <button type="button" class="size-guide-close" id="size-guide-close" aria-label="Close size guide">&times;</button>
+    </div>
+    <div id="size-guide-body"></div>
+    <p class="size-guide-tip">Conversions are standard approximations; brands can differ by about half a size. If you are between sizes, choose the larger one.</p>
+  </dialog>
 
   <div class="zoom-lightbox" id="zoom-lightbox" role="dialog" aria-modal="true" aria-label="Product photo" hidden>
     <button type="button" class="zoom-close" id="zoom-close" aria-label="Close photo">&times;</button>
@@ -190,11 +235,12 @@
   </footer>
 
   <script src="auth.js?v=20261012-3"></script>
-  <script src="locale.js?v=20261015-1"></script>
+  <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="ui.js?v=20261015-1"></script>
-  <script src="product.js?v=20261015-1"></script>
+  <script src="ui.js?v=20261018-1"></script>
+  <script src="sizing.js?v=20261018-1"></script>
+  <script src="product.js?v=20261018-1"></script>
   <script src="footer.js?v=20261014-2"></script>
-  <script src="lyrbot.js?v=20261012-1"></script>
+  <script src="lyrbot.js?v=20261018-1"></script>
 </body>
 </html>

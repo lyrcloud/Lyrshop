@@ -108,7 +108,59 @@ function clearRecentlyViewed() {
   localStorage.removeItem(RECENTLY_VIEWED_KEY);
 }
 
+// ── Live shopper counts ──────────────────────────────────────────────────────────
+// Product pages show how many people are viewing a listing and how many carts hold it. Each browser gets an anonymous
+// random visitor id; every page reports which listings joined or left its cart (POST /products/cart-presence).
+
+const VISITOR_KEY = "lyrshopVisitor";
+const CART_REPORTED_KEY = "lyrshopCartReported";
+const CART_REPORT_REFRESH_MS = 3 * 24 * 60 * 60 * 1000; // The server forgets carts after a week, so re-report sooner.
+const UI_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname) ? "http://127.0.0.1:5000" : "";
+
+function visitorId() {
+  try {
+    let id = localStorage.getItem(VISITOR_KEY);
+    if (!/^[A-Za-z0-9-]{8,64}$/.test(id || "")) {
+      id = window.crypto?.randomUUID?.() || `v-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+      localStorage.setItem(VISITOR_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+
+function cartProductIds() {
+  return [...new Set(readStoredList(CART_KEY).map((item) => String(item?.id || "")).filter(Boolean))];
+}
+
+const reportCartPresence = debounce(async () => {
+  const visitor = visitorId();
+  if (!visitor) return;
+  const current = cartProductIds();
+  let reported = { ids: [], at: 0 };
+  try {
+    reported = { ...reported, ...JSON.parse(localStorage.getItem(CART_REPORTED_KEY) || "{}") };
+  } catch { /* Report everything again. */ }
+  const stale = Date.now() - Number(reported.at || 0) > CART_REPORT_REFRESH_MS;
+  const add = stale ? current : current.filter((id) => !reported.ids.includes(id));
+  const remove = (reported.ids || []).filter((id) => !current.includes(id));
+  if (!add.length && !remove.length) return;
+  try {
+    const response = await fetch(`${UI_API_BASE_URL}/products/cart-presence`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitor, add, remove }),
+      keepalive: true,
+    });
+    if (response.ok && (response.headers.get("Content-Type") || "").includes("application/json")) {
+      localStorage.setItem(CART_REPORTED_KEY, JSON.stringify({ ids: current, at: stale ? Date.now() : reported.at || Date.now() }));
+    }
+  } catch { /* Counts are a nicety; try again on the next change or page. */ }
+}, 800);
+
 function updateHeaderCounts() {
+  reportCartPresence();
   const counts = { cart: readStoredList(CART_KEY).length, watchlist: getWatchlist().length };
   document.querySelectorAll("[data-count]").forEach((badge) => {
     const count = counts[badge.dataset.count] || 0;

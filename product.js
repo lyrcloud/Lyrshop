@@ -153,29 +153,67 @@ function renderSpecifics(product) {
 
 const chosenOptions = {};
 
-function swatchStyle(value) {
-  const color = String(value).toLowerCase().replace(/\s+/g, "");
-  return window.CSS?.supports?.("color", color) ? `background:${color}` : "";
-}
-
 function variantLabel(product) {
   return (product.options || []).map((option) => `${option.name}: ${chosenOptions[option.name]}`).join(" · ");
 }
 
+// Values show a color swatch when they name a color, and sizes/lengths in the shopper's own system (LyrSizing),
+// e.g. "42" with "US M 8.5 · W 10.5" for a shopper in the US. Re-rendered when the shopper's country is known.
 function renderOptions(product) {
   const container = document.getElementById("detail-options");
   container.innerHTML = (product.options || []).map((option) => {
-    const buttons = option.values.map((value) => option.type === "color"
-      ? `<button type="button" class="option-swatch" data-option="${escapeHtml(option.name)}" data-value="${escapeHtml(value)}"
-          aria-pressed="false" aria-label="${escapeHtml(value)}" title="${escapeHtml(value)}"><span style="${swatchStyle(value)}"></span></button>`
-      : `<button type="button" class="option-pill" data-option="${escapeHtml(option.name)}" data-value="${escapeHtml(value)}"
-          aria-pressed="false">${escapeHtml(value)}</button>`).join("");
+    const colorful = LyrSizing.isColorOption(option);
+    const buttons = LyrSizing.sortedValues(option).map((value) => {
+      const swatch = colorful ? LyrSizing.swatch(LyrSizing.parts(value)[0]) || LyrSizing.swatch(value) : "";
+      const alt = LyrSizing.altLabel(value, option, product);
+      const pressed = String(chosenOptions[option.name] === value);
+      const data = `data-option="${escapeHtml(option.name)}" data-value="${escapeHtml(value)}" data-alt="${escapeHtml(alt)}" aria-pressed="${pressed}"`;
+      if (option.type === "color" && swatch) {
+        return `<button type="button" class="option-swatch" ${data} aria-label="${escapeHtml(value)}" title="${escapeHtml(value)}"><span style="${escapeHtml(swatch)}"></span></button>`;
+      }
+      return `<button type="button" class="option-pill${swatch ? " has-swatch" : ""}" ${data}>
+          ${swatch ? `<span class="option-dot" style="${escapeHtml(swatch)}" aria-hidden="true"></span>` : ""}<span>${escapeHtml(value)}</span>${alt ? `<small class="option-alt">${escapeHtml(alt)}</small>` : ""}</button>`;
+    }).join("");
+    const chosen = chosenOptions[option.name];
+    const chosenAlt = chosen ? LyrSizing.altLabel(chosen, option, product) : "";
     return `
       <div class="detail-option" data-option-group="${escapeHtml(option.name)}">
-        <p class="detail-option-label">${escapeHtml(option.name)}: <strong data-chosen>Select</strong></p>
+        <p class="detail-option-label">${escapeHtml(option.name)}: <strong data-chosen>${chosen ? escapeHtml(chosen + (chosenAlt ? ` (${chosenAlt})` : "")) : "Select"}</strong></p>
         <div class="detail-option-values" role="group" aria-label="${escapeHtml(option.name)}">${buttons}</div>
       </div>`;
   }).join("");
+  renderSizeHelp(product);
+}
+
+// ── Size guide ─────────────────────────────────────────────────────────────────
+
+function renderSizeHelp(product) {
+  document.getElementById("size-help").hidden = !LyrSizing.hasGuide(product);
+  document.getElementById("size-note").hidden = !LyrSizing.runsSmall(product);
+}
+
+function bindSizeGuide(product) {
+  const dialog = document.getElementById("size-guide");
+  const body = document.getElementById("size-guide-body");
+  let unit = null; // Picked on first open, once the shopper's country is known.
+  const render = () => {
+    unit = unit || (LyrSizing.usesImperial() ? "in" : "cm");
+    body.innerHTML = LyrSizing.guideHtml(product, unit);
+    dialog.querySelectorAll("[data-unit]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.unit === unit)));
+  };
+  document.getElementById("size-guide-button").addEventListener("click", () => {
+    render();
+    if (dialog.showModal) dialog.showModal();
+    else dialog.setAttribute("open", "");
+  });
+  dialog.querySelector(".size-unit-toggle").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-unit]");
+    if (!button) return;
+    unit = button.dataset.unit;
+    render();
+  });
+  document.getElementById("size-guide-close").addEventListener("click", () => dialog.close ? dialog.close() : dialog.removeAttribute("open"));
+  dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
 }
 
 function bindOptions() {
@@ -185,7 +223,7 @@ function bindOptions() {
     const group = button.closest("[data-option-group]");
     chosenOptions[button.dataset.option] = button.dataset.value;
     group.querySelectorAll("[data-option]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
-    group.querySelector("[data-chosen]").textContent = button.dataset.value;
+    group.querySelector("[data-chosen]").textContent = button.dataset.value + (button.dataset.alt ? ` (${button.dataset.alt})` : "");
     group.classList.remove("is-missing");
     if (!document.querySelector(".detail-option.is-missing")) document.getElementById("option-error").textContent = "";
   });
@@ -208,7 +246,7 @@ function renderMeasurements(product) {
   const rows = product.measurements || [];
   document.getElementById("detail-measurements").hidden = !rows.length;
   document.getElementById("measurement-grid").innerHTML = rows
-    .map((row) => `<div><dt>${escapeHtml(row.label)}</dt><dd>${escapeHtml(row.value)}</dd></div>`)
+    .map((row) => `<div><dt>${escapeHtml(row.label)}</dt><dd>${escapeHtml(LyrSizing.measurementText(row.value))}</dd></div>`)
     .join("");
 }
 
@@ -339,15 +377,26 @@ function renderProduct(product) {
 }
 
 // ── Gallery ─────────────────────────────────────────────────────────────────────
-// Thumbnails switch the main viewer between photos (with zoom) and videos (with player controls).
+// Thumbnails, arrows, dots, swipes and arrow keys switch the main viewer between photos (with zoom) and videos.
+// Photos also advance by themselves; the slideshow waits while the shopper hovers, focuses, zooms or plays a video,
+// while the gallery is off screen or the tab is hidden, and stays off for visitors who prefer reduced motion.
 
-function showMedia(product, index) {
+const SLIDE_MS = 4500;
+const SLIDE_TICK_MS = 100;
+const SWIPE_MIN_PX = 40;
+const gallery = { product: null, index: 0, elapsed: 0, timer: null, hovering: false, focused: false, visible: true, stopped: false };
+
+function showMedia(product, index, { user = false } = {}) {
+  const count = product.media.length;
+  index = ((index % count) + count) % count;
   const item = product.media[index];
   const stage = document.getElementById("zoom-stage");
   const image = document.getElementById("detail-image");
   const video = document.getElementById("detail-video");
   const isVideo = item.type === "video";
 
+  gallery.index = index;
+  gallery.elapsed = 0;
   video.pause();
   stage.classList.toggle("is-video", isVideo);
   image.hidden = isVideo;
@@ -366,29 +415,140 @@ function showMedia(product, index) {
     video.removeAttribute("src");
     video.load();
     image.src = item.url;
-    image.alt = product.media.length > 1 ? `${product.name}, photo ${index + 1}` : product.name;
+    image.alt = count > 1 ? `${product.name}, photo ${index + 1} of ${count}` : product.name;
+    image.classList.remove("is-entering");
+    void image.offsetWidth; // Restart the fade.
+    image.classList.add("is-entering");
   }
-  document.querySelectorAll("#gallery-thumbs .gallery-thumb").forEach((thumb, i) => {
+  const thumbs = document.getElementById("gallery-thumbs");
+  thumbs.querySelectorAll(".gallery-thumb").forEach((thumb, i) => {
     thumb.classList.toggle("is-active", i === index);
     thumb.setAttribute("aria-pressed", String(i === index));
+    // Scroll the strip itself (not the page) so the active thumbnail stays visible.
+    if (i === index && thumbs.scrollWidth > thumbs.clientWidth) {
+      thumbs.scrollTo({ left: thumb.offsetLeft - (thumbs.clientWidth - thumb.clientWidth) / 2, behavior: "smooth" });
+    }
   });
+  document.querySelectorAll("#gallery-dots button").forEach((dot, i) => {
+    dot.setAttribute("aria-current", String(i === index));
+    dot.style.setProperty("--progress", "0");
+  });
+  // The full-screen viewer follows along when it is open.
+  const zoomImage = document.getElementById("zoom-image");
+  if (!document.getElementById("zoom-lightbox").hidden && !isVideo) zoomImage.src = item.url;
+}
+
+function slideshowPaused() {
+  const video = document.getElementById("detail-video");
+  return gallery.stopped || gallery.hovering || gallery.focused || !gallery.visible || document.hidden
+    || !document.getElementById("zoom-lightbox").hidden || document.getElementById("size-guide").open
+    || (!video.hidden && !video.paused);
+}
+
+function tickSlideshow() {
+  if (slideshowPaused()) return;
+  gallery.elapsed += SLIDE_TICK_MS;
+  const dot = document.querySelector('#gallery-dots button[aria-current="true"]');
+  dot?.style.setProperty("--progress", String(Math.min(1, gallery.elapsed / SLIDE_MS)));
+  if (gallery.elapsed >= SLIDE_MS) showMedia(gallery.product, gallery.index + 1);
 }
 
 function renderGallery(product) {
+  gallery.product = product;
+  const count = product.media.length;
+  const several = count > 1;
   const thumbs = document.getElementById("gallery-thumbs");
-  thumbs.hidden = product.media.length < 2;
+  thumbs.hidden = !several;
   thumbs.innerHTML = product.media.map((item, index) => `
     <button type="button" class="gallery-thumb${item.type === "video" ? " is-video" : ""}" data-media-index="${index}"
-      aria-label="Show ${item.type === "video" ? "video" : "photo"} ${index + 1} of ${product.media.length}">
+      aria-label="Show ${item.type === "video" ? "video" : "photo"} ${index + 1} of ${count}">
       ${item.type === "video"
         ? `<video src="${escapeHtml(item.url)}#t=0.1" muted preload="metadata" aria-hidden="true"></video><span class="gallery-play" aria-hidden="true">&#9654;</span>`
         : `<img src="${escapeHtml(item.url)}" alt="" loading="lazy" />`}
     </button>`).join("");
   thumbs.onclick = (event) => {
     const thumb = event.target.closest("[data-media-index]");
-    if (thumb) showMedia(product, Number(thumb.dataset.mediaIndex));
+    if (thumb) showMedia(product, Number(thumb.dataset.mediaIndex), { user: true });
   };
+
+  const dots = document.getElementById("gallery-dots");
+  dots.hidden = !several;
+  dots.innerHTML = product.media.map((item, index) =>
+    `<button type="button" data-dot="${index}" aria-label="Show ${item.type === "video" ? "video" : "photo"} ${index + 1} of ${count}"><span></span></button>`).join("");
+  dots.onclick = (event) => {
+    const dot = event.target.closest("[data-dot]");
+    if (dot) showMedia(product, Number(dot.dataset.dot), { user: true });
+  };
+  ["gallery-prev", "gallery-next"].forEach((id) => { document.getElementById(id).hidden = !several; });
   showMedia(product, 0);
+  if (!several) return;
+
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const toggle = document.getElementById("gallery-autoplay");
+  toggle.hidden = reducedMotion;
+  if (!reducedMotion) {
+    gallery.timer = window.setInterval(tickSlideshow, SLIDE_TICK_MS);
+    toggle.addEventListener("click", () => {
+      gallery.stopped = !gallery.stopped;
+      toggle.setAttribute("aria-pressed", String(!gallery.stopped));
+      toggle.textContent = gallery.stopped ? "Play slideshow" : "Pause slideshow";
+    });
+  }
+}
+
+function bindGalleryControls() {
+  const wrap = document.getElementById("gallery-stage-wrap");
+  const stage = document.getElementById("zoom-stage");
+  const step = (delta) => gallery.product && showMedia(gallery.product, gallery.index + delta, { user: true });
+  document.getElementById("gallery-prev").addEventListener("click", () => step(-1));
+  document.getElementById("gallery-next").addEventListener("click", () => step(1));
+
+  wrap.addEventListener("pointerenter", (event) => { if (event.pointerType === "mouse") gallery.hovering = true; });
+  wrap.addEventListener("pointerleave", () => { gallery.hovering = false; });
+  wrap.addEventListener("focusin", (event) => { gallery.focused = event.target.matches(":focus-visible"); });
+  wrap.addEventListener("focusout", () => { gallery.focused = false; });
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(([entry]) => { gallery.visible = entry.isIntersecting; }).observe(wrap);
+  }
+
+  stage.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") step(-1);
+    if (event.key === "ArrowRight") step(1);
+  });
+  // In the full-screen viewer the arrow keys move between photos.
+  document.addEventListener("keydown", (event) => {
+    if (document.getElementById("zoom-lightbox").hidden || !gallery.product) return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const delta = event.key === "ArrowLeft" ? -1 : 1;
+    let next = gallery.index;
+    for (let i = 0; i < gallery.product.media.length; i += 1) {
+      next += delta;
+      if (gallery.product.media[((next % gallery.product.media.length) + gallery.product.media.length) % gallery.product.media.length].type === "image") break;
+    }
+    showMedia(gallery.product, next, { user: true });
+  });
+
+  // Swipes on touch screens; a swipe must not also open the full-screen viewer.
+  let start = null;
+  let swiped = false;
+  stage.addEventListener("pointerdown", (event) => {
+    start = event.pointerType === "mouse" ? null : { x: event.clientX, y: event.clientY };
+  });
+  stage.addEventListener("pointerup", (event) => {
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    start = null;
+    if (Math.abs(dx) > SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      swiped = true;
+      step(dx < 0 ? 1 : -1);
+    }
+  });
+  stage.addEventListener("click", (event) => {
+    if (!swiped) return;
+    swiped = false;
+    event.stopImmediatePropagation();
+  }, true);
 }
 
 // ── Business (B2B) pricing ──────────────────────────────────────────────────────
@@ -478,6 +638,7 @@ function bindActions(product) {
     if (!checkOptions(product)) return;
     const quantity = Number(quantitySelect.value);
     addProductToCart(product, quantity);
+    beatPresence(product);
     cartButton.classList.add("is-added");
     cartButton.textContent = "Added \u2713";
     window.setTimeout(() => { cartButton.classList.remove("is-added"); cartButton.textContent = "Add to cart"; }, 1400);
@@ -501,6 +662,222 @@ function bindActions(product) {
     window.location.href = "cart.html";
   });
 
+}
+
+// ── Live shopper counts ─────────────────────────────────────────────────────────
+// Real numbers only: other visitors with this page open now (heartbeats), carts holding the listing (ui.js reports
+// cart changes) and units sold in the last 30 days (the server's trending count). Nothing shows when they're zero.
+
+const PRESENCE_BEAT_MS = 30 * 1000;
+let liveCounts = {};
+
+function renderLiveSignals(product) {
+  const list = document.getElementById("live-signals");
+  const inMyCart = cartProductIds().includes(String(product.id));
+  const viewing = Number(liveCounts.viewing) || 0;
+  const carts = Number(liveCounts.in_carts) || 0;
+  const sold = Number(product.trending) || 0;
+  const signals = [];
+  if (viewing > 0) {
+    signals.push(["eye", viewing === 1 ? "1 other person is looking at this right now" : `${viewing.toLocaleString()} people are looking at this right now`]);
+  }
+  if (carts > 0) {
+    signals.push(["cart", inMyCart
+      ? (carts === 1 ? "In your cart" : `In ${carts.toLocaleString()} carts, including yours`)
+      : `In ${carts.toLocaleString()} ${carts === 1 ? "cart" : "carts"}`]);
+  }
+  if (sold > 0) signals.push(["fire", `${sold.toLocaleString()} sold in the last 30 days`]);
+  const icons = { eye: "&#128064;", cart: "&#128722;", fire: "&#128293;" };
+  list.innerHTML = signals.map(([icon, text]) => `<li class="live-${icon}"><span aria-hidden="true">${icons[icon]}</span>${escapeHtml(text)}</li>`).join("");
+  list.hidden = !signals.length;
+}
+
+async function beatPresence(product) {
+  const visitor = visitorId();
+  if (!visitor || document.hidden) return;
+  try {
+    const response = await fetch(`${DETAIL_API_BASE_URL}/products/${encodeURIComponent(product.id)}/presence`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitor, in_cart: cartProductIds().includes(String(product.id)) }),
+    });
+    if (!response.ok || !(response.headers.get("Content-Type") || "").includes("application/json")) return;
+    liveCounts = await response.json();
+    renderLiveSignals(product);
+  } catch (error) {
+    console.warn("Live counts unavailable.", error);
+  }
+}
+
+function startPresence(product) {
+  renderLiveSignals(product);
+  beatPresence(product);
+  window.setInterval(() => beatPresence(product), PRESENCE_BEAT_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) beatPresence(product); });
+}
+
+// ── Delivery estimate ────────────────────────────────────────────────────────────
+// The cheapest shipping quote to the shopper's country (/shipping/rates, the same quotes the cart charges) with the
+// delivery dates it implies.
+
+function addDays(date, days, businessOnly) {
+  const result = new Date(date);
+  let added = 0;
+  while (added < days) {
+    result.setDate(result.getDate() + 1);
+    const weekday = result.getDay();
+    if (!businessOnly || (weekday !== 0 && weekday !== 6)) added += 1;
+  }
+  return result;
+}
+
+function deliveryWindow(estimate) {
+  const match = String(estimate || "").match(/(\d+)\s*(?:-|–|to)\s*(\d+)\s*(business\s+)?days?/i) || String(estimate || "").match(/(\d+)()\s*(business\s+)?days?/i);
+  if (!match) return "";
+  const low = Number(match[1]);
+  const high = Number(match[2] || match[1]);
+  const business = Boolean(match[3]);
+  const format = (date) => date.toLocaleDateString(navigator.language || "en-US", { month: "short", day: "numeric" });
+  const from = format(addDays(new Date(), low, business));
+  const to = format(addDays(new Date(), high, business));
+  return from === to ? from : `${from} – ${to}`;
+}
+
+async function renderShippingEstimate(product) {
+  const box = document.getElementById("shipping-estimate");
+  const code = LyrLocale.country() || "US";
+  const place = LyrLocale.countryName(code);
+  try {
+    const response = await fetch(`${DETAIL_API_BASE_URL}/shipping/rates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ destination_country: code, estimate: true, items: [{ id: product.id, price: product.price, quantity: 1 }] }),
+    });
+    if (!response.ok || !(response.headers.get("Content-Type") || "").includes("application/json")) throw new Error(`${response.status}`);
+    const rates = ((await response.json()).rates || []).filter((rate) => Number.isFinite(Number(rate.amount)));
+    if (!rates.length) throw new Error("No rates");
+    const rate = rates.reduce((best, item) => (Number(item.amount) < Number(best.amount) ? item : best));
+    const amount = Number(rate.amount);
+    const cost = amount > 0 ? `${formatPrice(amount)} ${rate.service || "shipping"}` : `Free ${String(rate.service || "shipping").toLowerCase()}`;
+    const dates = deliveryWindow(rate.estimate);
+    box.innerHTML = `<strong>Shipping</strong>
+      <span>${escapeHtml(cost)} to ${escapeHtml(place)}.
+      ${dates ? `Estimated delivery <strong class="delivery-dates">${escapeHtml(dates)}</strong> (${escapeHtml(rate.estimate)}).` : escapeHtml(rate.estimate || "")}
+      ${rates.length > 1 ? "Faster options at checkout." : ""}</span>`;
+  } catch (error) {
+    console.warn("Shipping estimate unavailable.", error);
+    box.innerHTML = `<strong>Shipping</strong><span>Ships to ${escapeHtml(place)}. Your cart shows the shipping cost and delivery time.</span>`;
+  }
+}
+
+// ── Share, Lyrbot, similar items, mobile buy bar ───────────────────────────────────
+
+function bindShare(product) {
+  document.getElementById("share-button").addEventListener("click", async () => {
+    const url = `${window.location.origin}/product.html?id=${encodeURIComponent(product.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: product.name, text: `${product.name} on Lyrshop`, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied. Paste it anywhere to share.");
+    } catch (error) {
+      if (error?.name !== "AbortError") showToast("Couldn't share. Copy the address from your browser instead.", { tone: "error" });
+    }
+  });
+}
+
+function renderAskLyrbot(product) {
+  document.body.dataset.productId = product.id;
+  const hasSizes = LyrSizing.hasGuide(product) || (product.options || []).some((option) => /size/i.test(option.name));
+  const place = LyrLocale.countryName(LyrLocale.country() || "US");
+  const questions = [
+    hasSizes && "Which size should I order?",
+    `How long does delivery to ${place} take?`,
+    "What is it made of?",
+    "Is this a good gift?",
+  ].filter(Boolean);
+  const chips = document.getElementById("ask-item-chips");
+  chips.innerHTML = questions.map((question) => `<button type="button" data-ask="${escapeHtml(question)}">${escapeHtml(question)}</button>`).join("");
+  chips.onclick = (event) => {
+    const chip = event.target.closest("[data-ask]");
+    if (chip && window.LyrBot) window.LyrBot.ask(`About "${product.name}": ${chip.dataset.ask}`);
+  };
+}
+
+const SIMILAR_LIMIT = 12;
+
+function renderSimilar(product, products) {
+  const score = (item) => (item.subcategory && item.subcategory === product.subcategory ? 3 : 0)
+    + (item.category === product.category ? 2 : 0)
+    + (item.brand && item.brand === product.brand ? 1 : 0)
+    - Math.abs(Math.log((item.price || 1) / (product.price || 1))) * 0.8;
+  const similar = products
+    .filter((item) => item.id !== product.id && item.category === product.category)
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, SIMILAR_LIMIT);
+  document.getElementById("similar-section").hidden = !similar.length;
+  document.getElementById("similar-items").innerHTML = similar.map((item) => `
+    <a class="similar-card" href="product.html?id=${encodeURIComponent(item.id)}">
+      <span class="similar-image"><img src="${escapeHtml(item.image_url)}" alt="" loading="lazy" /></span>
+      <span class="similar-name">${escapeHtml(item.name)}</span>
+      <strong class="similar-price">${formatPrice(item.price)}</strong>
+    </a>`).join("");
+}
+
+function bindBuyBar(product) {
+  const bar = document.getElementById("buy-bar");
+  const actions = document.querySelector(".purchase-actions");
+  document.getElementById("buy-bar-image").src = product.media.find((item) => item.type === "image")?.url || product.image_url;
+  document.getElementById("buy-bar-name").textContent = product.name;
+  const price = () => { document.getElementById("buy-bar-price").textContent = formatPrice(product.price); };
+  price();
+  LyrLocale.onChange(price);
+  document.getElementById("buy-bar-button").addEventListener("click", () => document.getElementById("detail-cart-button").click());
+  // Shown once the page's own buttons have scrolled up out of view (under the sticky header counts as out of view).
+  // A scroll check rather than an IntersectionObserver, which misses jumps straight past the buttons.
+  const header = document.querySelector(".header");
+  let queued = false;
+  const update = () => {
+    queued = false;
+    const show = actions.getBoundingClientRect().bottom < (header?.getBoundingClientRect().bottom || 0);
+    if (bar.hidden === !show) return;
+    bar.hidden = !show;
+    document.body.classList.toggle("has-buy-bar", show);
+  };
+  window.addEventListener("scroll", () => {
+    if (!queued) window.requestAnimationFrame(update);
+    queued = true;
+  }, { passive: true });
+}
+
+// Product details for search engines, so the listing can appear with its price in results worldwide.
+function renderStructuredData(product) {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: String(product.description || "").slice(0, 500),
+    image: product.media.filter((item) => item.type === "image").map((item) => new URL(item.url, window.location.href).href).slice(0, 6),
+    sku: product.id,
+    category: product.category,
+    ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
+    offers: {
+      "@type": "Offer",
+      url: `${window.location.origin}/product.html?id=${encodeURIComponent(product.id)}`,
+      priceCurrency: "USD",
+      price: Number(product.price).toFixed(2),
+      availability: "https://schema.org/InStock",
+      itemCondition: "https://schema.org/NewCondition",
+    },
+  };
+  const script = document.createElement("script");
+  script.type = "application/ld+json";
+  script.textContent = JSON.stringify(data).replace(/</g, "\\u003c");
+  document.head.append(script);
+  const description = document.querySelector('meta[name="description"]') || document.head.appendChild(Object.assign(document.createElement("meta"), { name: "description" }));
+  description.content = `${product.name} – ${formatPrice(product.price)} on Lyrshop. Ships worldwide.`;
 }
 
 function bindSearch(products) {
@@ -530,6 +907,23 @@ async function initProductDetail() {
   renderProduct(product);
   bindActions(product);
   bindZoom();
+  bindGalleryControls();
+  bindSizeGuide(product);
+  bindShare(product);
+  bindBuyBar(product);
+  renderAskLyrbot(product);
+  renderSimilar(product, products);
+  renderShippingEstimate(product);
+  renderStructuredData(product);
+  startPresence(product);
+  // The shopper's country arrives from /locale after the first render; sizes, shipping and prices follow it.
+  LyrLocale.onChange(() => {
+    renderOptions(product);
+    renderMeasurements(product);
+    renderAskLyrbot(product);
+    renderSimilar(product, products);
+    renderShippingEstimate(product);
+  });
   recordRecentlyViewed(product.id);
 }
 

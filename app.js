@@ -594,7 +594,7 @@ function renderProductCards(products) {
     const watched = isWatched(product.id);
     return `
       <article class="product-card" data-product-id="${escapeHtml(product.id)}" style="--i: ${Math.min(index, 12)}">
-        <a class="card-image product-card-link" href="${productUrl}" aria-label="View ${escapeHtml(product.name)}">
+        <a class="card-image product-card-link" href="${productUrl}" aria-label="View ${escapeHtml(product.name)}" data-photos="${escapeHtml(JSON.stringify(cardPhotos(product)))}">
           <img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy" />
           ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ""}
         </a>
@@ -727,6 +727,50 @@ function renderAccountState() {
 
   accountLink.textContent = "Sign in";
   accountLink.href = "auth.html";
+}
+
+// ── Card photo preview ───────────────────────────────────────────────────────────
+// Hovering a listing card with a mouse cycles through its first few photos; leaving it shows the main photo again.
+
+const CARD_PHOTO_LIMIT = 5;
+const CARD_PHOTO_MS = 1100;
+let cardSlide = null;
+
+function cardPhotos(product) {
+  const photos = (Array.isArray(product.media) ? product.media : []).filter((item) => item?.type === "image" && item.url).map((item) => item.url);
+  return [...new Set([product.image_url, ...photos].filter(Boolean))].slice(0, CARD_PHOTO_LIMIT);
+}
+
+function stopCardSlide() {
+  if (!cardSlide) return;
+  window.clearInterval(cardSlide.timer);
+  cardSlide.image.src = cardSlide.photos[0];
+  cardSlide = null;
+}
+
+if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  productList.addEventListener("pointerover", (event) => {
+    if (event.pointerType !== "mouse") return;
+    const link = event.target.closest(".card-image[data-photos]");
+    if (!link || cardSlide?.link === link) return;
+    stopCardSlide();
+    let photos = [];
+    try { photos = JSON.parse(link.dataset.photos); } catch { return; }
+    const image = link.querySelector("img");
+    if (photos.length < 2 || !image) return;
+    photos.slice(1).forEach((url) => { new Image().src = url; });
+    let index = 0;
+    cardSlide = {
+      link, image, photos,
+      timer: window.setInterval(() => {
+        index = (index + 1) % photos.length;
+        image.src = photos[index];
+      }, CARD_PHOTO_MS),
+    };
+  });
+  productList.addEventListener("pointerout", (event) => {
+    if (cardSlide && !cardSlide.link.contains(event.relatedTarget)) stopCardSlide();
+  });
 }
 
 productList.addEventListener("click", (event) => {
