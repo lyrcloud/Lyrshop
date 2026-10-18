@@ -7312,3 +7312,111 @@ iframe.skiptranslate,
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ── CJ Dropshipping (admin) ── */
+.cj-lookup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.cj-lookup label {
+  flex: 1 1 320px;
+}
+
+.cj-product {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.cj-product h4 {
+  margin: 1rem 0 0.25rem;
+}
+
+.cj-product-head {
+  display: flex;
+  gap: 1rem;
+  align-items: start;
+}
+
+.cj-product-head img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.cj-product-head h3,
+.cj-product-head p {
+  margin: 0 0 0.25rem;
+}
+
+.cj-product-head p,
+.cj-hint {
+  color: var(--ink-soft);
+}
+
+.cj-hint {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.cj-warehouses {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.cj-warehouses small {
+  display: block;
+  color: var(--ink-soft);
+}
+
+.cj-link-rows,
+.cj-address-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 1rem;
+}
+
+.cj-quote {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.cj-quote input[type="number"] {
+  display: block;
+  width: 6rem;
+}
+
+#cj-link-save {
+  justify-self: start;
+}
+
+.order-cj {
+  grid-column: 1 / -1;
+}
+
+.order-cj:empty {
+  display: none;
+}
+
+.cj-address {
+  margin: 0.5rem 0;
+}
+
+.cj-send {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.cj-send button {
+  justify-self: start;
+}

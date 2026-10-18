@@ -421,7 +421,7 @@ async function uploadPhoto(file) {
   if (file.size > PHOTO_MAX_BYTES) throw new Error("Photos must be 10 MB or smaller.");
   const signRes = await fetch(`${MY_API_BASE_URL}/media/upload-url`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser().token}` },
     body: JSON.stringify({ content_type: file.type, filename: file.name }),
   });
   const sign = await signRes.json().catch(() => ({}));

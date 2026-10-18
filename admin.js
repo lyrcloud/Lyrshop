@@ -126,6 +126,12 @@ function readSession() {
   return getCurrentUser();
 }
 
+// Product changes are checked against the signed-in account on the server, so send its session token.
+function sessionHeaders() {
+  const token = getCurrentUser()?.token;
+  return { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
+
 function requireUser() {
   const session = readSession();
   if (!session) {
@@ -802,7 +808,7 @@ async function submitProduct(event) {
     const method = editId ? "PUT" : "POST";
     const res = await fetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: sessionHeaders(),
       body: JSON.stringify(product),
     });
 
@@ -825,8 +831,7 @@ async function deleteProduct(productId, session) {
   try {
     const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requester_email: session.email }),
+      headers: sessionHeaders(),
     });
 
     if (isApiSuccess(res)) {
@@ -1116,6 +1121,7 @@ function openOrder(order) {
     <p>Customer chose ${escapeHtml([order.shipping_carrier, order.shipping_service || order.shipping_method].filter(Boolean).join(" ") || "—")}
       (${escapeHtml(order.shipping_estimate || "no estimate")})</p>
   `;
+  renderOrderCj(order);
   orderPaymentStatus.value = order.payment_status || "pending";
   orderFulfillmentStatus.value = getFulfillmentStatus(order);
   orderCarrier.value = order.shipping_carrier || "";
@@ -1187,6 +1193,323 @@ function handleOrderTableClick(event) {
   if (!order) return;
   if (button.dataset.orderAction === "delete") deleteOrder(order);
   else openOrder(order);
+}
+
+// ── CJ Dropshipping ────────────────────────────────────────────────────────────
+
+const cjLookupForm = document.getElementById("cj-lookup-form");
+const cjPidInput = document.getElementById("cj-pid");
+const cjLookupSubmit = document.getElementById("cj-lookup-submit");
+const cjMessage = document.getElementById("cj-message");
+const cjProductPanel = document.getElementById("cj-product");
+const orderCjPanel = document.getElementById("order-cj");
+const CJ_FROM_COUNTRIES = ["CN", "US", "MX", "CA", "GB", "DE", "FR", "AU", "ES", "JP"];
+let cjProduct = null;
+
+// Accepts a bare product ID or a cjdropshipping.com product link (".../name-p-<pid>.html").
+function parseCjPid(text) {
+  const value = text.trim();
+  const match = value.match(/-p-([A-Za-z0-9-]+)\.html/);
+  return match ? match[1] : value;
+}
+
+function countrySelect(id, selected, codes) {
+  const options = codes
+    ? codes.map((code) => ({ code, name: code }))
+    : LyrLocale.countryOptions();
+  return `<select id="${id}">${options.map(({ code, name }) =>
+    `<option value="${code}"${code === selected ? " selected" : ""}>${escapeHtml(name)}</option>`).join("")}</select>`;
+}
+
+// The labels the cart gives each choice, e.g. "Color: Red · Size: M"; one blank label for a product without options.
+function lyrshopVariantLabels(product) {
+  return (product.options || []).reduce((labels, option) => labels.flatMap((label) =>
+    option.values.map((value) => [label, `${option.name}: ${value}`].filter(Boolean).join(" · "))), [""]);
+}
+
+function cjStockText(rows) {
+  return (rows || []).map((row) => `${row.country} ${Number(row.total).toLocaleString()}`).join(" · ") || "—";
+}
+
+function renderCjProduct() {
+  const { product, inventory } = cjProduct;
+  const variantOptions = product.variants.map((variant) =>
+    `<option value="${escapeHtml(variant.vid)}">${escapeHtml(variant.label || variant.sku)} · ${formatMoney(variant.price)}</option>`).join("");
+  const linkable = adminProducts.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  cjProductPanel.innerHTML = `
+    <div class="cj-product-head">
+      ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" />` : ""}
+      <div>
+        <h3>${escapeHtml(product.name || "CJ product")}</h3>
+        <p>SKU ${escapeHtml(product.sku || "—")} · cost ${escapeHtml(product.sell_price || "—")} USD · ${Number(inventory.total).toLocaleString()} in stock</p>
+        <p><code>${escapeHtml(product.pid)}</code></p>
+      </div>
+    </div>
+    <h4>Variants</h4>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead><tr><th>Variant</th><th>SKU</th><th>Cost</th><th>Weight</th><th>Stock by country</th></tr></thead>
+        <tbody>${product.variants.map((variant) => `<tr>
+          <td>${escapeHtml(variant.label || "—")}</td>
+          <td><code>${escapeHtml(variant.sku || "")}</code></td>
+          <td>${formatMoney(variant.price)}</td>
+          <td>${variant.weight_g ? `${Math.round(variant.weight_g)} g` : "—"}</td>
+          <td>${escapeHtml(cjStockText(inventory.variants[variant.vid]))}</td>
+        </tr>`).join("")}</tbody>
+      </table>
+    </div>
+    <h4>Warehouses</h4>
+    <ul class="cj-warehouses">${inventory.warehouses.map((warehouse) => `<li>
+      <strong>${escapeHtml(warehouse.area || warehouse.country)}</strong> ${Number(warehouse.total).toLocaleString()}
+      (CJ ${Number(warehouse.cj).toLocaleString()}, factory ${Number(warehouse.factory).toLocaleString()})
+      ${warehouse.sub_warehouses.length ? `<small>${warehouse.sub_warehouses.length} sub-warehouse${warehouse.sub_warehouses.length === 1 ? "" : "s"}:
+        ${warehouse.sub_warehouses.map((sub) => `${Number(sub.inventory + sub.factory_inventory).toLocaleString()}`).join(", ")}</small>` : ""}
+    </li>`).join("") || "<li>No stock listed.</li>"}</ul>
+
+    <h4>Link to a Lyrshop listing</h4>
+    <p class="cj-hint">Orders for the linked listing can then be sent to CJ. Pick which CJ variant ships for each of its options.</p>
+    <label>Lyrshop listing
+      <select id="cj-link-product">
+        <option value="">Choose a listing…</option>
+        ${linkable.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}${item.cj ? " (linked)" : ""}</option>`).join("")}
+      </select>
+    </label>
+    <div id="cj-link-rows" class="cj-link-rows"></div>
+    <button type="button" id="cj-link-save" class="button button-primary" hidden>Save link</button>
+
+    <h4>Shipping quote</h4>
+    <div class="cj-quote">
+      <label>Variant <select id="cj-quote-variant">${variantOptions}</select></label>
+      <label>Quantity <input type="number" id="cj-quote-qty" min="1" value="1" /></label>
+      <label>Ship from ${countrySelect("cj-quote-from", "CN", CJ_FROM_COUNTRIES)}</label>
+      <label>Ship to ${countrySelect("cj-quote-to", "US")}</label>
+      <button type="button" id="cj-quote-submit" class="button button-secondary">Get rates</button>
+    </div>
+    <div id="cj-quote-results"></div>
+  `;
+  cjProductPanel.hidden = false;
+}
+
+function renderCjLinkRows() {
+  const rows = document.getElementById("cj-link-rows");
+  const saveButton = document.getElementById("cj-link-save");
+  const listing = adminProducts.find((item) => item.id === document.getElementById("cj-link-product").value);
+  saveButton.hidden = !listing;
+  if (!listing) {
+    rows.innerHTML = "";
+    return;
+  }
+  const current = listing.cj?.pid === cjProduct.product.pid || !listing.cj?.pid ? listing.cj || {} : {};
+  rows.innerHTML = lyrshopVariantLabels(listing).map((label) => {
+    const chosen = (label ? current.variants?.[label] : null) || current.vid || "";
+    return `<label>${escapeHtml(label || "Ships as")}
+      <select data-cj-label="${escapeHtml(label)}">
+        <option value="">Not linked</option>
+        ${cjProduct.product.variants.map((variant) => `<option value="${escapeHtml(variant.vid)}"${variant.vid === chosen ? " selected" : ""}>
+          ${escapeHtml(variant.label || variant.sku)}</option>`).join("")}
+      </select>
+    </label>`;
+  }).join("");
+  if (listing.cj?.pid && listing.cj.pid !== cjProduct.product.pid) {
+    rows.insertAdjacentHTML("afterbegin", `<p class="cj-hint">This listing is linked to another CJ product; saving replaces that link.</p>`);
+  }
+}
+
+async function saveCjLink() {
+  const listing = adminProducts.find((item) => item.id === document.getElementById("cj-link-product").value);
+  if (!listing) return;
+  const link = { pid: cjProduct.product.pid, variants: {} };
+  document.querySelectorAll("#cj-link-rows [data-cj-label]").forEach((select) => {
+    if (!select.value) return;
+    if (select.dataset.cjLabel) link.variants[select.dataset.cjLabel] = select.value;
+    else link.vid = select.value;
+  });
+  if (!link.vid && !Object.keys(link.variants).length) {
+    showMessage(cjMessage, "Pick at least one CJ variant to link.", true);
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(listing.id)}`, {
+      method: "PUT",
+      headers: sessionHeaders(),
+      body: JSON.stringify({ cj: link }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!isApiSuccess(res)) throw new Error(json.message || "Couldn't save the link.");
+    listing.cj = json.product?.cj || link;
+    showMessage(cjMessage, `${listing.name} is linked to CJ.`);
+    renderCjLinkRows();
+  } catch (error) {
+    showMessage(cjMessage, error.message, true);
+  }
+}
+
+async function quoteCjShipping() {
+  const results = document.getElementById("cj-quote-results");
+  results.innerHTML = "<p>Getting rates…</p>";
+  try {
+    const { options } = await authApi("/cj/freight", {
+      method: "POST",
+      body: {
+        from_country: document.getElementById("cj-quote-from").value,
+        to_country: document.getElementById("cj-quote-to").value,
+        items: [{ vid: document.getElementById("cj-quote-variant").value, quantity: Number(document.getElementById("cj-quote-qty").value) || 1 }],
+      },
+    });
+    results.innerHTML = options.length
+      ? `<table class="admin-table"><thead><tr><th>Method</th><th>Cost</th><th>Days</th></tr></thead><tbody>
+          ${options.map((option) => `<tr><td>${escapeHtml(option.name)}</td><td>${formatMoney(option.total ?? option.price)}</td><td>${escapeHtml(option.days || "—")}</td></tr>`).join("")}
+        </tbody></table>`
+      : "<p>CJ has no shipping method for that route.</p>";
+  } catch (error) {
+    results.innerHTML = `<p class="admin-message is-error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+async function lookupCjProduct(event) {
+  event.preventDefault();
+  const pid = parseCjPid(cjPidInput.value);
+  if (!pid) return;
+  cjLookupSubmit.disabled = true;
+  showMessage(cjMessage, "Looking up…");
+  try {
+    cjProduct = await authApi(`/cj/products/${encodeURIComponent(pid)}`);
+    renderCjProduct();
+    showMessage(cjMessage, "");
+  } catch (error) {
+    cjProductPanel.hidden = true;
+    showMessage(cjMessage, error.message, true);
+  } finally {
+    cjLookupSubmit.disabled = false;
+  }
+}
+
+function initCjPanel() {
+  cjLookupForm.addEventListener("submit", lookupCjProduct);
+  cjProductPanel.addEventListener("change", (event) => {
+    if (event.target.id === "cj-link-product") renderCjLinkRows();
+  });
+  cjProductPanel.addEventListener("click", (event) => {
+    if (event.target.id === "cj-link-save") saveCjLink();
+    if (event.target.id === "cj-quote-submit") quoteCjShipping();
+  });
+  orderCjPanel.addEventListener("click", handleOrderCjClick);
+}
+
+// ── CJ on an order ──
+
+const CJ_ADDRESS_FIELDS = [
+  ["name", "Name"], ["address", "Address"], ["address2", "Address line 2"], ["city", "City"],
+  ["province", "State / province"], ["zip", "ZIP / postal code"], ["country_code", "Country code"], ["phone", "Phone"],
+];
+
+function cjVariantFor(item) {
+  const link = adminProducts.find((product) => product.id === item.id)?.cj;
+  return link && ((link.variants || {})[item.variant || ""] || link.vid);
+}
+
+function formatAddress(address) {
+  if (!address) return "";
+  return [address.name, address.address, address.address2,
+    [address.city, address.province, address.zip].filter(Boolean).join(", "), address.country_code, address.phone]
+    .filter(Boolean).map(escapeHtml).join("<br />");
+}
+
+function renderOrderCj(order) {
+  const address = order.shipping_address;
+  const addressBlock = address ? `<p class="cj-address"><strong>Ship to</strong><br />${formatAddress(address)}</p>` : "";
+  if (order.cj_order_id) {
+    orderCjPanel.innerHTML = `${addressBlock}
+      <p><strong>CJ Dropshipping</strong> · order <code>${escapeHtml(order.cj_order_id)}</code> · ${escapeHtml(order.cj_status || "status unknown")}
+      ${order.cj_logistic_name ? ` · ${escapeHtml(order.cj_logistic_name)}` : ""}</p>
+      <p class="cj-hint">Pay for it in your CJ dashboard so CJ ships it. Syncing copies CJ's status and tracking number here.</p>
+      <button type="button" class="button button-secondary" data-cj-action="sync">Sync from CJ</button>`;
+    return;
+  }
+  const units = order.items || [];
+  const unlinked = [...new Set(units.filter((item) => !cjVariantFor(item)).map((item) => item.name))];
+  const linkedCount = units.length - units.filter((item) => !cjVariantFor(item)).length;
+  if (!linkedCount) {
+    orderCjPanel.innerHTML = addressBlock;
+    return;
+  }
+  if (order.payment_status !== "paid") {
+    orderCjPanel.innerHTML = `${addressBlock}<p class="cj-hint">CJ: this order can be sent for fulfillment once it's paid.</p>`;
+    return;
+  }
+  if (unlinked.length) {
+    orderCjPanel.innerHTML = `${addressBlock}<p class="cj-hint">CJ: link ${unlinked.map(escapeHtml).join(", ")} in the CJ Dropshipping tab before sending this order.</p>`;
+    return;
+  }
+  orderCjPanel.innerHTML = `${addressBlock}
+    <fieldset class="cj-send">
+      <legend>Send to CJ Dropshipping</legend>
+      ${address ? "" : `<p class="cj-hint">No address was saved from checkout. Enter where it ships:</p>
+        <div class="cj-address-fields">${CJ_ADDRESS_FIELDS.map(([field, label]) =>
+          `<label>${label}<input type="text" data-cj-address="${field}" value="${escapeHtml(field === "country_code" ? order.shipping_country || "" : field === "zip" ? order.shipping_zip || "" : "")}" /></label>`).join("")}</div>`}
+      <label>Ship from ${countrySelect("order-cj-from", "CN", CJ_FROM_COUNTRIES)}</label>
+      <button type="button" class="button button-secondary" data-cj-action="rates">Get CJ shipping methods</button>
+      <label>Shipping method <select id="order-cj-method" disabled><option value="">Get methods first</option></select></label>
+      <button type="button" class="button button-primary" data-cj-action="send" disabled>Send to CJ</button>
+      <p class="cj-hint">This creates the order in CJ without paying for it. You pay in the CJ dashboard.</p>
+    </fieldset>`;
+}
+
+function readCjAddress() {
+  const fields = orderCjPanel.querySelectorAll("[data-cj-address]");
+  if (!fields.length) return undefined;
+  return Object.fromEntries([...fields].map((input) => [input.dataset.cjAddress, input.value.trim()]));
+}
+
+async function handleOrderCjClick(event) {
+  const button = event.target.closest("[data-cj-action]");
+  if (!button) return;
+  const order = adminOrders.find((item) => item.id === orderEditId.value);
+  if (!order) return;
+  const action = button.dataset.cjAction;
+  button.disabled = true;
+  try {
+    if (action === "rates") {
+      const quantities = {};
+      (order.items || []).forEach((item) => {
+        const vid = cjVariantFor(item);
+        quantities[vid] = (quantities[vid] || 0) + 1;
+      });
+      const toCountry = readCjAddress()?.country_code || order.shipping_address?.country_code || order.shipping_country;
+      const { options } = await authApi("/cj/freight", {
+        method: "POST",
+        body: {
+          from_country: document.getElementById("order-cj-from").value,
+          to_country: toCountry,
+          zip: order.shipping_address?.zip || order.shipping_zip || "",
+          items: Object.entries(quantities).map(([vid, quantity]) => ({ vid, quantity })),
+        },
+      });
+      const select = document.getElementById("order-cj-method");
+      select.innerHTML = options.length
+        ? options.map((option) => `<option value="${escapeHtml(option.name)}">${escapeHtml(option.name)} · ${formatMoney(option.total ?? option.price)} · ${escapeHtml(option.days || "?")} days</option>`).join("")
+        : `<option value="">No CJ method ships there</option>`;
+      select.disabled = !options.length;
+      orderCjPanel.querySelector("[data-cj-action='send']").disabled = !options.length;
+      return;
+    }
+    if (action === "send" && !confirm(`Create order ${shortOrderId(order.id)} in CJ? You'll still need to pay for it in CJ before it ships.`)) return;
+    const path = `/orders/${encodeURIComponent(order.id)}/cj${action === "sync" ? "/sync" : ""}`;
+    const body = action === "sync" ? {} : {
+      logistic_name: document.getElementById("order-cj-method").value,
+      from_country: document.getElementById("order-cj-from").value,
+      address: readCjAddress(),
+    };
+    const { order: updated } = await authApi(path, { method: "POST", body });
+    adminOrders = adminOrders.map((existing) => (existing.id === updated.id ? updated : existing));
+    renderOrders();
+    openOrder(updated);
+    showMessage(orderMessage, action === "sync" ? "Synced from CJ." : `Sent to CJ as ${updated.cj_order_id}. Pay for it in CJ to ship.`);
+  } catch (error) {
+    showMessage(orderMessage, error.message, true);
+  } finally {
+    if (button.isConnected) button.disabled = false;
+  }
 }
 
 // ── Category management ────────────────────────────────────────────────────────
@@ -1780,7 +2103,7 @@ async function uploadImage(blob, filename, { allowVideo = false } = {}) {
 
   const signRes = await fetch(`${API_BASE_URL}/media/upload-url`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: sessionHeaders(),
     body: JSON.stringify({ content_type: blob.type, filename }),
   });
   const sign = await signRes.json().catch(() => ({}));
@@ -2139,6 +2462,7 @@ async function initAdminPage() {
   loadCurrentProducts(session);
 
   if (isAdmin) {
+    initCjPanel();
     loadOrders();
     loadUsers();
     renderCategories();
