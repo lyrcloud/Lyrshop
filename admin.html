@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261018-1" />
+  <link rel="stylesheet" href="styles.css?v=20261018-2" />
 </head>
 <body>
   <header class="page-header">
@@ -372,6 +372,11 @@
             <option value="admin">Admin</option>
           </select>
         </label>
+        <label id="user-countries-field" hidden>
+          Countries managed
+          <input type="text" id="user-countries" placeholder="e.g. KE, UG · blank = every country" />
+          <small class="field-hint">A regional admin sees and edits only the products, CJ imports and orders of these countries.</small>
+        </label>
         <div class="admin-form-actions">
           <button type="submit" id="user-submit" class="button button-primary">Create user</button>
           <button type="button" id="user-cancel" class="button button-secondary">Cancel edit</button>
@@ -611,8 +616,61 @@
     <section class="admin-panel admin-section admin-only" id="admin-suppliers-section">
       <div class="panel-header">
         <h2>CJ Dropshipping</h2>
-        <p>Look up a CJ product, link its variants to a Lyrshop listing, and check stock and shipping. Paid orders are sent to CJ from the Orders tab.</p>
+        <p>Import CJ's trending products for each country, look up a CJ product, link its variants to a Lyrshop listing, and check stock and shipping. Paid orders are sent to CJ from the Orders tab.</p>
       </div>
+
+      <h3>Automatic imports</h3>
+      <p class="cj-hint" id="cj-import-intro">Every day at 06:00 UTC, CJ's trending products for each country below are imported and published. Products stocked in a CJ warehouse in that country come first and ship from there; the rest ship from the CJ warehouse that stocks them, usually in China.</p>
+      <form id="cj-import-settings" class="admin-crud-form cj-import-settings">
+        <label class="wide-field">
+          Countries
+          <input type="text" id="cj-import-countries" placeholder="e.g. US, GB, KE" />
+          <small class="field-hint" id="cj-import-country-names"></small>
+        </label>
+        <label>
+          Products per country a day
+          <input type="number" id="cj-import-per-country" min="1" max="50" step="1" />
+        </label>
+        <label>
+          Price (× CJ cost)
+          <input type="number" id="cj-import-markup" min="1.2" max="10" step="0.1" />
+          <small class="field-hint">Prices end in .99, e.g. $4.21 × 2.5 → $10.99.</small>
+        </label>
+        <label class="regional-pricing-field">
+          <input type="checkbox" id="cj-import-enabled" />
+          <span>Import every day</span>
+        </label>
+        <div class="admin-form-actions">
+          <button type="submit" id="cj-import-save" class="button button-secondary">Save settings</button>
+        </div>
+      </form>
+      <div class="cj-import-run">
+        <button type="button" id="cj-import-run" class="button button-primary">Import now</button>
+        <span id="cj-import-running" class="cj-hint"></span>
+      </div>
+      <div id="cj-import-message" class="admin-message"></div>
+      <div id="cj-import-last" class="cj-import-last"></div>
+
+      <h3>Imported products</h3>
+      <div class="cj-imported-filters">
+        <input type="search" id="cj-imported-search" placeholder="Search imported products" aria-label="Search imported products" />
+        <select id="cj-imported-country" aria-label="Country"></select>
+        <select id="cj-imported-status" aria-label="Status">
+          <option value="">Any status</option>
+          <option value="published">Published</option>
+          <option value="draft">Unpublished</option>
+        </select>
+        <span id="cj-imported-count" class="cj-hint"></span>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table cj-imported-table">
+          <thead><tr><th></th><th>Product</th><th>For</th><th>Price</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="cj-imported-body"></tbody>
+        </table>
+      </div>
+      <button type="button" id="cj-imported-more" class="button button-secondary" hidden>Show more</button>
+
+      <h3>Look up a CJ product</h3>
       <form id="cj-lookup-form" class="cj-lookup">
         <label>
           CJ product ID or link
@@ -672,7 +730,7 @@
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261015-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261017-1"></script>
+  <script src="admin.js?v=20261018-1"></script>
   <script src="footer.js?v=20261014-2"></script>
   <script src="lyrbot.js?v=20261012-1"></script>
 </body>

@@ -44,12 +44,14 @@ let searchBox = null;
 
 // Products uploaded before upload times were recorded have no created_at and sort after newer ones.
 const byNewest = (a, b) => b.created_at - a.created_at;
+// Trending products picked for the shopper's country rank with items from that country, even when they ship from abroad.
+const localRank = (product) => Math.max(product.nearby, product.market_pick ? 3 : 0);
 
 const SORTS = {
   // Like a local marketplace: nearest first, then the prices that suit the shopper's country, then newest.
-  nearby: { label: "Best for your location", compare: (a, b) => b.nearby - a.nearby || b.price_fit - a.price_fit || byNewest(a, b) },
+  nearby: { label: "Best for your location", compare: (a, b) => localRank(b) - localRank(a) || b.price_fit - a.price_fit || byNewest(a, b) },
   latest: { label: "Latest uploads", compare: byNewest },
-  trending: { label: "Trending", compare: (a, b) => b.trending - a.trending || byNewest(a, b) },
+  trending: { label: "Trending", compare: (a, b) => b.trending - a.trending || b.market_pick - a.market_pick || byNewest(a, b) },
   featured: { label: "Featured", compare: null },
   "price-asc": { label: "Price: low to high", compare: (a, b) => a.price - b.price },
   "price-desc": { label: "Price: high to low", compare: (a, b) => b.price - a.price },
@@ -693,6 +695,8 @@ async function loadProducts() {
           // How near the item is (0 abroad … 4 same city) and how well its price suits the shopper's country.
           nearby: Number(p.nearby) || 0,
           price_fit: Number(p.price_fit) || 0,
+          // Picked for the shopper's country from CJ's trending products there.
+          market_pick: p.market_pick ? 1 : 0,
           image_url: p.image_url || PLACEHOLDER_IMAGE_URL,
         };
       })

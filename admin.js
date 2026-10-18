@@ -209,19 +209,36 @@ function renderPreview() {
   `;
 }
 
+// Mirrors auth_core: a regional admin manages the listings of their countries; other staff manage every listing.
+function adminScope(session = readSession()) {
+  return session?.role === "admin" && session.admin_countries?.length ? session.admin_countries : null;
+}
+
+function productCountries(product) {
+  return [product.location?.country || "US", ...(product.markets || [])];
+}
+
 function canEditProduct(product, session) {
-  return isStaffRole(session.role) || (product.seller_email && product.seller_email.toLowerCase() === String(session.email || "").toLowerCase());
+  const scope = adminScope(session);
+  return (isStaffRole(session.role) && (!scope || productCountries(product).some((country) => scope.includes(country))))
+    || Boolean(product.seller_email && product.seller_email.toLowerCase() === String(session.email || "").toLowerCase());
 }
 
 const ADMIN_PRODUCT_PAGE_SIZE = 48;
 let adminProducts = [];
 let adminProductLimit = ADMIN_PRODUCT_PAGE_SIZE;
 
+// Regional admins see only the listings they manage; everyone else sees what the server sent.
+function managedProducts() {
+  const session = readSession();
+  return adminScope(session) ? adminProducts.filter((product) => canEditProduct(product, session)) : adminProducts;
+}
+
 function getVisibleAdminProducts() {
   const query = productFilterSearch.value.trim().toLowerCase();
   const status = productFilterStatus.value;
   const category = productFilterCategory.value;
-  return adminProducts.filter((product) => {
+  return managedProducts().filter((product) => {
     if (status && (product.status || "published") !== status) return false;
     if (category && product.category !== category) return false;
     if (!query) return true;
@@ -232,12 +249,13 @@ function getVisibleAdminProducts() {
 
 function renderProducts(session) {
   currentProducts.innerHTML = "";
-  const draftCount = adminProducts.filter((product) => product.status === "draft").length;
+  const managed = managedProducts();
+  const draftCount = managed.filter((product) => product.status === "draft").length;
   const visible = getVisibleAdminProducts();
-  productFilterCount.textContent = `${visible.length} of ${adminProducts.length} listings · ${draftCount} drafts`;
+  productFilterCount.textContent = `${visible.length} of ${managed.length} listings · ${draftCount} drafts`;
 
   if (!visible.length) {
-    currentProducts.innerHTML = adminProducts.length
+    currentProducts.innerHTML = managed.length
       ? "<p>No listings match these filters.</p>"
       : "<p>No products yet. Use the form above to add your first listing.</p>";
     productShowMore.hidden = true;
@@ -294,12 +312,14 @@ async function loadCurrentProducts(session) {
     ? `${API_BASE_URL}/products?include_drafts=1`
     : `${API_BASE_URL}/products?include_drafts=1&seller=${encodeURIComponent(session.email)}`;
   try {
-    const res = await fetch(url);
+    // The token lets staff see each listing's CJ link and cost, which shoppers don't get.
+    const res = await fetch(url, { headers: sessionHeaders() });
     const json = await res.json();
     adminProducts = json.products || [];
     renderProductFilterCategories();
     renderProducts(session);
     renderBrandOptions(adminProducts);
+    if (isStaffRole(session.role)) renderCjImported();
   } catch {
     currentProducts.innerHTML = "<p>Unable to load products. Make sure the backend is running.</p>";
   }
@@ -876,7 +896,17 @@ function resetUserForm() {
   userSubmit.textContent = "Create user";
   userRole.value = "user";
   userRole.disabled = false;
+  userCountries.value = "";
+  syncUserCountriesField();
   showMessage(userMessage, "");
+}
+
+const userCountries = document.getElementById("user-countries");
+const userCountriesField = document.getElementById("user-countries-field");
+
+// Only admins have countries to manage.
+function syncUserCountriesField() {
+  userCountriesField.hidden = !isSuperAdmin() || userRole.value !== "admin";
 }
 
 const ROLE_LABELS = { superadmin: "Super admin", admin: "Admin", user: "User" };
@@ -922,7 +952,8 @@ function renderUsers() {
       <tr>
         <td>${escapeHtml(user.name)}</td>
         <td>${escapeHtml(user.email || user.phone)}</td>
-        <td><span class="status-badge role-${escapeHtml(user.role)}">${escapeHtml(ROLE_LABELS[user.role] || user.role)}</span></td>
+        <td><span class="status-badge role-${escapeHtml(user.role)}">${escapeHtml(ROLE_LABELS[user.role] || user.role)}</span>
+          ${user.role === "admin" ? `<small>${escapeHtml(user.admin_countries?.length ? user.admin_countries.join(", ") : "All countries")}</small>` : ""}</td>
         <td>${escapeHtml(user.provider || "Email")}</td>
         <td>${user.created_at ? new Date(user.created_at * 1000).toLocaleDateString() : ""}</td>
         <td>
@@ -945,7 +976,10 @@ async function saveUser(event) {
   const body = { name: userName.value.trim() };
   if (userPassword.value) body.password = userPassword.value;
   const editing = editIndex >= 0 ? adminUsers[editIndex] : null;
-  if (isSuperAdmin() && editing?.role !== "superadmin") body.role = userRole.value;
+  if (isSuperAdmin() && editing?.role !== "superadmin") {
+    body.role = userRole.value;
+    if (userRole.value === "admin") body.admin_countries = userCountries.value;
+  }
   userSubmit.disabled = true;
   try {
     let done;
@@ -995,6 +1029,8 @@ async function handleUserTableClick(event) {
     userEditIndex.value = button.dataset.index;
     userRole.value = user.role === "admin" ? "admin" : "user";
     userRole.disabled = user.role === "superadmin";
+    userCountries.value = (user.admin_countries || []).join(", ");
+    syncUserCountriesField();
     userName.value = user.name || "";
     userEmail.value = user.email || user.phone || "";
     userEmail.disabled = true;
@@ -1394,6 +1430,211 @@ function initCjPanel() {
     if (event.target.id === "cj-quote-submit") quoteCjShipping();
   });
   orderCjPanel.addEventListener("click", handleOrderCjClick);
+  cjImportForm.addEventListener("submit", saveCjImportSettings);
+  cjImportCountries.addEventListener("input", showCjImportCountryNames);
+  cjImportRun.addEventListener("click", runCjImport);
+  [cjImportedSearch, cjImportedCountry, cjImportedStatus].forEach((input) => input.addEventListener("input", () => {
+    cjImportedLimit = CJ_IMPORTED_PAGE_SIZE;
+    renderCjImported();
+  }));
+  cjImportedMore.addEventListener("click", () => {
+    cjImportedLimit += CJ_IMPORTED_PAGE_SIZE;
+    renderCjImported();
+  });
+  cjImportedBody.addEventListener("click", handleCjImportedClick);
+  loadCjImports();
+}
+
+// ── CJ automatic imports ──
+
+const cjImportForm = document.getElementById("cj-import-settings");
+const cjImportCountries = document.getElementById("cj-import-countries");
+const cjImportCountryNames = document.getElementById("cj-import-country-names");
+const cjImportPerCountry = document.getElementById("cj-import-per-country");
+const cjImportMarkup = document.getElementById("cj-import-markup");
+const cjImportEnabled = document.getElementById("cj-import-enabled");
+const cjImportRun = document.getElementById("cj-import-run");
+const cjImportRunning = document.getElementById("cj-import-running");
+const cjImportMessage = document.getElementById("cj-import-message");
+const cjImportLast = document.getElementById("cj-import-last");
+const cjImportedSearch = document.getElementById("cj-imported-search");
+const cjImportedCountry = document.getElementById("cj-imported-country");
+const cjImportedStatus = document.getElementById("cj-imported-status");
+const cjImportedCount = document.getElementById("cj-imported-count");
+const cjImportedBody = document.getElementById("cj-imported-body");
+const cjImportedMore = document.getElementById("cj-imported-more");
+const CJ_IMPORTED_PAGE_SIZE = 50;
+const CJ_IMPORT_POLL_MS = 15000;
+let cjImportedLimit = CJ_IMPORTED_PAGE_SIZE;
+let cjImportState = null;
+let cjImportPoll = null;
+
+function countryList(codes) {
+  return (codes || []).map((code) => LyrLocale.countryName(code)).join(", ");
+}
+
+function showCjImportCountryNames() {
+  const codes = cjImportCountries.value.toUpperCase().split(/[\s,]+/).filter(Boolean);
+  cjImportCountryNames.textContent = codes.length ? countryList(codes) : "Two-letter codes, separated by commas.";
+}
+
+async function loadCjImports() {
+  try {
+    const wasRunning = cjImportState?.running;
+    cjImportState = await authApi("/cj/import");
+    renderCjImportState();
+    if (wasRunning && !cjImportState.running) {
+      showMessage(cjImportMessage, `Import finished: ${cjImportState.last_run?.imported ?? 0} new listings.`);
+      loadCurrentProducts(readSession());
+    }
+  } catch (error) {
+    showMessage(cjImportMessage, error.message, true);
+  }
+  clearTimeout(cjImportPoll);
+  if (cjImportState?.running) cjImportPoll = setTimeout(loadCjImports, CJ_IMPORT_POLL_MS);
+}
+
+function cjRunSummary(run) {
+  if (!run?.started_at) return "<p class=\"cj-hint\">No import has run yet.</p>";
+  const who = run.by === "schedule" ? "daily schedule" : run.by;
+  const rows = (run.countries || []).map((row) => `<li>
+    <strong>${escapeHtml(LyrLocale.countryName(row.country))}</strong>: ${row.imported} new
+    ${row.imported ? `(${row.local} ship from there, ${row.imported - row.local} from abroad)` : ""}
+    ${row.markets_added ? ` · ${row.markets_added} existing listing${row.markets_added === 1 ? "" : "s"} added` : ""}
+    ${row.errors?.length ? `<br /><small class="is-error">${row.errors.slice(0, 3).map(escapeHtml).join(" · ")}${row.errors.length > 3 ? ` · ${row.errors.length - 3} more` : ""}</small>` : ""}
+  </li>`).join("");
+  return `<p>Last import ${escapeHtml(formatOrderDate(run.started_at))} by ${escapeHtml(who)} · ${run.imported ?? 0} new listings</p><ul>${rows}</ul>`;
+}
+
+function renderCjImportState() {
+  const { settings, last_run: lastRun, running, can_edit: canEdit, scope } = cjImportState;
+  cjImportCountries.value = settings.countries.join(", ");
+  cjImportPerCountry.value = settings.per_country;
+  cjImportMarkup.value = settings.markup;
+  cjImportEnabled.checked = settings.enabled;
+  cjImportForm.querySelectorAll("input, button").forEach((input) => { input.disabled = !canEdit; });
+  document.getElementById("cj-import-save").hidden = !canEdit;
+  showCjImportCountryNames();
+  if (scope) {
+    document.getElementById("cj-import-intro").textContent =
+      `You manage ${countryList(scope)}. Import now adds CJ's trending products for your countries; only the super admin changes the daily settings.`;
+  }
+  cjImportRun.disabled = running;
+  cjImportRunning.textContent = running ? "Importing… this page updates when it's done." : "";
+  cjImportLast.innerHTML = cjRunSummary(lastRun);
+  const countries = scope || [...new Set([...settings.countries,
+    ...adminProducts.filter((product) => product.source === "cj").flatMap((product) => product.markets || [])])];
+  const selected = cjImportedCountry.value;
+  cjImportedCountry.innerHTML = `<option value="">${scope ? "All my countries" : "All countries"}</option>${countries
+    .map((code) => `<option value="${escapeHtml(code)}">${escapeHtml(LyrLocale.countryName(code))}</option>`).join("")}`;
+  cjImportedCountry.value = countries.includes(selected) ? selected : "";
+}
+
+async function saveCjImportSettings(event) {
+  event.preventDefault();
+  try {
+    cjImportState = await authApi("/cj/import", {
+      method: "PUT",
+      body: {
+        countries: cjImportCountries.value,
+        per_country: Number(cjImportPerCountry.value),
+        markup: Number(cjImportMarkup.value),
+        enabled: cjImportEnabled.checked,
+      },
+    });
+    renderCjImportState();
+    showMessage(cjImportMessage, "Import settings saved.");
+  } catch (error) {
+    showMessage(cjImportMessage, error.message, true);
+  }
+}
+
+async function runCjImport() {
+  cjImportRun.disabled = true;
+  try {
+    const { message: started } = await authApi("/cj/import/run", { method: "POST" });
+    showMessage(cjImportMessage, started);
+    cjImportState = { ...cjImportState, running: true };
+    renderCjImportState();
+    clearTimeout(cjImportPoll);
+    cjImportPoll = setTimeout(loadCjImports, CJ_IMPORT_POLL_MS);
+  } catch (error) {
+    cjImportRun.disabled = false;
+    showMessage(cjImportMessage, error.message, true);
+  }
+}
+
+function visibleCjImports() {
+  const session = readSession();
+  const query = cjImportedSearch.value.trim().toLowerCase();
+  const country = cjImportedCountry.value;
+  const status = cjImportedStatus.value;
+  return adminProducts
+    .filter((product) => product.source === "cj" && canEditProduct(product, session))
+    .filter((product) => !country || productCountries(product).includes(country))
+    .filter((product) => !status || (product.status || "published") === status)
+    .filter((product) => !query || String(product.name).toLowerCase().includes(query))
+    .sort((a, b) => (b.cj_imported_at || 0) - (a.cj_imported_at || 0));
+}
+
+function renderCjImported() {
+  const rows = visibleCjImports();
+  cjImportedCount.textContent = `${rows.length} imported`;
+  cjImportedBody.innerHTML = rows.slice(0, cjImportedLimit).map((product) => {
+    const published = (product.status || "published") === "published";
+    const shipsFrom = product.location?.country || "CN";
+    return `<tr>
+      <td><img class="cj-imported-thumb" src="${escapeHtml(product.image_url || "logo.svg")}" alt="" loading="lazy" /></td>
+      <td><strong>${escapeHtml(product.name)}</strong><br />
+        <small>Ships from ${escapeHtml(LyrLocale.countryName(shipsFrom))} · CJ <code>${escapeHtml(product.cj?.pid || "")}</code></small></td>
+      <td>${escapeHtml(countryList(product.markets))}</td>
+      <td>${formatMoney(product.price)}${product.cj_cost ? `<br /><small>cost ${formatMoney(product.cj_cost)}</small>` : ""}</td>
+      <td>${published ? "Published" : "Unpublished"}</td>
+      <td><div class="table-actions">
+        <button type="button" class="button button-secondary" data-cj-import-action="${published ? "unpublish" : "publish"}" data-product-id="${escapeHtml(product.id)}">${published ? "Unpublish" : "Publish"}</button>
+        <button type="button" class="button button-secondary" data-cj-import-action="edit" data-product-id="${escapeHtml(product.id)}">Edit</button>
+        <button type="button" class="button danger-button" data-cj-import-action="delete" data-product-id="${escapeHtml(product.id)}">Delete</button>
+      </div></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="6">${adminProducts.some((product) => product.source === "cj")
+    ? "No imported products match these filters." : "Nothing imported yet. Use Import now, or wait for the daily import."}</td></tr>`;
+  cjImportedMore.hidden = rows.length <= cjImportedLimit;
+}
+
+async function handleCjImportedClick(event) {
+  const button = event.target.closest("[data-cj-import-action]");
+  if (!button) return;
+  const product = adminProducts.find((item) => item.id === button.dataset.productId);
+  if (!product) return;
+  const action = button.dataset.cjImportAction;
+  if (action === "edit") {
+    document.querySelector("[data-admin-section='products']").click();
+    startEditProduct(product);
+    return;
+  }
+  if (action === "delete") {
+    // Deleted imports aren't imported again.
+    await deleteProduct(product.id, readSession());
+    return;
+  }
+  button.disabled = true;
+  try {
+    const status = action === "publish" ? "published" : "draft";
+    const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(product.id)}`, {
+      method: "PUT",
+      headers: sessionHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!isApiSuccess(res)) throw new Error(json.message || "Couldn't change the listing.");
+    product.status = status;
+    renderCjImported();
+    renderProducts(readSession());
+    showMessage(cjImportMessage, `${product.name} is ${status === "published" ? "published" : "hidden from the store"}.`);
+  } catch (error) {
+    button.disabled = false;
+    showMessage(cjImportMessage, error.message, true);
+  }
 }
 
 // ── CJ on an order ──
@@ -1437,6 +1678,8 @@ function renderOrderCj(order) {
     orderCjPanel.innerHTML = `${addressBlock}<p class="cj-hint">CJ: this order can be sent for fulfillment once it's paid.</p>`;
     return;
   }
+  // Imported listings remember the CJ warehouse they ship from.
+  const shipsFrom = units.map((item) => adminProducts.find((product) => product.id === item.id)?.cj?.from).find(Boolean) || "CN";
   if (unlinked.length) {
     orderCjPanel.innerHTML = `${addressBlock}<p class="cj-hint">CJ: link ${unlinked.map(escapeHtml).join(", ")} in the CJ Dropshipping tab before sending this order.</p>`;
     return;
@@ -1447,7 +1690,7 @@ function renderOrderCj(order) {
       ${address ? "" : `<p class="cj-hint">No address was saved from checkout. Enter where it ships:</p>
         <div class="cj-address-fields">${CJ_ADDRESS_FIELDS.map(([field, label]) =>
           `<label>${label}<input type="text" data-cj-address="${field}" value="${escapeHtml(field === "country_code" ? order.shipping_country || "" : field === "zip" ? order.shipping_zip || "" : "")}" /></label>`).join("")}</div>`}
-      <label>Ship from ${countrySelect("order-cj-from", "CN", CJ_FROM_COUNTRIES)}</label>
+      <label>Ship from ${countrySelect("order-cj-from", shipsFrom, [...new Set([shipsFrom, ...CJ_FROM_COUNTRIES])])}</label>
       <button type="button" class="button button-secondary" data-cj-action="rates">Get CJ shipping methods</button>
       <label>Shipping method <select id="order-cj-method" disabled><option value="">Get methods first</option></select></label>
       <button type="button" class="button button-primary" data-cj-action="send" disabled>Send to CJ</button>
@@ -2405,6 +2648,7 @@ orderTableBody.addEventListener("click", handleOrderTableClick);
 orderFilterSearch.addEventListener("input", renderOrders);
 [orderFilterPayment, orderFilterFulfillment].forEach((select) => select.addEventListener("change", renderOrders));
 userForm.addEventListener("submit", saveUser);
+userRole.addEventListener("change", syncUserCountriesField);
 userCancel.addEventListener("click", resetUserForm);
 userTableBody.addEventListener("click", handleUserTableClick);
 categoryForm.addEventListener("submit", saveCategory);
@@ -2462,6 +2706,7 @@ async function initAdminPage() {
   loadCurrentProducts(session);
 
   if (isAdmin) {
+    syncUserCountriesField();
     initCjPanel();
     loadOrders();
     loadUsers();

@@ -7335,9 +7335,53 @@ iframe.skiptranslate,
   margin: 1rem 0 0.25rem;
 }
 
-/* .button sets display, which would otherwise override the hidden attribute (e.g. Save link). */
-.cj-product [hidden] {
+/* .button and label rules set display, which would otherwise override the hidden attribute (e.g. Save link). */
+#admin-suppliers-section [hidden],
+#user-form [hidden] {
   display: none;
+}
+
+.cj-import-settings {
+  margin-bottom: 0.75rem;
+}
+
+.cj-import-run {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.cj-import-last ul {
+  margin: 0.25rem 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.cj-import-last .is-error {
+  color: #b91c1c;
+}
+
+.cj-imported-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cj-imported-filters input {
+  flex: 1 1 220px;
+}
+
+.cj-imported-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+#admin-suppliers-section > h3 {
+  margin: 1.5rem 0 0.5rem;
 }
 
 .cj-product-head {
