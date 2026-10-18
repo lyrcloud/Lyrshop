@@ -819,9 +819,9 @@ async function submitProduct(event) {
     regional_pricing: regionalPricingInput.checked,
     options: collectProductOptions(),
     measurements: collectMeasurements(),
-    seller_email: session.email,
-    seller_name: session.name,
   };
+  // A new listing is the signed-in seller's; editing keeps whoever it's listed under (e.g. an import stays Lyrshop's).
+  if (!editId) Object.assign(product, { seller_email: session.email, seller_name: session.name });
 
   try {
     const url = editId ? `${API_BASE_URL}/products/${editId}` : `${API_BASE_URL}/products`;
@@ -1501,9 +1501,11 @@ function cjRunSummary(run) {
     <strong>${escapeHtml(LyrLocale.countryName(row.country))}</strong>: ${row.imported} new
     ${row.imported ? `(${row.local} ship from there, ${row.imported - row.local} from abroad)` : ""}
     ${row.markets_added ? ` · ${row.markets_added} existing listing${row.markets_added === 1 ? "" : "s"} added` : ""}
+    ${row.no_route ? ` · ${row.no_route} skipped (CJ doesn't ship there, or shipping costs more than the item)` : ""}
     ${row.errors?.length ? `<br /><small class="is-error">${row.errors.slice(0, 3).map(escapeHtml).join(" · ")}${row.errors.length > 3 ? ` · ${row.errors.length - 3} more` : ""}</small>` : ""}
   </li>`).join("");
-  return `<p>Last import ${escapeHtml(formatOrderDate(run.started_at))} by ${escapeHtml(who)} · ${run.imported ?? 0} new listings</p><ul>${rows}</ul>`;
+  const quotes = run.quotes_added ? ` · shipping prices added to ${run.quotes_added} earlier listing${run.quotes_added === 1 ? "" : "s"}` : "";
+  return `<p>Last import ${escapeHtml(formatOrderDate(run.started_at))} by ${escapeHtml(who)} · ${run.imported ?? 0} new listings${quotes}</p><ul>${rows}</ul>`;
 }
 
 function renderCjImportState() {
@@ -1732,6 +1734,10 @@ async function handleOrderCjClick(event) {
       select.innerHTML = options.length
         ? options.map((option) => `<option value="${escapeHtml(option.name)}">${escapeHtml(option.name)} · ${formatMoney(option.total ?? option.price)} · ${escapeHtml(option.days || "?")} days</option>`).join("")
         : `<option value="">No CJ method ships there</option>`;
+      // Preselect the method the shopper was charged for, when the listing was imported with a CJ quote.
+      const quoted = (order.items || []).map((item) => adminProducts.find((product) => product.id === item.id)?.cj_shipping?.[toCountry]?.method)
+        .find(Boolean);
+      if (quoted && options.some((option) => option.name === quoted)) select.value = quoted;
       select.disabled = !options.length;
       orderCjPanel.querySelector("[data-cj-action='send']").disabled = !options.length;
       return;
