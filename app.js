@@ -1,7 +1,8 @@
 const API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname)
   ? "http://127.0.0.1:5000"
   : "";
-const PRODUCT_REQUEST_TIMEOUT_MS = 2000;
+// The whole catalog comes back in one reply (about 300 listings); a cold API start can take several seconds.
+const PRODUCT_REQUEST_TIMEOUT_MS = 12000;
 
 const productList = document.getElementById("product-list");
 const searchForm = document.getElementById("search-form");

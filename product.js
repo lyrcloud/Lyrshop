@@ -1,7 +1,8 @@
 const DETAIL_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname)
   ? "http://127.0.0.1:5000"
   : "";
-const DETAIL_REQUEST_TIMEOUT_MS = 2000;
+// The whole catalog comes back in one reply (about 300 listings); a cold API start can take several seconds.
+const DETAIL_REQUEST_TIMEOUT_MS = 12000;
 const DETAIL_CATEGORIES_KEY = "lyrshopCategories";
 
 const detailCategories = LYRSHOP_DEFAULT_CATEGORIES;
