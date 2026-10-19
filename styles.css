@@ -5080,6 +5080,50 @@ body.zoom-open {
   border-color: var(--ink);
 }
 
+.option-pill.is-unavailable,
+.option-swatch.is-unavailable {
+  opacity: 0.45;
+  background-image: linear-gradient(to top right, transparent calc(50% - 1px), var(--ink-soft) 50%, transparent calc(50% + 1px));
+}
+
+.option-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 320px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.option-menu:focus-within {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.option-menu .option-dot {
+  width: 20px;
+  height: 20px;
+}
+
+.option-menu select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.detail-option.is-missing .option-menu {
+  box-shadow: 0 0 0 2px #fca5a5;
+}
+
 .detail-option.is-missing .detail-option-values {
   padding: 0.35rem;
   margin: -0.35rem;

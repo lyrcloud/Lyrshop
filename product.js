@@ -154,9 +154,86 @@ function renderSpecifics(product) {
 // Buyers pick one value of each option the seller offers; the choice travels with the cart line into the order.
 
 const chosenOptions = {};
+// For a split color-size option (see splitOption): the option's name -> { color, size } picked so far.
+const chosenParts = {};
+// Picker groups still waiting for a choice after the shopper tried to buy, as "option|part" keys.
+const missingGroups = new Set();
+// Above this many colors the color picker is a dropdown rather than a wall of buttons.
+const COLOR_MENU_AFTER = 10;
 
 function variantLabel(product) {
   return (product.options || []).map((option) => `${option.name}: ${chosenOptions[option.name]}`).join(" · ");
+}
+
+// Supplier listings often fold color and size into one option ("Brown-XL", "Watermelon Red-2xl"). Shoppers get a
+// Color picker and a Size picker instead; the pair maps back to the listing's own value, which the cart and order keep.
+// Returns null when the option isn't color-size pairs.
+const splitCache = new WeakMap();
+function splitOption(option) {
+  if (splitCache.has(option)) return splitCache.get(option);
+  const colors = new Map(); // lowercased color -> the first spelling seen
+  const sizes = [];
+  const values = new Map(); // "color|size" -> listing value
+  let split = (option.values || []).length > 1 && !/^size/i.test(option.name) ? {} : null;
+  for (const value of split ? option.values : []) {
+    const pieces = LyrSizing.parts(value);
+    const size = pieces.length > 1 ? LyrSizing.sizeName(pieces[pieces.length - 1]) : null;
+    if (!size) { split = null; break; }
+    const color = pieces.slice(0, -1).join("-");
+    const key = color.toLowerCase();
+    if (!colors.has(key)) colors.set(key, color);
+    if (!sizes.includes(size)) sizes.push(size);
+    values.set(`${key}|${size}`, value);
+  }
+  if (split) {
+    split = {
+      colors: [...colors.values()],
+      sizes: LyrSizing.sortedValues({ name: "Size", values: sizes }),
+      value: (color, size) => values.get(`${String(color).toLowerCase()}|${size}`),
+    };
+  }
+  splitCache.set(option, split);
+  return split;
+}
+
+function optionGroup(option, part, label, chosen, chosenAlt, body) {
+  const key = `${option.name}|${part}`;
+  return `
+      <div class="detail-option${missingGroups.has(key) ? " is-missing" : ""}" data-option-group="${escapeHtml(key)}">
+        <p class="detail-option-label">${escapeHtml(label)}: <strong data-chosen>${chosen ? escapeHtml(chosen + (chosenAlt ? ` (${chosenAlt})` : "")) : "Select"}</strong></p>
+        ${body}
+      </div>`;
+}
+
+// Buttons for the values of one picker. `unavailable` values are shown but can't be picked with the other choice.
+function optionButtons(option, part, label, values, chosen, product, unavailable = new Set()) {
+  const shown = { name: label, values, type: part === "color" ? "color" : part === "size" ? "size" : option.type };
+  const colorful = part === "color" || (!part && LyrSizing.isColorOption(option));
+  const buttons = values.map((value) => {
+    const swatch = colorful ? LyrSizing.swatch(LyrSizing.parts(value)[0]) || LyrSizing.swatch(value) : "";
+    const alt = LyrSizing.altLabel(value, shown, product);
+    const off = unavailable.has(value);
+    const data = `data-option="${escapeHtml(option.name)}" data-part="${part}" data-value="${escapeHtml(value)}" aria-pressed="${chosen === value}"${off ? ' aria-disabled="true"' : ""}`;
+    const title = escapeHtml(value + (off ? " (not available with your other choice)" : ""));
+    if (shown.type === "color" && swatch) {
+      return `<button type="button" class="option-swatch${off ? " is-unavailable" : ""}" ${data} aria-label="${title}" title="${title}"><span style="${escapeHtml(swatch)}"></span></button>`;
+    }
+    return `<button type="button" class="option-pill${swatch ? " has-swatch" : ""}${off ? " is-unavailable" : ""}" ${data} title="${title}">
+          ${swatch ? `<span class="option-dot" style="${escapeHtml(swatch)}" aria-hidden="true"></span>` : ""}<span>${escapeHtml(value)}</span>${alt ? `<small class="option-alt">${escapeHtml(alt)}</small>` : ""}</button>`;
+  }).join("");
+  return `<div class="detail-option-values" role="group" aria-label="${escapeHtml(label)}">${buttons}</div>`;
+}
+
+// A collapsed dropdown for long color lists, with a swatch of the chosen color beside it.
+function optionMenu(option, part, label, values, chosen, unavailable, otherLabel) {
+  const swatch = chosen ? LyrSizing.swatch(chosen) : "";
+  const items = values.map((value) => `<option value="${escapeHtml(value)}"${value === chosen ? " selected" : ""}>${escapeHtml(value)}${unavailable.has(value) ? ` (no ${escapeHtml(otherLabel)})` : ""}</option>`).join("");
+  return `<div class="option-menu">
+          <span class="option-dot" style="${escapeHtml(swatch)}" aria-hidden="true"${swatch ? "" : " hidden"}></span>
+          <select data-option="${escapeHtml(option.name)}" data-part="${part}" aria-label="${escapeHtml(label)}">
+            ${chosen ? "" : `<option value="" selected disabled>Choose a ${escapeHtml(label.toLowerCase())} (${values.length})</option>`}${items}
+          </select>
+        </div>`;
 }
 
 // Values show a color swatch when they name a color, and sizes/lengths in the shopper's own system (LyrSizing),
@@ -164,25 +241,23 @@ function variantLabel(product) {
 function renderOptions(product) {
   const container = document.getElementById("detail-options");
   container.innerHTML = (product.options || []).map((option) => {
-    const colorful = LyrSizing.isColorOption(option);
-    const buttons = LyrSizing.sortedValues(option).map((value) => {
-      const swatch = colorful ? LyrSizing.swatch(LyrSizing.parts(value)[0]) || LyrSizing.swatch(value) : "";
-      const alt = LyrSizing.altLabel(value, option, product);
-      const pressed = String(chosenOptions[option.name] === value);
-      const data = `data-option="${escapeHtml(option.name)}" data-value="${escapeHtml(value)}" data-alt="${escapeHtml(alt)}" aria-pressed="${pressed}"`;
-      if (option.type === "color" && swatch) {
-        return `<button type="button" class="option-swatch" ${data} aria-label="${escapeHtml(value)}" title="${escapeHtml(value)}"><span style="${escapeHtml(swatch)}"></span></button>`;
-      }
-      return `<button type="button" class="option-pill${swatch ? " has-swatch" : ""}" ${data}>
-          ${swatch ? `<span class="option-dot" style="${escapeHtml(swatch)}" aria-hidden="true"></span>` : ""}<span>${escapeHtml(value)}</span>${alt ? `<small class="option-alt">${escapeHtml(alt)}</small>` : ""}</button>`;
-    }).join("");
-    const chosen = chosenOptions[option.name];
-    const chosenAlt = chosen ? LyrSizing.altLabel(chosen, option, product) : "";
-    return `
-      <div class="detail-option" data-option-group="${escapeHtml(option.name)}">
-        <p class="detail-option-label">${escapeHtml(option.name)}: <strong data-chosen>${chosen ? escapeHtml(chosen + (chosenAlt ? ` (${chosenAlt})` : "")) : "Select"}</strong></p>
-        <div class="detail-option-values" role="group" aria-label="${escapeHtml(option.name)}">${buttons}</div>
-      </div>`;
+    const split = splitOption(option);
+    if (!split) {
+      const chosen = chosenOptions[option.name];
+      const values = LyrSizing.sortedValues(option);
+      const body = optionButtons(option, "", option.name, values, chosen, product);
+      return optionGroup(option, "", option.name, chosen, chosen ? LyrSizing.altLabel(chosen, option, product) : "", body);
+    }
+    const { color, size } = chosenParts[option.name] || {};
+    const noColor = new Set(size ? split.colors.filter((value) => !split.value(value, size)) : []);
+    const noSize = new Set(color ? split.sizes.filter((value) => !split.value(color, value)) : []);
+    const colorBody = split.colors.length > COLOR_MENU_AFTER
+      ? optionMenu(option, "color", "Color", split.colors, color, noColor, `size ${size}`)
+      : optionButtons(option, "color", "Color", split.colors, color, product, noColor);
+    const sizeOption = { name: "Size", values: split.sizes };
+    return optionGroup(option, "color", "Color", color, "", colorBody)
+      + optionGroup(option, "size", "Size", size, size ? LyrSizing.altLabel(size, sizeOption, product) : "",
+        optionButtons(option, "size", "Size", split.sizes, size, product, noSize));
   }).join("");
   renderSizeHelp(product);
 }
@@ -218,30 +293,62 @@ function bindSizeGuide(product) {
   dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
 }
 
-function bindOptions() {
-  document.getElementById("detail-options").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-option]");
-    if (!button) return;
-    const group = button.closest("[data-option-group]");
-    chosenOptions[button.dataset.option] = button.dataset.value;
-    group.querySelectorAll("[data-option]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
-    group.querySelector("[data-chosen]").textContent = button.dataset.value + (button.dataset.alt ? ` (${button.dataset.alt})` : "");
-    group.classList.remove("is-missing");
-    if (!document.querySelector(".detail-option.is-missing")) document.getElementById("option-error").textContent = "";
+function bindOptions(product) {
+  const container = document.getElementById("detail-options");
+  const choose = (control, value) => {
+    const name = control.dataset.option;
+    const part = control.dataset.part;
+    if (part) {
+      const split = splitOption(product.options.find((option) => option.name === name));
+      const parts = chosenParts[name] = { ...chosenParts[name], [part]: value };
+      // A color without the chosen size (or the other way round) keeps the new pick and clears the other one.
+      if (parts.color && parts.size && !split.value(parts.color, parts.size)) delete parts[part === "color" ? "size" : "color"];
+      const listed = parts.color && parts.size ? split.value(parts.color, parts.size) : undefined;
+      if (listed) chosenOptions[name] = listed;
+      else delete chosenOptions[name];
+    } else {
+      chosenOptions[name] = value;
+    }
+    missingGroups.delete(`${name}|${part}`);
+    renderOptions(product);
+    const selector = control.tagName === "SELECT"
+      ? `select[data-option="${CSS.escape(name)}"][data-part="${part}"]`
+      : `[data-option="${CSS.escape(name)}"][data-part="${part}"][data-value="${CSS.escape(value)}"]`;
+    container.querySelector(selector)?.focus();
+    if (!missingGroups.size) document.getElementById("option-error").textContent = "";
+  };
+  container.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-option]");
+    if (button) choose(button, button.dataset.value);
+  });
+  container.addEventListener("change", (event) => {
+    const select = event.target.closest("select[data-option]");
+    if (select) choose(select, select.value);
   });
 }
 
 // Returns true when every option has a choice; otherwise flags the missing ones.
 function checkOptions(product) {
-  const missing = (product.options || []).filter((option) => !chosenOptions[option.name]);
-  document.querySelectorAll("[data-option-group]").forEach((group) => {
-    group.classList.toggle("is-missing", missing.some((option) => option.name === group.dataset.optionGroup));
-  });
-  document.getElementById("option-error").textContent = missing.length
-    ? `Please choose ${missing.map((option) => option.name.toLowerCase()).join(" and ")}.`
-    : "";
-  if (missing.length) document.querySelector(".detail-option.is-missing")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  return !missing.length;
+  missingGroups.clear();
+  const labels = [];
+  for (const option of product.options || []) {
+    if (chosenOptions[option.name]) continue;
+    if (!splitOption(option)) {
+      missingGroups.add(`${option.name}|`);
+      labels.push(option.name.toLowerCase());
+      continue;
+    }
+    const parts = chosenParts[option.name] || {};
+    for (const part of ["color", "size"]) {
+      if (parts[part]) continue;
+      missingGroups.add(`${option.name}|${part}`);
+      labels.push(part);
+    }
+  }
+  renderOptions(product);
+  document.getElementById("option-error").textContent = labels.length ? `Please choose ${labels.join(" and ")}.` : "";
+  if (labels.length) document.querySelector(".detail-option.is-missing")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  return !labels.length;
 }
 
 function renderMeasurements(product) {
@@ -635,7 +742,7 @@ function bindActions(product) {
   });
   quantitySelect.addEventListener("input", () => renderWholesale(product));
   const cartButton = document.getElementById("detail-cart-button");
-  bindOptions();
+  bindOptions(product);
   cartButton.addEventListener("click", () => {
     if (!checkOptions(product)) return;
     const quantity = Number(quantitySelect.value);

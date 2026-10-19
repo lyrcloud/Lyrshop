@@ -273,5 +273,8 @@ const LyrSizing = (() => {
     return values;
   }
 
-  return { altLabel, sortedValues, hasGuide, guideHtml, runsSmall, swatch, isColorOption, parts, measurementText, usesImperial };
+  // A clothing size written any way suppliers do ("Xl", "xxl", "2xl") in one spelling ("XL", "2XL"), or null.
+  const sizeName = (value) => letterSize(String(value).trim());
+
+  return { altLabel, sortedValues, hasGuide, guideHtml, runsSmall, swatch, isColorOption, parts, measurementText, usesImperial, sizeName };
 })();
