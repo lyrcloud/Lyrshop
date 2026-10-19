@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261018-3" />
+  <link rel="stylesheet" href="styles.css?v=20261018-4" />
 </head>
 <body>
   <header class="page-header">
@@ -38,6 +38,7 @@
       <button class="admin-tab superadmin-only" type="button" data-admin-section="calendar" hidden>Sales calendar</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="coupons" hidden>Coupons</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="business" hidden>Business accounts <span class="count-badge" id="business-pending-count" hidden></span></button>
+      <button class="admin-tab superadmin-only" type="button" data-admin-section="partners" hidden>Dropship partners <span class="count-badge" id="partners-pending-count" hidden></span></button>
     </nav>
 
     <section class="admin-panel admin-section active" id="admin-products-section">
@@ -613,6 +614,28 @@
       <div id="business-list" class="business-list"></div>
     </section>
 
+    <section class="admin-panel admin-section superadmin-only" id="admin-partners-section" hidden>
+      <div class="panel-header">
+        <h2>Dropshipping partners (API)</h2>
+        <p>Stores that resell Lyrshop's catalog through the <a href="partners.html" target="_blank" rel="noopener">partner API</a>. Approved partners pay the retail price minus their discount (never below CJ cost + 15%), from a prepaid wallet. Their orders show up under Orders, tagged API, for you to fulfil as usual.</p>
+      </div>
+      <form id="partner-settings-form" class="partner-settings">
+        <label>Default partner discount (%)<input type="number" id="partner-default-discount" min="0" max="60" step="0.5" required /></label>
+        <button type="submit" class="button button-secondary">Save default</button>
+        <label>Show
+          <select id="partner-filter">
+            <option value="pending">Waiting for review</option>
+            <option value="approved">Approved</option>
+            <option value="suspended">Suspended</option>
+            <option value="rejected">Rejected</option>
+            <option value="">All</option>
+          </select>
+        </label>
+      </form>
+      <div id="partners-message" class="admin-message"></div>
+      <div id="partner-list" class="business-list"></div>
+    </section>
+
     <section class="admin-panel admin-section admin-only" id="admin-suppliers-section">
       <div class="panel-header">
         <h2>CJ Dropshipping</h2>
@@ -730,8 +753,8 @@
   <script src="auth.js?v=20261012-3"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261018-3"></script>
-  <script src="footer.js?v=20261014-2"></script>
+  <script src="admin.js?v=20261018-4"></script>
+  <script src="footer.js?v=20261018-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>
 </html>

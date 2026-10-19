@@ -16,6 +16,7 @@ const FOOTER_COLUMNS = [
     links: [
       ["Start selling", "admin.html"],
       ["Seller dashboard", "admin.html"],
+      ["Dropshipping API", "partners.html"],
     ],
   },
   {

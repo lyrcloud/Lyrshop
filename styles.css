@@ -7988,3 +7988,303 @@ iframe.skiptranslate,
   top: 1rem;
   bottom: auto;
 }
+
+/* ── Dropshipping partner portal (partners.html) ── */
+.partner-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 16px 3rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.partner-hero h1 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  line-height: 1.15;
+  max-width: 24ch;
+}
+
+.partner-hero > p {
+  margin: 0;
+  color: var(--ink-soft);
+  max-width: 68ch;
+}
+
+.partner-eyebrow {
+  margin: 0 0 0.4rem;
+  color: var(--brand);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.partner-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.75rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.partner-steps li {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.partner-steps span {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.partner-card {
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.partner-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.partner-card > p {
+  margin: 0 0 1rem;
+  color: var(--ink-soft);
+}
+
+#partner-console {
+  display: grid;
+  gap: 1.25rem;
+}
+
+#partner-console[hidden] {
+  display: none;
+}
+
+.partner-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.6fr);
+  gap: 0.75rem;
+}
+
+.partner-stat {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.partner-stat span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.partner-stat strong {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.partner-stat code {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.partner-stat small {
+  color: var(--muted);
+}
+
+.partner-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.partner-inline-form label {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.partner-inline-form .grow {
+  flex: 1 1 18rem;
+}
+
+.partner-secret {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius);
+  background: #fffbeb;
+}
+
+.partner-secret[hidden] {
+  display: none;
+}
+
+.partner-secret p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.partner-secret code {
+  flex: 1 1 16rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+  font-size: 0.88rem;
+}
+
+.amount-in {
+  color: var(--success);
+  font-variant-numeric: tabular-nums;
+}
+
+.amount-out {
+  font-variant-numeric: tabular-nums;
+}
+
+.partner-order-status {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.partner-order-status.is-awaiting_payment {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.partner-order-status.is-shipped,
+.partner-order-status.is-delivered,
+.partner-order-status.is-paid {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.partner-order-status + small {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+}
+
+.partner-docs h3 {
+  margin: 1.5rem 0 0.5rem;
+}
+
+.partner-docs p,
+.partner-docs li {
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.partner-docs pre {
+  margin: 0.5rem 0 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius);
+  background: #0f172a;
+  color: #e2e8f0;
+  overflow-x: auto;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.partner-docs :not(pre) > code {
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  font-size: 0.86em;
+}
+
+.partner-endpoints {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.partner-endpoints dt {
+  margin-top: 0.6rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.partner-endpoints dd {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.partner-endpoints .method {
+  display: inline-block;
+  min-width: 3.2rem;
+  margin-right: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.partner-endpoints .method.post {
+  background: #dcfce7;
+  color: #166534;
+}
+
+@media (max-width: 760px) {
+  .partner-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .partner-stat.wide {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Admin: dropshipping partner review (admin.js renderPartners) */
+.partner-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.partner-settings label,
+.business-review .partner-field {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.business-review .partner-field input {
+  width: 8rem;
+}

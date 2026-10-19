@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lyrshop Dropshipping API</title>
+  <meta name="description" content="Sell Lyrshop's catalog in your own store. Our API gives you products, wholesale prices and shipping quotes, and we ship every order straight to your customer." />
+  <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+  <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
+  <link rel="manifest" href="/site.webmanifest?v=2" />
+  <meta name="theme-color" content="#e53238" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=20261018-4" />
+</head>
+<body>
+  <header class="page-header compact-header">
+    <a href="index.html" aria-label="Lyrshop home">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+        <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238">lyrshop</text>
+      </svg>
+    </a>
+    <div class="header-actions">
+      <a href="index.html" class="button button-secondary">Shop</a>
+      <a href="#api-reference" class="button button-secondary">API reference</a>
+      <a href="dashboard.html" class="button button-secondary">My Lyrshop</a>
+    </div>
+  </header>
+
+  <main class="partner-page">
+    <section class="partner-hero">
+      <p class="partner-eyebrow">Lyrshop Dropshipping</p>
+      <h1>Sell our catalog in your store. We ship to your customers.</h1>
+      <p>Connect your Shopify, WooCommerce or custom store to Lyrshop's API. You get every published listing at a partner price, send us your orders, and we pack and ship them straight to your buyer. You keep the difference.</p>
+      <ul class="partner-steps">
+        <li><strong>1. Apply</strong><span>Tell us about your store. We review applications within a few days.</span></li>
+        <li><strong>2. Connect</strong><span>Create an API key, import products and sync prices into your store.</span></li>
+        <li><strong>3. Fund your wallet</strong><span>Top up by card. Orders are paid from the wallet as they arrive.</span></li>
+        <li><strong>4. Send orders</strong><span>POST each order; we ship it and tell your webhook the tracking number.</span></li>
+      </ul>
+    </section>
+
+    <p id="partner-loading" class="checkout-muted">Loading your partner account…</p>
+
+    <section id="partner-signin" class="partner-card" hidden>
+      <h2>Sign in to apply</h2>
+      <p>Partner accounts are linked to a Lyrshop account. Sign in or create one, then come back to this page.</p>
+      <a class="button button-primary" href="auth.html">Sign in or create an account</a>
+    </section>
+
+    <section id="partner-status" class="partner-card" hidden></section>
+
+    <section id="partner-apply" class="partner-card" hidden>
+      <h2 id="partner-apply-title">Apply to become a partner</h2>
+      <form id="partner-form" class="business-form">
+        <label>Store or company name<input type="text" name="company" maxlength="100" required /></label>
+        <label>Store website<input type="text" name="website" maxlength="200" placeholder="https://yourstore.com" required /></label>
+        <label>Country<select name="country" id="partner-country" required></select></label>
+        <label>Store platform
+          <select name="platform">
+            <option>Shopify</option><option>WooCommerce</option><option>Wix</option><option>BigCommerce</option>
+            <option>Etsy</option><option>Amazon</option><option>eBay</option><option>Custom</option><option>Other</option>
+          </select>
+        </label>
+        <label>Orders you expect per month
+          <select name="monthly_orders">
+            <option>1-50</option><option>50-200</option><option>200-1000</option><option>1000+</option>
+          </select>
+        </label>
+        <label class="wide">What do you sell, and to whom? (optional)<textarea name="about" maxlength="500" rows="3"></textarea></label>
+        <div class="profile-form-actions wide">
+          <button type="submit" class="button button-primary" id="partner-submit">Send application</button>
+          <span id="partner-form-message" class="profile-message" role="status"></span>
+        </div>
+      </form>
+    </section>
+
+    <div id="partner-console" hidden>
+      <section class="partner-stats" aria-label="Account summary">
+        <div class="partner-stat"><span>Your price</span><strong id="stat-discount"></strong><small>off each listing's retail price</small></div>
+        <div class="partner-stat"><span>Wallet balance</span><strong id="stat-wallet"></strong><small><a href="#wallet">Top up</a></small></div>
+        <div class="partner-stat"><span>Orders</span><strong id="stat-orders"></strong><small>through the API</small></div>
+        <div class="partner-stat wide"><span>API base URL</span><code id="stat-base-url"></code><small><button type="button" class="link-button" data-copy="#stat-base-url">Copy</button></small></div>
+      </section>
+
+      <section class="partner-card" id="wallet">
+        <h2>Wallet</h2>
+        <p>Orders are paid from your wallet the moment they arrive. If the balance is short, the order waits as <em>awaiting_payment</em> until you top up and call <code>/pay</code>.</p>
+        <form id="topup-form" class="partner-inline-form">
+          <label>Amount (USD)<input type="number" id="topup-amount" min="20" max="5000" step="1" value="100" required /></label>
+          <button type="submit" class="button button-primary" id="topup-submit">Top up by card</button>
+        </form>
+        <p id="topup-message" class="checkout-status" role="status"></p>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Date</th><th>Amount</th><th>Note</th></tr></thead>
+            <tbody id="wallet-history"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="partner-card" id="keys">
+        <h2>API keys</h2>
+        <p>Send a key as <code>Authorization: Bearer lyr_live_…</code>. Keep keys on your server; anyone with one can place orders that are paid from your wallet.</p>
+        <form id="key-form" class="partner-inline-form">
+          <label>Key name<input type="text" id="key-name" maxlength="60" placeholder="e.g. Shopify app" /></label>
+          <button type="submit" class="button button-primary">Create key</button>
+        </form>
+        <div id="new-key" class="partner-secret" hidden>
+          <p><strong>Copy this key now.</strong> It won't be shown again.</p>
+          <code id="new-key-value"></code>
+          <button type="button" class="button button-secondary" data-copy="#new-key-value">Copy</button>
+        </div>
+        <p id="key-message" class="checkout-status" role="status"></p>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Name</th><th>Key</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+            <tbody id="key-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="partner-card" id="webhook">
+        <h2>Webhook</h2>
+        <p>We POST an event to this address when one of your orders is paid, shipped, delivered, cancelled or refunded, or gets a tracking number.</p>
+        <form id="webhook-form" class="partner-inline-form">
+          <label class="grow">Endpoint URL<input type="url" id="webhook-url" maxlength="300" placeholder="https://yourstore.com/lyrshop/webhook" /></label>
+          <button type="submit" class="button button-primary">Save</button>
+          <button type="button" class="button button-secondary" id="webhook-test">Send test</button>
+          <button type="button" class="button button-secondary" id="webhook-rotate">New signing secret</button>
+        </form>
+        <div id="webhook-secret" class="partner-secret" hidden>
+          <p><strong>Signing secret.</strong> Copy it now; it won't be shown again.</p>
+          <code id="webhook-secret-value"></code>
+          <button type="button" class="button button-secondary" data-copy="#webhook-secret-value">Copy</button>
+        </div>
+        <p id="webhook-message" class="checkout-status" role="status"></p>
+      </section>
+
+      <section class="partner-card" id="orders">
+        <h2>Recent orders</h2>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Your reference</th><th>Date</th><th>Ship to</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead>
+            <tbody id="order-table"></tbody>
+          </table>
+        </div>
+        <p id="order-message" class="checkout-status" role="status"></p>
+      </section>
+    </div>
+
+    <section class="partner-card partner-docs" id="api-reference">
+      <h2>API reference</h2>
+      <p>JSON over HTTPS. All prices are in USD. The base URL is shown in your partner console once you're approved, and every path below is relative to it.</p>
+
+      <h3>Authentication</h3>
+      <pre><code>curl <span data-base-url>https://api.lyrshop.com</span>/api/v1/products \
+  -H "Authorization: Bearer lyr_live_YOUR_KEY"</code></pre>
+      <p>Requests are limited to 120 a minute per partner. Errors return a JSON body with a <code>message</code>: 400/422 for bad input, 401 for a bad key, 402 when the wallet is short, 403 when your account isn't active, 404 when something isn't found, 409 for a conflict and 429 when you're over the limit.</p>
+
+      <h3>Products</h3>
+      <dl class="partner-endpoints">
+        <dt><span class="method">GET</span> /api/v1/products</dt>
+        <dd>Every published listing. Query: <code>q</code> (search), <code>category</code>, <code>ships_to</code> (country code), <code>updated_since</code> (Unix time), <code>page</code>, <code>page_size</code> (max 100). Each product has <code>price</code> (what you pay), <code>retail_price</code> (what Lyrshop charges shoppers), <code>options</code> (e.g. Color, Size), <code>quantity_prices</code>, <code>ships_from</code>, and <code>shipping</code> quotes per country when we have them.</dd>
+        <dt><span class="method">GET</span> /api/v1/products/{id}</dt>
+        <dd>One product.</dd>
+        <dt><span class="method post">POST</span> /api/v1/shipping/quote</dt>
+        <dd>Shipping options and tax for a cart before you order.</dd>
+      </dl>
+      <pre><code>curl -X POST <span data-base-url>https://api.lyrshop.com</span>/api/v1/shipping/quote \
+  -H "Authorization: Bearer lyr_live_YOUR_KEY" -H "Content-Type: application/json" \
+  -d '{"country": "US", "zip": "97201",
+       "items": [{"product_id": "PRODUCT_ID", "options": {"Color": "Red", "Size": "M"}, "quantity": 2}]}'</code></pre>
+
+      <h3>Orders</h3>
+      <dl class="partner-endpoints">
+        <dt><span class="method post">POST</span> /api/v1/orders</dt>
+        <dd>Place an order for your customer. <code>reference</code> is your own order number; sending the same reference again returns the order already placed instead of creating a second one, so retries are safe. <code>shipping_method</code> is a rate <code>id</code> from the quote (the cheapest is used if you leave it out). The order is paid from your wallet straight away when the balance covers it.</dd>
+        <dt><span class="method">GET</span> /api/v1/orders</dt>
+        <dd>Your orders, newest first. Query: <code>status</code>, <code>page</code>.</dd>
+        <dt><span class="method">GET</span> /api/v1/orders/{id}</dt>
+        <dd>One order, by Lyrshop order id or by your reference.</dd>
+        <dt><span class="method post">POST</span> /api/v1/orders/{id}/pay</dt>
+        <dd>Pay an <code>awaiting_payment</code> order from your wallet after a top-up.</dd>
+        <dt><span class="method post">POST</span> /api/v1/orders/{id}/cancel</dt>
+        <dd>Cancel an order before we start on it. A paid order's money goes back to your wallet.</dd>
+        <dt><span class="method">GET</span> /api/v1/wallet</dt>
+        <dd>Your balance and the last 100 wallet movements.</dd>
+      </dl>
+      <pre><code>curl -X POST <span data-base-url>https://api.lyrshop.com</span>/api/v1/orders \
+  -H "Authorization: Bearer lyr_live_YOUR_KEY" -H "Content-Type: application/json" \
+  -d '{
+    "reference": "SHOP-1001",
+    "items": [{"product_id": "PRODUCT_ID", "options": {"Color": "Red", "Size": "M"}, "quantity": 1}],
+    "shipping_address": {"name": "Jane Doe", "address": "1 Main St", "address2": "Apt 4",
+      "city": "Portland", "province": "OR", "zip": "97201", "country_code": "US",
+      "phone": "+15035550100", "email": "jane@example.com"},
+    "shipping_method": "standard"
+  }'</code></pre>
+      <p>Order <code>status</code> is one of <code>awaiting_payment</code>, <code>paid</code>, <code>processing</code>, <code>shipped</code>, <code>delivered</code>, <code>cancelled</code> or <code>refunded</code>. Shipped orders carry <code>shipping_carrier</code>, <code>tracking_number</code> and, when the carrier has one, <code>tracking_url</code>.</p>
+
+      <h3>Webhooks</h3>
+      <p>Events are <code>order.paid</code>, <code>order.processing</code>, <code>order.shipped</code>, <code>order.delivered</code>, <code>order.cancelled</code>, <code>order.refunded</code>, <code>order.tracking_updated</code> and <code>ping</code> (the test button). The body is <code>{"id", "type", "created_at", "data": {"order": {…}}}</code>. Each request carries a <code>Lyrshop-Signature: t=TIMESTAMP,v1=HMAC</code> header: an HMAC-SHA256 of <code>TIMESTAMP + "." + raw body</code> made with your signing secret. Check it before trusting the event, and reply with any 2xx status.</p>
+      <pre><code>import hashlib, hmac, time
+
+def verify(raw_body: bytes, header: str, secret: str) -> bool:
+    parts = dict(item.split("=", 1) for item in header.split(","))
+    expected = hmac.new(secret.encode(), parts["t"].encode() + b"." + raw_body, hashlib.sha256).hexdigest()
+    fresh = abs(time.time() - int(parts["t"])) &lt; 300
+    return fresh and hmac.compare_digest(expected, parts["v1"])</code></pre>
+      <p>We send each event once and don't retry, so poll <code>GET /api/v1/orders?status=shipped</code> now and then as a backstop.</p>
+
+      <h3>Good to know</h3>
+      <ul>
+        <li>Prices and stock can change. Sync products daily, or use <code>updated_since</code>, and quote before you charge your customer.</li>
+        <li>Parcels ship from the warehouse in <code>ships_from</code>. Delivery times come from the shipping quote.</li>
+        <li>US orders are charged sales tax unless your account is tax-exempt. Send your resale certificate to <a href="mailto:support@lyrshop.com">support@lyrshop.com</a>. Abroad, import VAT and duties are due on delivery.</li>
+        <li>Questions? Email <a href="mailto:support@lyrshop.com">support@lyrshop.com</a>.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer data-site-footer>
+    <p>&copy; 2026 Lyrshop. Powered by Lyrcloud.</p>
+  </footer>
+
+  <script src="auth.js?v=20261012-3"></script>
+  <script src="locale.js?v=20261018-1"></script>
+  <script src="ui.js?v=20261018-1"></script>
+  <script src="partners.js?v=20261018-1"></script>
+  <script src="footer.js?v=20261018-1"></script>
+  <script src="lyrbot.js?v=20261018-1"></script>
+</body>
+</html>

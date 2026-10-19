@@ -1110,7 +1110,7 @@ function renderOrders() {
       <tr>
         <td><strong>${escapeHtml(shortOrderId(order.id))}</strong></td>
         <td>${escapeHtml(formatOrderDate(order.created_at))}</td>
-        <td>${escapeHtml(order.user_email || "Guest")}</td>
+        <td>${escapeHtml(order.user_email || "Guest")}${order.source === "api" ? `<small>API · ${escapeHtml(order.company || "partner")} · ref ${escapeHtml(order.partner_reference || "")}</small>` : ""}</td>
         <td>${escapeHtml(items.map((item) => (item.variant ? `${item.name} (${item.variant})` : item.name)).join(", ") || "—")}</td>
         <td>${formatMoney(order.total)}</td>
         <td>${statusBadge("payment", order.payment_status)}</td>
@@ -2294,6 +2294,122 @@ async function reviewBusiness(event) {
 businessFilter.addEventListener("change", renderBusinessApplications);
 businessList.addEventListener("click", reviewBusiness);
 
+// ── Dropshipping partners (super admin) ────────────────────────────────────────
+// Stores reselling the catalog through the partner API (dropship_core.py): review, discount, tax exemption, wallet.
+
+const partnerList = document.getElementById("partner-list");
+const partnerFilter = document.getElementById("partner-filter");
+const partnersMessage = document.getElementById("partners-message");
+const PARTNER_STATUS_LABELS = {
+  pending: ["Waiting for review", "is-early"], approved: ["Approved", "is-live"],
+  suspended: ["Suspended", "is-off"], rejected: ["Rejected", "is-off"],
+};
+let dropshipPartners = [];
+let partnerDefaultDiscount = 25;
+
+function renderPartners() {
+  const pending = dropshipPartners.filter((row) => row.partner.status === "pending").length;
+  const badge = document.getElementById("partners-pending-count");
+  badge.textContent = pending;
+  badge.hidden = !pending;
+  const shown = dropshipPartners.filter((row) => !partnerFilter.value || row.partner.status === partnerFilter.value);
+  partnerList.innerHTML = shown.map((row) => {
+    const info = row.partner;
+    const [label, tone] = PARTNER_STATUS_LABELS[info.status] || [info.status, ""];
+    const discount = info.discount_percent ?? "";
+    return `
+      <article class="business-card" data-account="${escapeHtml(row.account)}">
+        <header>
+          <div>
+            <h3>${escapeHtml(info.company)}</h3>
+            <p>${escapeHtml(row.name)} · ${escapeHtml(row.email || row.account)}</p>
+          </div>
+          <span class="calendar-phase ${tone}">${label}${info.tax_exempt ? " · tax-exempt" : ""}</span>
+        </header>
+        <dl class="business-facts">
+          <div><dt>Website</dt><dd><a href="${escapeHtml(info.website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(info.website)}</a></dd></div>
+          <div><dt>Country</dt><dd>${escapeHtml(info.country)}</dd></div>
+          ${info.platform ? `<div><dt>Platform</dt><dd>${escapeHtml(info.platform)}</dd></div>` : ""}
+          ${info.monthly_orders ? `<div><dt>Orders a month</dt><dd>${escapeHtml(info.monthly_orders)}</dd></div>` : ""}
+          <div><dt>Applied</dt><dd>${escapeHtml(new Date(Number(info.applied_at) * 1000).toLocaleDateString())}</dd></div>
+          <div><dt>Wallet</dt><dd>${formatMoney(row.wallet_balance)}</dd></div>
+          <div><dt>API orders</dt><dd>${row.orders}</dd></div>
+          ${info.about ? `<div class="wide"><dt>About</dt><dd>${escapeHtml(info.about)}</dd></div>` : ""}
+        </dl>
+        <div class="business-review">
+          <label class="partner-field">Discount %<input type="number" data-partner-discount min="0" max="60" step="0.5" value="${escapeHtml(discount)}" placeholder="${escapeHtml(partnerDefaultDiscount)} (default)" /></label>
+          <label class="partner-field">Wallet credit ($)<input type="number" data-partner-credit step="0.01" placeholder="e.g. 50 or -10" /></label>
+          <label class="checkbox-field"><input type="checkbox" data-partner-exempt ${info.tax_exempt ? "checked" : ""} /> Tax-exempt (resale certificate checked)</label>
+          <input type="text" data-partner-note maxlength="300" placeholder="Note (shown to the partner if rejected or suspended)" value="${escapeHtml(info.note || "")}" aria-label="Review note" />
+          <button type="button" class="button button-primary" data-partner-action="approved">${info.status === "approved" ? "Save" : "Approve"}</button>
+          ${info.status === "approved" ? '<button type="button" class="button danger-button" data-partner-action="suspended">Suspend</button>' : ""}
+          ${["pending", "suspended"].includes(info.status) ? '<button type="button" class="button danger-button" data-partner-action="rejected">Reject</button>' : ""}
+        </div>
+      </article>`;
+  }).join("") || `<p class="my-empty">${{
+    pending: "No partner applications waiting for review.", approved: "No approved partners yet.",
+    suspended: "No suspended partners.", rejected: "No rejected applications.", "": "No partner applications yet.",
+  }[partnerFilter.value]}</p>`;
+}
+
+async function loadPartners() {
+  try {
+    const data = await authApi("/dropship/partners");
+    dropshipPartners = data.partners || [];
+    partnerDefaultDiscount = data.settings.discount_percent;
+    document.getElementById("partner-default-discount").value = partnerDefaultDiscount;
+    renderPartners();
+  } catch (error) {
+    showMessage(partnersMessage, error.message || "Could not load dropshipping partners.", true);
+  }
+}
+
+async function reviewPartner(event) {
+  const button = event.target.closest("[data-partner-action]");
+  if (!button) return;
+  const card = button.closest(".business-card");
+  const status = button.dataset.partnerAction;
+  const company = card.querySelector("h3").textContent;
+  if (status === "suspended" && !confirm(`Suspend ${company}? Their API keys stop working until you approve them again.`)) return;
+  if (status === "rejected" && !confirm(`Reject ${company}?`)) return;
+  const credit = card.querySelector("[data-partner-credit]").value;
+  if (credit && !confirm(`${Number(credit) < 0 ? "Take" : "Add"} ${formatMoney(Math.abs(Number(credit)))} ${Number(credit) < 0 ? "from" : "to"} ${company}'s wallet?`)) return;
+  button.disabled = true;
+  try {
+    await authApi(`/dropship/partners/${encodeURIComponent(card.dataset.account)}`, {
+      method: "PUT",
+      body: {
+        status,
+        discount_percent: card.querySelector("[data-partner-discount]").value,
+        tax_exempt: card.querySelector("[data-partner-exempt]").checked,
+        note: card.querySelector("[data-partner-note]").value,
+        wallet_credit: credit,
+      },
+    });
+    showMessage(partnersMessage, { approved: `${company} is approved.`, suspended: `${company} is suspended.`, rejected: `${company} was rejected.` }[status]);
+    loadPartners();
+  } catch (error) {
+    showMessage(partnersMessage, error.message || "Could not save the review.", true);
+    button.disabled = false;
+  }
+}
+
+document.getElementById("partner-settings-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try {
+    const { settings } = await authApi("/dropship/settings", {
+      method: "PUT", body: { discount_percent: document.getElementById("partner-default-discount").value },
+    });
+    partnerDefaultDiscount = settings.discount_percent;
+    showMessage(partnersMessage, `Partners without their own discount now pay ${settings.discount_percent}% below retail.`);
+    renderPartners();
+  } catch (error) {
+    showMessage(partnersMessage, error.message || "Could not save the default discount.", true);
+  }
+});
+partnerFilter.addEventListener("change", renderPartners);
+partnerList.addEventListener("click", reviewPartner);
+
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 
 function initTabs() {
@@ -2705,6 +2821,7 @@ async function initAdminPage() {
     loadCalendar();
     loadCoupons();
     loadBusinessApplications();
+    loadPartners();
     document.getElementById("attributes-intro").textContent =
       "Colors, sizes and other options buyers choose from. As super admin you can edit or delete every attribute.";
   }
