@@ -899,12 +899,13 @@ function bindSearch(products) {
 
 async function initProductDetail() {
   bindCategoryMenu();
-  const [products, [full]] = await Promise.all([
+  const [products, chosen] = await Promise.all([
     fetchProducts("view=cards"),
     requestedId ? fetchProducts(`ids=${encodeURIComponent(requestedId)}`) : Promise.resolve([]),
   ]);
   bindSearch(products);
-  const product = full || products.find((item) => String(item.id) === requestedId) || products[0];
+  const byId = (item) => String(item.id) === requestedId;
+  const product = chosen.find(byId) || products.find(byId) || products[0];
   if (!product) {
     document.getElementById("detail-title").textContent = "Product not found.";
     return;
