@@ -114,12 +114,13 @@ function bindCategoryMenu() {
   });
 }
 
-async function fetchProducts() {
+// query: "view=cards" for the similar items and search, or "ids=<id>" for this page's listing in full.
+async function fetchProducts(query) {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), DETAIL_REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(shopperProductsUrl(DETAIL_API_BASE_URL), { signal: controller.signal });
+    const response = await fetch(shopperProductsUrl(DETAIL_API_BASE_URL, undefined, query), { signal: controller.signal });
     if (!response.ok) throw new Error(`Product request failed with ${response.status}`);
     const json = await response.json();
     const products = (json.products || []).map(normalizeProduct).filter(Boolean);
@@ -898,9 +899,12 @@ function bindSearch(products) {
 
 async function initProductDetail() {
   bindCategoryMenu();
-  const products = await fetchProducts();
+  const [products, [full]] = await Promise.all([
+    fetchProducts("view=cards"),
+    requestedId ? fetchProducts(`ids=${encodeURIComponent(requestedId)}`) : Promise.resolve([]),
+  ]);
   bindSearch(products);
-  const product = products.find((item) => String(item.id) === requestedId) || products[0];
+  const product = full || products.find((item) => String(item.id) === requestedId) || products[0];
   if (!product) {
     document.getElementById("detail-title").textContent = "Product not found.";
     return;

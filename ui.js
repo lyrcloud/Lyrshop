@@ -5,8 +5,9 @@ const CART_KEY = "shopCart";
 
 // The storefront as this shopper sees it: the server adds regional prices and nearby/price_fit ranking for the
 // country (CloudFront's guess when /locale hasn't answered yet). Pass a country to override, e.g. the cart's ship-to.
-function shopperProductsUrl(apiBase, country) {
-  return `${apiBase}/products?country=${encodeURIComponent(country || LyrLocale.country() || "auto")}`;
+// query adds "view=cards" (listings trimmed for product cards) or "ids=a,b" (just those listings, in full).
+function shopperProductsUrl(apiBase, country, query = "") {
+  return `${apiBase}/products?country=${encodeURIComponent(country || LyrLocale.country() || "auto")}${query ? `&${query}` : ""}`;
 }
 
 // "Mumbai, India" for a product's {country, city}; listings from before item locations were all from the US.

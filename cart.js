@@ -538,9 +538,11 @@ function setCheckoutState(message, inProgress = false) {
 }
 
 async function loadProductDetails() {
+  const ids = [...new Set(cart.map((item) => String(item.id)))];
+  if (!ids.length) return;
   try {
-    // Regional prices follow the ship-to country, the same way checkout prices them.
-    const response = await fetch(shopperProductsUrl(API_BASE_URL, shippingCountry()));
+    // Regional prices follow the ship-to country, the same way checkout prices them. Only the cart's listings.
+    const response = await fetch(shopperProductsUrl(API_BASE_URL, shippingCountry(), `ids=${ids.map(encodeURIComponent).join(",")}`));
     if (!response.ok) return;
     const json = await response.json();
     productDetails = new Map((json.products || []).map((product) => [String(product.id), product]));

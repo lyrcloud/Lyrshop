@@ -676,7 +676,7 @@ async function loadProducts() {
   const timeoutId = window.setTimeout(() => controller.abort(), PRODUCT_REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(shopperProductsUrl(API_BASE_URL), { signal: controller.signal });
+    const response = await fetch(shopperProductsUrl(API_BASE_URL, undefined, "view=cards"), { signal: controller.signal });
     if (!response.ok) {
       throw new Error(`Product request failed with ${response.status}`);
     }
