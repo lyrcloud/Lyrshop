@@ -3,7 +3,8 @@ const LEGACY_USERS_KEY = "lyrshopUsers";
 const AUTH_SESSION_KEY = "lyrshopSession";
 const AUTH_ORDERS_KEY = "lyrshopOrders";
 // Mobile sign-up/login needs Twilio able to text any number (account upgraded from trial). Flip to true then.
-const MOBILE_SIGNUP_ENABLED = false;
+// Until then, opening the sign-in page with ?mobile=1 shows it for testing with a number verified in Twilio.
+const MOBILE_SIGNUP_ENABLED = false || new URLSearchParams(window.location.search).get("mobile") === "1";
 
 // Named apart from app.js/admin.js API_BASE_URL, which share this page scope.
 const AUTH_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.location.hostname)
