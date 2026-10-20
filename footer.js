@@ -35,6 +35,8 @@ const FOOTER_COLUMNS = [
     links: [
       ["Track an order", "dashboard.html#purchases"],
       ["Contact us", "mailto:support@lyrshop.com"],
+      ["Privacy policy", "privacy.html"],
+      ["Delete account", "privacy.html#delete-account"],
       ["Sign in", "auth.html"],
     ],
   },

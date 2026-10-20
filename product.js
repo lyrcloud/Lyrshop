@@ -956,7 +956,8 @@ function bindBuyBar(product) {
   let queued = false;
   const update = () => {
     queued = false;
-    const show = actions.getBoundingClientRect().bottom < (header?.getBoundingClientRect().bottom || 0);
+    // On phones the header isn't sticky and scrolls away, so the top of the screen is the limit.
+    const show = actions.getBoundingClientRect().bottom < Math.max(header?.getBoundingClientRect().bottom || 0, 0);
     if (bar.hidden === !show) return;
     bar.hidden = !show;
     document.body.classList.toggle("has-buy-bar", show);

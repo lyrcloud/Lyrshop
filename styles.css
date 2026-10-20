@@ -8332,3 +8332,36 @@ iframe.skiptranslate,
 .business-review .partner-field input {
   width: 8rem;
 }
+
+/* Privacy policy and other text pages */
+.legal-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.5rem 16px 3rem;
+  line-height: 1.6;
+}
+
+.legal-page h2 {
+  margin-top: 2rem;
+  font-size: 1.25rem;
+}
+
+.legal-page ul {
+  padding-left: 1.25rem;
+}
+
+.legal-page li + li {
+  margin-top: 0.4rem;
+}
+
+.legal-updated {
+  color: #707070;
+  font-size: 0.9rem;
+}
+
+/* On phones the full header (links, pickers, logo, search) is ~350px tall, so pinning it would hide half the screen. */
+@media (max-width: 768px) {
+  .header {
+    position: static;
+  }
+}
