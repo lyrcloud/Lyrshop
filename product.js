@@ -173,23 +173,36 @@ function splitOption(option) {
   if (splitCache.has(option)) return splitCache.get(option);
   const colors = new Map(); // lowercased color -> the first spelling seen
   const sizes = [];
-  const values = new Map(); // "color|size" -> listing value
+  const packs = [];
+  const entries = [];
   let split = (option.values || []).length > 1 && !/^size/i.test(option.name) ? {} : null;
   for (const value of split ? option.values : []) {
-    const pieces = LyrSizing.parts(value);
-    const size = pieces.length > 1 ? LyrSizing.sizeName(pieces[pieces.length - 1]) : null;
-    if (!size) { split = null; break; }
-    const color = pieces.slice(0, -1).join("-");
+    const variant = LyrSizing.variantParts(value);
+    if (!variant) { split = null; break; }
+    const { color, size, pack } = variant;
     const key = color.toLowerCase();
     if (!colors.has(key)) colors.set(key, color);
     if (!sizes.includes(size)) sizes.push(size);
-    values.set(`${key}|${size}`, value);
+    if (pack && !packs.includes(pack)) packs.push(pack);
+    entries.push({ value, key, size, pack });
   }
   if (split) {
+    const hasPack = packs.length > 0;
+    if (hasPack && entries.some((entry) => !entry.pack)) packs.unshift("Standard");
+    const values = new Map();
+    for (const entry of entries) {
+      const pack = entry.pack || (hasPack ? "Standard" : "");
+      values.set(`${entry.key}|${entry.size}|${pack}`, entry.value);
+    }
     split = {
       colors: [...colors.values()],
       sizes: LyrSizing.sortedValues({ name: "Size", values: sizes }),
-      value: (color, size) => values.get(`${String(color).toLowerCase()}|${size}`),
+      packs,
+      value: (parts) => values.get(`${String(parts.color).toLowerCase()}|${parts.size}|${parts.pack || (hasPack ? "Standard" : "")}`),
+      has: (parts) => entries.some((entry) =>
+        (!parts.color || entry.key === String(parts.color).toLowerCase())
+        && (!parts.size || entry.size === parts.size)
+        && (!parts.pack || entry.pack === parts.pack || (!entry.pack && parts.pack === "Standard"))),
     };
   }
   splitCache.set(option, split);
@@ -248,16 +261,22 @@ function renderOptions(product) {
       const body = optionButtons(option, "", option.name, values, chosen, product);
       return optionGroup(option, "", option.name, chosen, chosen ? LyrSizing.altLabel(chosen, option, product) : "", body);
     }
-    const { color, size } = chosenParts[option.name] || {};
-    const noColor = new Set(size ? split.colors.filter((value) => !split.value(value, size)) : []);
-    const noSize = new Set(color ? split.sizes.filter((value) => !split.value(color, value)) : []);
-    const colorBody = split.colors.length > COLOR_MENU_AFTER
-      ? optionMenu(option, "color", "Color", split.colors, color, noColor, `size ${size}`)
-      : optionButtons(option, "color", "Color", split.colors, color, product, noColor);
-    const sizeOption = { name: "Size", values: split.sizes };
-    return optionGroup(option, "color", "Color", color, "", colorBody)
-      + optionGroup(option, "size", "Size", size, size ? LyrSizing.altLabel(size, sizeOption, product) : "",
-        optionButtons(option, "size", "Size", split.sizes, size, product, noSize));
+    const chosen = chosenParts[option.name] || {};
+    const dimensions = [
+      { part: "color", label: "Color", values: split.colors },
+      { part: "size", label: "Size", values: split.sizes },
+      ...(split.packs.length ? [{ part: "pack", label: "Pack", values: split.packs }] : []),
+    ];
+    return dimensions.map(({ part, label, values }) => {
+      const unavailable = new Set(values.filter((value) => !split.has({ ...chosen, [part]: value })));
+      const body = part === "color" && values.length > COLOR_MENU_AFTER
+        ? optionMenu(option, part, label, values, chosen[part], unavailable, `size ${chosen.size || ""}`)
+        : optionButtons(option, part, label, values, chosen[part], product, unavailable);
+      const alt = part === "size" && chosen[part]
+        ? LyrSizing.altLabel(chosen[part], { name: "Size", values }, product)
+        : "";
+      return optionGroup(option, part, label, chosen[part], alt, body);
+    }).join("");
   }).join("");
   renderSizeHelp(product);
 }
@@ -300,10 +319,12 @@ function bindOptions(product) {
     const part = control.dataset.part;
     if (part) {
       const split = splitOption(product.options.find((option) => option.name === name));
-      const parts = chosenParts[name] = { ...chosenParts[name], [part]: value };
-      // A color without the chosen size (or the other way round) keeps the new pick and clears the other one.
-      if (parts.color && parts.size && !split.value(parts.color, parts.size)) delete parts[part === "color" ? "size" : "color"];
-      const listed = parts.color && parts.size ? split.value(parts.color, parts.size) : undefined;
+      const parts = { ...chosenParts[name], [part]: value };
+      for (const otherPart of ["color", "size", "pack"]) {
+        if (otherPart !== part && parts[otherPart] && !split.has(parts)) delete parts[otherPart];
+      }
+      chosenParts[name] = parts;
+      const listed = parts.color && parts.size && (!split.packs.length || parts.pack) ? split.value(parts) : undefined;
       if (listed) chosenOptions[name] = listed;
       else delete chosenOptions[name];
     } else {
@@ -339,7 +360,8 @@ function checkOptions(product) {
       continue;
     }
     const parts = chosenParts[option.name] || {};
-    for (const part of ["color", "size"]) {
+    const dimensions = split.packs.length ? ["color", "size", "pack"] : ["color", "size"];
+    for (const part of dimensions) {
       if (parts[part]) continue;
       missingGroups.add(`${option.name}|${part}`);
       labels.push(part);

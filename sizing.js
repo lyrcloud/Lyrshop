@@ -46,6 +46,19 @@ const LyrSizing = (() => {
   // The parts of an option value, e.g. "Wine red-3XL" -> ["Wine red", "3XL"], "Black 2pcs" -> ["Black 2pcs"].
   const parts = (value) => String(value).split(/\s*-\s*/).map((part) => part.trim()).filter(Boolean);
 
+  function variantParts(value) {
+    const pieces = parts(value);
+    let pack = "";
+    const packMatch = pieces.length > 2 && pieces[pieces.length - 1].match(/^(\d+)\s*pcs?(?:color)?$/i);
+    if (packMatch) {
+      pack = `${packMatch[1]} pcs`;
+      pieces.pop();
+    }
+    const size = pieces.length > 1 ? sizeName(pieces[pieces.length - 1]) : null;
+    if (!size) return null;
+    return { color: pieces.slice(0, -1).join("-"), size, pack };
+  }
+
   function shoeSize(part, optionName) {
     const match = String(part).match(/^(?:EU|EUR)?\s*(\d{2}(?:\.5)?)$/i);
     const size = match && Number(match[1]);
@@ -276,5 +289,5 @@ const LyrSizing = (() => {
   // A clothing size written any way suppliers do ("Xl", "xxl", "2xl") in one spelling ("XL", "2XL"), or null.
   const sizeName = (value) => letterSize(String(value).trim());
 
-  return { altLabel, sortedValues, hasGuide, guideHtml, runsSmall, swatch, isColorOption, parts, measurementText, usesImperial, sizeName };
+  return { altLabel, sortedValues, hasGuide, guideHtml, runsSmall, swatch, isColorOption, parts, variantParts, measurementText, usesImperial, sizeName };
 })();
