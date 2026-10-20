@@ -472,6 +472,12 @@ function initAuthPage() {
   }
 
   function initGoogle() {
+    // Google blocks its sign-in pop-up inside app WebViews; the app needs native Google sign-in first.
+    if (/LyrshopApp/.test(navigator.userAgent)) {
+      googleButton.previousElementSibling?.classList.add("hidden");
+      googleButton.classList.add("hidden");
+      return;
+    }
     if (!window.google) return;
     google.accounts.id.initialize({
       client_id: "238394195869-ohu6m0qm43k069a3r2sb3mak0r4g9obs.apps.googleusercontent.com",

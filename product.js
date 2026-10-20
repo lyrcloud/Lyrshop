@@ -885,6 +885,12 @@ function bindShare(product) {
   document.getElementById("share-button").addEventListener("click", async () => {
     const url = `${window.location.origin}/product.html?id=${encodeURIComponent(product.id)}`;
     try {
+      // Inside the Lyrshop app the WebView has no navigator.share, so use the native share sheet.
+      const nativeShare = window.Capacitor?.Plugins?.Share;
+      if (nativeShare) {
+        await nativeShare.share({ title: product.name, text: `${product.name} on Lyrshop`, url, dialogTitle: "Share" });
+        return;
+      }
       if (navigator.share) {
         await navigator.share({ title: product.name, text: `${product.name} on Lyrshop`, url });
         return;
@@ -892,7 +898,7 @@ function bindShare(product) {
       await navigator.clipboard.writeText(url);
       showToast("Link copied. Paste it anywhere to share.");
     } catch (error) {
-      if (error?.name !== "AbortError") showToast("Couldn't share. Copy the address from your browser instead.", { tone: "error" });
+      if (error?.name !== "AbortError" && !/cancel/i.test(error?.message || "")) showToast("Couldn't share. Copy the address from your browser instead.", { tone: "error" });
     }
   });
 }
