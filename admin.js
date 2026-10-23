@@ -2430,7 +2430,7 @@ const UPLOAD_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 const UPLOAD_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
 // Same OAuth client as Google sign-in in auth.js; its JavaScript origins must include this site.
-const GOOGLE_CLIENT_ID = "238394195869-ohu6m0qm43k069a3r2sb3mak0r4g9obs.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "238394195869-vqpjl5aj6vkjldvlfdrtacq60h4lc09f.apps.googleusercontent.com";
 // Google Cloud API key with the Google Picker API enabled. Drive import stays off until it is set.
 const GOOGLE_PICKER_API_KEY = "";
 const GOOGLE_APP_ID = "238394195869";

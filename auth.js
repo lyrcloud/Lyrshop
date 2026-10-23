@@ -471,7 +471,7 @@ function initAuthPage() {
     }
   }
 
-  const googleClientId = "238394195869-ohu6m0qm43k069a3r2sb3mak0r4g9obs.apps.googleusercontent.com";
+  const googleClientId = "238394195869-vqpjl5aj6vkjldvlfdrtacq60h4lc09f.apps.googleusercontent.com";
 
   // Google blocks its sign-in pop-up inside app WebViews, so the app signs in natively and hands back the same ID token.
   function initNativeGoogle(nativeGoogle) {
