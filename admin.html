@@ -717,6 +717,18 @@
             <input type="number" id="affiliate-per-keyword" min="1" max="50" step="1" />
           </label>
           <label>
+            New brand products
+            <select id="affiliate-new-status">
+              <option value="draft">Save as drafts, publish a few a day</option>
+              <option value="published">Publish right away</option>
+            </select>
+          </label>
+          <label>
+            Drafts published a day
+            <input type="number" id="affiliate-publish-per-day" min="0" max="200" step="1" />
+            <small class="field-hint">Oldest drafts first. 0 = you publish them yourself.</small>
+          </label>
+          <label>
             Only these brands (advertiser IDs)
             <input type="text" id="affiliate-advertisers" placeholder="Blank = all approved brands" />
           </label>
@@ -796,7 +808,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261024-2"></script>
+  <script src="admin.js?v=20261024-3"></script>
   <script src="footer.js?v=20261020-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

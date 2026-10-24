@@ -1455,6 +1455,8 @@ const affiliateForm = document.getElementById("affiliate-settings");
 const affiliateKeywords = document.getElementById("affiliate-keywords");
 const affiliatePerKeyword = document.getElementById("affiliate-per-keyword");
 const affiliateAdvertisers = document.getElementById("affiliate-advertisers");
+const affiliateNewStatus = document.getElementById("affiliate-new-status");
+const affiliatePublishPerDay = document.getElementById("affiliate-publish-per-day");
 const affiliateEnabled = document.getElementById("affiliate-enabled");
 const affiliateRun = document.getElementById("affiliate-run");
 const affiliateRunning = document.getElementById("affiliate-running");
@@ -1465,6 +1467,9 @@ let affiliatePoll = null;
 function initAffiliatePanel() {
   affiliateSection.hidden = false;
   affiliateForm.addEventListener("submit", saveAffiliateSettings);
+  affiliateNewStatus.addEventListener("change", () => {
+    affiliatePublishPerDay.disabled = affiliateNewStatus.value !== "draft";
+  });
   affiliateRun.addEventListener("click", runAffiliateImport);
   loadAffiliateImports();
 }
@@ -1490,15 +1495,20 @@ function renderAffiliateState() {
   affiliateKeywords.value = (settings.keywords || []).join(", ");
   affiliatePerKeyword.value = settings.per_keyword;
   affiliateAdvertisers.value = (settings.advertisers || []).join(", ");
+  affiliateNewStatus.value = settings.new_status || "draft";
+  affiliatePublishPerDay.value = settings.publish_per_day ?? 10;
+  affiliatePublishPerDay.disabled = affiliateNewStatus.value !== "draft";
   affiliateEnabled.checked = settings.enabled;
-  const listed = adminProducts.filter((product) => product.source === "affiliate").length;
+  const brandListings = adminProducts.filter((product) => product.source === "affiliate");
+  const listed = brandListings.filter((product) => (product.status || "published") === "published").length;
+  const queued = brandListings.filter((product) => product.status === "draft" && product.affiliate?.queued).length;
   const brands = Array.isArray(partners)
     ? (partners.length
       ? `Approved brands: ${partners.map((p) => `${escapeHtml(p.name)} (${p.mid})`).join(", ")}.`
       : "No brand has approved Lyrshop yet. Apply to brands in the Rakuten publisher dashboard.")
     : "Approved brands show here after the first import.";
   document.getElementById("affiliate-status").innerHTML = connected
-    ? `<strong>Connected to Rakuten.</strong> ${brands} ${listed} brand listing${listed === 1 ? "" : "s"} on Lyrshop.`
+    ? `<strong>Connected to Rakuten.</strong> ${brands} ${listed} brand listing${listed === 1 ? "" : "s"} live, ${queued} draft${queued === 1 ? "" : "s"} waiting to publish.`
     : "<strong>Not connected.</strong> Add your Rakuten client ID, client secret and site ID to the <code>lyrshop/rakuten</code> secret and deploy with <code>RakutenSecret=lyrshop/rakuten</code>.";
   affiliateRun.disabled = running || !connected;
   affiliateRunning.textContent = running ? "Importing… this page updates when it's done." : "";
@@ -1514,7 +1524,8 @@ function affiliateRunSummary(run) {
   </li>`).join("");
   const errors = run.errors?.length ? `<p class="is-error">${run.errors.map(escapeHtml).join(" · ")}</p>` : "";
   const hidden = run.hidden ? ` · ${run.hidden} hidden (not in the brand's feed for 7 days)` : "";
-  return `<p>Last import ${escapeHtml(formatOrderDate(run.started_at))} by ${escapeHtml(who)} · ${run.imported ?? 0} new · ${run.refreshed ?? 0} refreshed${hidden}</p>${errors}<ul>${rows}</ul>`;
+  const published = run.published ? ` · ${run.published} draft${run.published === 1 ? "" : "s"} published, ${run.queued ?? 0} still waiting` : "";
+  return `<p>Last import ${escapeHtml(formatOrderDate(run.started_at))} by ${escapeHtml(who)} · ${run.imported ?? 0} new · ${run.refreshed ?? 0} refreshed${hidden}${published}</p>${errors}<ul>${rows}</ul>`;
 }
 
 async function saveAffiliateSettings(event) {
@@ -1526,6 +1537,8 @@ async function saveAffiliateSettings(event) {
         keywords: affiliateKeywords.value,
         per_keyword: Number(affiliatePerKeyword.value),
         advertisers: affiliateAdvertisers.value,
+        new_status: affiliateNewStatus.value,
+        publish_per_day: Number(affiliatePublishPerDay.value),
         enabled: affiliateEnabled.checked,
       },
     });
