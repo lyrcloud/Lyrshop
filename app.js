@@ -614,7 +614,9 @@ function renderProductCards(products) {
             <span class="current-price">${formatPrice(product.price)}</span>
             ${isOnSale(product) ? `<span class="original-price">${formatPrice(product.original_price)}</span>` : ""}
           </div>
-          ${product.options?.length
+          ${product.source === "affiliate"
+            ? `<a class="button button-primary add-cart-btn" href="${productUrl}">View deal</a>`
+            : product.options?.length
             ? `<a class="button button-primary add-cart-btn" href="${productUrl}">Choose options</a>`
             : `<button type="button" class="button button-primary add-cart-btn" data-add="${escapeHtml(product.id)}">Add to Cart</button>`}
         </div>

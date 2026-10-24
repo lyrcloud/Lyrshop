@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261020-1" />
+  <link rel="stylesheet" href="styles.css?v=20261024-1" />
 </head>
 <body>
   <header class="page-header">
@@ -643,7 +643,7 @@
       </div>
 
       <h3>Automatic imports</h3>
-      <p class="cj-hint" id="cj-import-intro">Every day at 06:00 UTC, CJ's trending products for each country below are imported and published. Products stocked in a CJ warehouse in that country come first and ship from there; the rest ship from the CJ warehouse that stocks them, usually in China.</p>
+      <p class="cj-hint" id="cj-import-intro">Every day at 06:00 UTC, CJ's trending products for each country below, plus products matching your keywords, are imported and published. Products stocked in a CJ warehouse in that country come first and ship from there; the rest ship from the CJ warehouse that stocks them, usually in China.</p>
       <form id="cj-import-settings" class="admin-crud-form cj-import-settings">
         <label class="wide-field">
           Countries
@@ -653,6 +653,15 @@
         <label>
           Products per country a day
           <input type="number" id="cj-import-per-country" min="1" max="50" step="1" />
+        </label>
+        <label class="wide-field">
+          Keywords
+          <textarea id="cj-import-keywords" rows="2" placeholder="e.g. smart watch, wireless earbuds, power bank"></textarea>
+          <small class="field-hint">After the trending products, each keyword adds matching CJ products. CJ carries no brand-name products, so use product types, not brands.</small>
+        </label>
+        <label>
+          Products per keyword a day
+          <input type="number" id="cj-import-per-keyword" min="1" max="20" step="1" />
         </label>
         <label>
           Price (× CJ cost)
@@ -692,6 +701,40 @@
         </table>
       </div>
       <button type="button" id="cj-imported-more" class="button button-secondary" hidden>Show more</button>
+
+      <section id="affiliate-import" class="affiliate-import" hidden>
+        <h3>Brand products (Rakuten affiliate)</h3>
+        <p class="cj-hint">Real brand products (Merrell, Puma, Lenovo…) from the brands that approved Lyrshop on Rakuten Advertising. Each listing links to the brand's site, where the shopper buys and Lyrshop earns a commission. Runs every day at 07:00 UTC; prices are refreshed and products the brand drops are hidden after 7 days.</p>
+        <p id="affiliate-status" class="cj-hint"></p>
+        <form id="affiliate-settings" class="admin-crud-form cj-import-settings">
+          <label class="wide-field">
+            Keywords
+            <textarea id="affiliate-keywords" rows="3" placeholder="e.g. merrell hiking shoes, puma sneakers, lenovo laptop"></textarea>
+            <small class="field-hint">Each keyword searches the product feeds of every approved brand. Results must contain every word.</small>
+          </label>
+          <label>
+            Products per keyword a day
+            <input type="number" id="affiliate-per-keyword" min="1" max="50" step="1" />
+          </label>
+          <label>
+            Only these brands (advertiser IDs)
+            <input type="text" id="affiliate-advertisers" placeholder="Blank = all approved brands" />
+          </label>
+          <label class="regional-pricing-field">
+            <input type="checkbox" id="affiliate-enabled" />
+            <span>Import every day</span>
+          </label>
+          <div class="admin-form-actions">
+            <button type="submit" class="button button-secondary">Save settings</button>
+          </div>
+        </form>
+        <div class="cj-import-run">
+          <button type="button" id="affiliate-run" class="button button-primary">Import now</button>
+          <span id="affiliate-running" class="cj-hint"></span>
+        </div>
+        <div id="affiliate-message" class="admin-message"></div>
+        <div id="affiliate-last" class="cj-import-last"></div>
+      </section>
 
       <h3>Look up a CJ product</h3>
       <form id="cj-lookup-form" class="cj-lookup">
@@ -753,7 +796,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261023-1"></script>
+  <script src="admin.js?v=20261024-2"></script>
   <script src="footer.js?v=20261020-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

@@ -1445,6 +1445,110 @@ function initCjPanel() {
   });
   cjImportedBody.addEventListener("click", handleCjImportedClick);
   loadCjImports();
+  if (isSuperAdmin()) initAffiliatePanel();
+}
+
+// ── Rakuten brand (affiliate) imports ──
+
+const affiliateSection = document.getElementById("affiliate-import");
+const affiliateForm = document.getElementById("affiliate-settings");
+const affiliateKeywords = document.getElementById("affiliate-keywords");
+const affiliatePerKeyword = document.getElementById("affiliate-per-keyword");
+const affiliateAdvertisers = document.getElementById("affiliate-advertisers");
+const affiliateEnabled = document.getElementById("affiliate-enabled");
+const affiliateRun = document.getElementById("affiliate-run");
+const affiliateRunning = document.getElementById("affiliate-running");
+const affiliateMessage = document.getElementById("affiliate-message");
+let affiliateState = null;
+let affiliatePoll = null;
+
+function initAffiliatePanel() {
+  affiliateSection.hidden = false;
+  affiliateForm.addEventListener("submit", saveAffiliateSettings);
+  affiliateRun.addEventListener("click", runAffiliateImport);
+  loadAffiliateImports();
+}
+
+async function loadAffiliateImports() {
+  try {
+    const wasRunning = affiliateState?.running;
+    affiliateState = await authApi("/affiliate/import");
+    renderAffiliateState();
+    if (wasRunning && !affiliateState.running) {
+      showMessage(affiliateMessage, `Import finished: ${affiliateState.last_run?.imported ?? 0} new brand listings.`);
+      loadCurrentProducts(readSession());
+    }
+  } catch (error) {
+    showMessage(affiliateMessage, error.message, true);
+  }
+  clearTimeout(affiliatePoll);
+  if (affiliateState?.running) affiliatePoll = setTimeout(loadAffiliateImports, CJ_IMPORT_POLL_MS);
+}
+
+function renderAffiliateState() {
+  const { settings, partners, last_run: lastRun, running, connected } = affiliateState;
+  affiliateKeywords.value = (settings.keywords || []).join(", ");
+  affiliatePerKeyword.value = settings.per_keyword;
+  affiliateAdvertisers.value = (settings.advertisers || []).join(", ");
+  affiliateEnabled.checked = settings.enabled;
+  const listed = adminProducts.filter((product) => product.source === "affiliate").length;
+  const brands = Array.isArray(partners)
+    ? (partners.length
+      ? `Approved brands: ${partners.map((p) => `${escapeHtml(p.name)} (${p.mid})`).join(", ")}.`
+      : "No brand has approved Lyrshop yet. Apply to brands in the Rakuten publisher dashboard.")
+    : "Approved brands show here after the first import.";
+  document.getElementById("affiliate-status").innerHTML = connected
+    ? `<strong>Connected to Rakuten.</strong> ${brands} ${listed} brand listing${listed === 1 ? "" : "s"} on Lyrshop.`
+    : "<strong>Not connected.</strong> Add your Rakuten client ID, client secret and site ID to the <code>lyrshop/rakuten</code> secret and deploy with <code>RakutenSecret=lyrshop/rakuten</code>.";
+  affiliateRun.disabled = running || !connected;
+  affiliateRunning.textContent = running ? "Importing… this page updates when it's done." : "";
+  document.getElementById("affiliate-last").innerHTML = affiliateRunSummary(lastRun);
+}
+
+function affiliateRunSummary(run) {
+  if (!run?.started_at) return "<p class=\"cj-hint\">No brand import has run yet.</p>";
+  const who = run.by === "schedule" ? "daily schedule" : run.by;
+  const rows = (run.keywords || []).map((row) => `<li>
+    <strong>${escapeHtml(row.keyword)}</strong>: ${row.imported} new · ${row.refreshed} refreshed · ${row.found} found
+    ${row.errors?.length ? `<br /><small class="is-error">${row.errors.slice(0, 2).map(escapeHtml).join(" · ")}</small>` : ""}
+  </li>`).join("");
+  const errors = run.errors?.length ? `<p class="is-error">${run.errors.map(escapeHtml).join(" · ")}</p>` : "";
+  const hidden = run.hidden ? ` · ${run.hidden} hidden (not in the brand's feed for 7 days)` : "";
+  return `<p>Last import ${escapeHtml(formatOrderDate(run.started_at))} by ${escapeHtml(who)} · ${run.imported ?? 0} new · ${run.refreshed ?? 0} refreshed${hidden}</p>${errors}<ul>${rows}</ul>`;
+}
+
+async function saveAffiliateSettings(event) {
+  event.preventDefault();
+  try {
+    affiliateState = await authApi("/affiliate/import", {
+      method: "PUT",
+      body: {
+        keywords: affiliateKeywords.value,
+        per_keyword: Number(affiliatePerKeyword.value),
+        advertisers: affiliateAdvertisers.value,
+        enabled: affiliateEnabled.checked,
+      },
+    });
+    renderAffiliateState();
+    showMessage(affiliateMessage, "Brand import settings saved.");
+  } catch (error) {
+    showMessage(affiliateMessage, error.message, true);
+  }
+}
+
+async function runAffiliateImport() {
+  affiliateRun.disabled = true;
+  try {
+    const { message } = await authApi("/affiliate/import/run", { method: "POST" });
+    showMessage(affiliateMessage, message);
+    affiliateState = { ...affiliateState, running: true };
+    renderAffiliateState();
+    clearTimeout(affiliatePoll);
+    affiliatePoll = setTimeout(loadAffiliateImports, CJ_IMPORT_POLL_MS);
+  } catch (error) {
+    affiliateRun.disabled = false;
+    showMessage(affiliateMessage, error.message, true);
+  }
 }
 
 // ── CJ automatic imports ──
@@ -1453,6 +1557,8 @@ const cjImportForm = document.getElementById("cj-import-settings");
 const cjImportCountries = document.getElementById("cj-import-countries");
 const cjImportCountryNames = document.getElementById("cj-import-country-names");
 const cjImportPerCountry = document.getElementById("cj-import-per-country");
+const cjImportKeywords = document.getElementById("cj-import-keywords");
+const cjImportPerKeyword = document.getElementById("cj-import-per-keyword");
 const cjImportMarkup = document.getElementById("cj-import-markup");
 const cjImportEnabled = document.getElementById("cj-import-enabled");
 const cjImportRun = document.getElementById("cj-import-run");
@@ -1504,6 +1610,7 @@ function cjRunSummary(run) {
     ${row.imported ? `(${row.local} ship from there, ${row.imported - row.local} from abroad)` : ""}
     ${row.markets_added ? ` · ${row.markets_added} existing listing${row.markets_added === 1 ? "" : "s"} added` : ""}
     ${row.no_route ? ` · ${row.no_route} skipped (CJ doesn't ship there, or shipping costs more than the item)` : ""}
+    ${Object.keys(row.keywords || {}).length ? `<br /><small>Keywords: ${Object.entries(row.keywords).map(([word, count]) => `${escapeHtml(word)} ${count}`).join(" · ")}</small>` : ""}
     ${row.errors?.length ? `<br /><small class="is-error">${row.errors.slice(0, 3).map(escapeHtml).join(" · ")}${row.errors.length > 3 ? ` · ${row.errors.length - 3} more` : ""}</small>` : ""}
   </li>`).join("");
   const quotes = run.quotes_added ? ` · shipping prices added to ${run.quotes_added} earlier listing${run.quotes_added === 1 ? "" : "s"}` : "";
@@ -1514,14 +1621,16 @@ function renderCjImportState() {
   const { settings, last_run: lastRun, running, can_edit: canEdit, scope } = cjImportState;
   cjImportCountries.value = settings.countries.join(", ");
   cjImportPerCountry.value = settings.per_country;
+  cjImportKeywords.value = (settings.keywords || []).join(", ");
+  cjImportPerKeyword.value = settings.per_keyword;
   cjImportMarkup.value = settings.markup;
   cjImportEnabled.checked = settings.enabled;
-  cjImportForm.querySelectorAll("input, button").forEach((input) => { input.disabled = !canEdit; });
+  cjImportForm.querySelectorAll("input, textarea, button").forEach((input) => { input.disabled = !canEdit; });
   document.getElementById("cj-import-save").hidden = !canEdit;
   showCjImportCountryNames();
   if (scope) {
     document.getElementById("cj-import-intro").textContent =
-      `You manage ${countryList(scope)}. Import now adds CJ's trending products for your countries; only the super admin changes the daily settings.`;
+      `You manage ${countryList(scope)}. Import now adds CJ's trending products and keyword matches for your countries; only the super admin changes the daily settings.`;
   }
   cjImportRun.disabled = running;
   cjImportRunning.textContent = running ? "Importing… this page updates when it's done." : "";
@@ -1542,6 +1651,8 @@ async function saveCjImportSettings(event) {
       body: {
         countries: cjImportCountries.value,
         per_country: Number(cjImportPerCountry.value),
+        keywords: cjImportKeywords.value,
+        per_keyword: Number(cjImportPerKeyword.value),
         markup: Number(cjImportMarkup.value),
         enabled: cjImportEnabled.checked,
       },

@@ -875,6 +875,7 @@ function deliveryWindow(estimate) {
 }
 
 async function renderShippingEstimate(product) {
+  if (product.source === "affiliate") return;  // The brand ships it; see renderAffiliate.
   const box = document.getElementById("shipping-estimate");
   const code = LyrLocale.country() || "US";
   const place = LyrLocale.countryName(code);
@@ -961,6 +962,44 @@ function renderSimilar(product, products) {
       <span class="similar-name">${escapeHtml(item.name)}</span>
       <strong class="similar-price">${formatPrice(item.price)}</strong>
     </a>`).join("");
+}
+
+// ── Affiliate listings ──────────────────────────────────────────────────────────
+// Brand products from Rakuten (source "affiliate") are sold on the brand's own site: the buttons link there through
+// the tracked affiliate link, and the cart, quantity, business pricing and Lyrshop shipping don't apply.
+
+function affiliateLink(product, className, label) {
+  const link = document.createElement("a");
+  link.className = className;
+  link.href = product.affiliate.url;
+  link.target = "_blank";
+  // "sponsored" tells search engines it's a paid link, as Google requires for affiliate links.
+  link.rel = "sponsored nofollow noopener";
+  link.textContent = label;
+  return link;
+}
+
+function renderAffiliate(product) {
+  const merchant = product.affiliate?.merchant || product.brand || "the brand's site";
+  if (!product.affiliate?.url) return;
+  const label = `Buy at ${merchant} \u2197`;
+  document.getElementById("buy-now-button").replaceWith(affiliateLink(product, "button buy-now-button", label));
+  document.getElementById("buy-bar-button").replaceWith(affiliateLink(product, "button buy-bar-button", label));
+  document.getElementById("detail-cart-button").remove();
+  document.getElementById("wholesale-box").hidden = true;
+  document.getElementById("quantity-select").closest("div").remove();
+  const seen = Number(product.affiliate.seen_at) * 1000;
+  const checked = seen ? new Date(seen).toLocaleDateString(navigator.language || "en-US", { month: "short", day: "numeric" }) : "";
+  document.querySelector(".shipping-box").innerHTML = `
+    <div>
+      <strong>Sold by</strong>
+      <span>${escapeHtml(merchant)}. Shipping, returns and payment are handled on ${escapeHtml(merchant)}'s site.</span>
+    </div>
+    <div>
+      <strong>Price</strong>
+      <span>${checked ? `Checked ${escapeHtml(checked)}. ` : ""}The price on ${escapeHtml(merchant)}'s site at checkout is final.</span>
+    </div>
+    <p class="affiliate-disclosure">Lyrshop may earn a commission when you buy through this link, at no extra cost to you.</p>`;
 }
 
 function bindBuyBar(product) {
@@ -1053,6 +1092,7 @@ async function initProductDetail() {
   bindSizeGuide(product);
   bindShare(product);
   bindBuyBar(product);
+  if (product.source === "affiliate") renderAffiliate(product);
   renderAskLyrbot(product);
   renderSimilar(product, products);
   renderShippingEstimate(product);
