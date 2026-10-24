@@ -6,6 +6,10 @@ if [ "$#" -lt 1 ]; then
   exit 1
 fi
 
+# Sync this script's own folder (the storefront), never the caller's working directory: run from the repo root,
+# "aws s3 sync ." would publish backend/.env and every other file there to the public bucket.
+cd "$(dirname "$0")"
+
 STACK_NAME="$1"
 REGION="${2:-us-east-1}"
 
