@@ -1448,13 +1448,14 @@ function initCjPanel() {
   if (isSuperAdmin()) initAffiliatePanel();
 }
 
-// ── Rakuten brand (affiliate) imports ──
+// ── Brand and retailer (affiliate) imports from Rakuten and Impact ──
 
 const affiliateSection = document.getElementById("affiliate-import");
 const affiliateForm = document.getElementById("affiliate-settings");
 const affiliateKeywords = document.getElementById("affiliate-keywords");
 const affiliatePerKeyword = document.getElementById("affiliate-per-keyword");
 const affiliateAdvertisers = document.getElementById("affiliate-advertisers");
+const affiliateImpactCampaigns = document.getElementById("affiliate-impact-campaigns");
 const affiliateNewStatus = document.getElementById("affiliate-new-status");
 const affiliatePublishPerDay = document.getElementById("affiliate-publish-per-day");
 const affiliateEnabled = document.getElementById("affiliate-enabled");
@@ -1491,10 +1492,11 @@ async function loadAffiliateImports() {
 }
 
 function renderAffiliateState() {
-  const { settings, partners, last_run: lastRun, running, connected } = affiliateState;
+  const { settings, partners, last_run: lastRun, running, connected, networks = [] } = affiliateState;
   affiliateKeywords.value = (settings.keywords || []).join(", ");
   affiliatePerKeyword.value = settings.per_keyword;
   affiliateAdvertisers.value = (settings.advertisers || []).join(", ");
+  affiliateImpactCampaigns.value = (settings.impact_campaigns || []).join(", ");
   affiliateNewStatus.value = settings.new_status || "draft";
   affiliatePublishPerDay.value = settings.publish_per_day ?? 10;
   affiliatePublishPerDay.disabled = affiliateNewStatus.value !== "draft";
@@ -1502,14 +1504,16 @@ function renderAffiliateState() {
   const brandListings = adminProducts.filter((product) => product.source === "affiliate");
   const listed = brandListings.filter((product) => (product.status || "published") === "published").length;
   const queued = brandListings.filter((product) => product.status === "draft" && product.affiliate?.queued).length;
-  const brands = Array.isArray(partners)
-    ? (partners.length
-      ? `Approved brands: ${partners.map((p) => `${escapeHtml(p.name)} (${p.mid})`).join(", ")}.`
-      : "No brand has approved Lyrshop yet. Apply to brands in the Rakuten publisher dashboard.")
-    : "Approved brands show here after the first import.";
+  const approved = { rakuten: "Rakuten brands", impact: "Impact retailers" };
+  const where = { rakuten: "the Rakuten publisher dashboard", impact: "the Impact partner dashboard (Brands → Marketplace)" };
+  const brands = partners
+    ? Object.entries(partners).map(([network, list]) => (list.length
+      ? `${approved[network] || network}: ${list.map((p) => `${escapeHtml(p.name)} (${escapeHtml(String(p.mid))})`).join(", ")}.`
+      : `No ${(approved[network] || network).toLowerCase()} approved Lyrshop yet; apply in ${where[network] || network}.`)).join(" ")
+    : "Approved brands and retailers show here after the first import.";
   document.getElementById("affiliate-status").innerHTML = connected
-    ? `<strong>Connected to Rakuten.</strong> ${brands} ${listed} brand listing${listed === 1 ? "" : "s"} live, ${queued} draft${queued === 1 ? "" : "s"} waiting to publish.`
-    : "<strong>Not connected.</strong> Add your Rakuten client ID, client secret and site ID to the <code>lyrshop/rakuten</code> secret and deploy with <code>RakutenSecret=lyrshop/rakuten</code>.";
+    ? `<strong>Connected to ${networks.map(escapeHtml).join(" and ")}.</strong> ${brands} ${listed} affiliate listing${listed === 1 ? "" : "s"} live, ${queued} draft${queued === 1 ? "" : "s"} waiting to publish.`
+    : "<strong>Not connected.</strong> Add your Rakuten credentials to the <code>lyrshop/rakuten</code> secret (deploy with <code>RakutenSecret=lyrshop/rakuten</code>) and/or your Impact account SID and auth token to <code>lyrshop/impact</code> (deploy with <code>ImpactSecret=lyrshop/impact</code>).";
   affiliateRun.disabled = running || !connected;
   affiliateRunning.textContent = running ? "Importing… this page updates when it's done." : "";
   document.getElementById("affiliate-last").innerHTML = affiliateRunSummary(lastRun);
@@ -1519,11 +1523,11 @@ function affiliateRunSummary(run) {
   if (!run?.started_at) return "<p class=\"cj-hint\">No brand import has run yet.</p>";
   const who = run.by === "schedule" ? "daily schedule" : run.by;
   const rows = (run.keywords || []).map((row) => `<li>
-    <strong>${escapeHtml(row.keyword)}</strong>: ${row.imported} new · ${row.refreshed} refreshed · ${row.found} found
+    <strong>${escapeHtml(row.keyword)}</strong>${row.network ? ` (${escapeHtml(row.network)})` : ""}: ${row.imported} new · ${row.refreshed} refreshed · ${row.found} found
     ${row.errors?.length ? `<br /><small class="is-error">${row.errors.slice(0, 2).map(escapeHtml).join(" · ")}</small>` : ""}
   </li>`).join("");
   const errors = run.errors?.length ? `<p class="is-error">${run.errors.map(escapeHtml).join(" · ")}</p>` : "";
-  const hidden = run.hidden ? ` · ${run.hidden} hidden (not in the brand's feed for 7 days)` : "";
+  const hidden = run.hidden ? ` · ${run.hidden} hidden (not in the seller's feed for 7 days)` : "";
   const published = run.published ? ` · ${run.published} draft${run.published === 1 ? "" : "s"} published, ${run.queued ?? 0} still waiting` : "";
   return `<p>Last import ${escapeHtml(formatOrderDate(run.started_at))} by ${escapeHtml(who)} · ${run.imported ?? 0} new · ${run.refreshed ?? 0} refreshed${hidden}${published}</p>${errors}<ul>${rows}</ul>`;
 }
@@ -1537,13 +1541,14 @@ async function saveAffiliateSettings(event) {
         keywords: affiliateKeywords.value,
         per_keyword: Number(affiliatePerKeyword.value),
         advertisers: affiliateAdvertisers.value,
+        impact_campaigns: affiliateImpactCampaigns.value,
         new_status: affiliateNewStatus.value,
         publish_per_day: Number(affiliatePublishPerDay.value),
         enabled: affiliateEnabled.checked,
       },
     });
     renderAffiliateState();
-    showMessage(affiliateMessage, "Brand import settings saved.");
+    showMessage(affiliateMessage, "Affiliate import settings saved.");
   } catch (error) {
     showMessage(affiliateMessage, error.message, true);
   }

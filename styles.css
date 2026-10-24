@@ -8379,3 +8379,45 @@ iframe.skiptranslate,
     position: static;
   }
 }
+
+/* ── Grocery list page (groceries.js) ───────────────────────────────────────────── */
+.grocery-list-field {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.grocery-list-field textarea {
+  font: inherit;
+  font-weight: 400;
+  resize: vertical;
+}
+
+.grocery-quick-label {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+
+.grocery-preview {
+  margin: 0 0 1rem;
+  padding: 1rem 1rem 1rem 2rem;
+  border: 1px solid var(--line, #e5e5e5);
+  border-radius: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.grocery-preview .grocery-empty {
+  list-style: none;
+  margin-left: -1rem;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 760px) {
+  /* The list comes first on phones; the preview and steps follow it. */
+  #grocery-form {
+    order: -1;
+  }
+}

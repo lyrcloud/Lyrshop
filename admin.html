@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261024-1" />
+  <link rel="stylesheet" href="styles.css?v=20261024-2" />
 </head>
 <body>
   <header class="page-header">
@@ -703,14 +703,14 @@
       <button type="button" id="cj-imported-more" class="button button-secondary" hidden>Show more</button>
 
       <section id="affiliate-import" class="affiliate-import" hidden>
-        <h3>Brand products (Rakuten affiliate)</h3>
-        <p class="cj-hint">Real brand products (Merrell, Puma, Lenovo…) from the brands that approved Lyrshop on Rakuten Advertising. Each listing links to the brand's site, where the shopper buys and Lyrshop earns a commission. Runs every day at 07:00 UTC; prices are refreshed and products the brand drops are hidden after 7 days.</p>
+        <h3>Brand &amp; retailer products (affiliate)</h3>
+        <p class="cj-hint">Real brand products (Merrell, Puma, Lenovo…) from brands that approved Lyrshop on Rakuten Advertising, and retailer products (Walmart, Target, The Home Depot…) from programs that accepted Lyrshop on Impact.com. Each listing links to the seller's site, where the shopper buys and Lyrshop earns a commission. Runs every day at 07:00 UTC; prices are refreshed and products the brand drops are hidden after 7 days.</p>
         <p id="affiliate-status" class="cj-hint"></p>
         <form id="affiliate-settings" class="admin-crud-form cj-import-settings">
           <label class="wide-field">
             Keywords
             <textarea id="affiliate-keywords" rows="3" placeholder="e.g. merrell hiking shoes, puma sneakers, lenovo laptop"></textarea>
-            <small class="field-hint">Each keyword searches the product feeds of every approved brand. Results must contain every word.</small>
+            <small class="field-hint">Each keyword searches the product feeds of every approved brand and retailer. Results must contain every word.</small>
           </label>
           <label>
             Products per keyword a day
@@ -729,8 +729,12 @@
             <small class="field-hint">Oldest drafts first. 0 = you publish them yourself.</small>
           </label>
           <label>
-            Only these brands (advertiser IDs)
+            Only these Rakuten brands (advertiser IDs)
             <input type="text" id="affiliate-advertisers" placeholder="Blank = all approved brands" />
+          </label>
+          <label>
+            Only these Impact retailers (campaign IDs)
+            <input type="text" id="affiliate-impact-campaigns" placeholder="Blank = all accepted retailers" />
           </label>
           <label class="regional-pricing-field">
             <input type="checkbox" id="affiliate-enabled" />
@@ -808,8 +812,8 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261024-3"></script>
-  <script src="footer.js?v=20261020-1"></script>
+  <script src="admin.js?v=20261024-4"></script>
+  <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>
 </html>

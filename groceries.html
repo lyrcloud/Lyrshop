@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lyrshop Groceries</title>
+  <meta name="description" content="Type your grocery list and shop it at Aldi, Costco, Restaurant Depot or another store near you on Instacart." />
+  <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+  <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
+  <link rel="manifest" href="/site.webmanifest?v=2" />
+  <meta name="theme-color" content="#e53238" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=20261024-2" />
+</head>
+<body>
+  <header class="page-header compact-header">
+    <a href="index.html" aria-label="Lyrshop home">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+        <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238">lyrshop</text>
+      </svg>
+    </a>
+    <div class="header-actions">
+      <a href="index.html" class="button button-secondary">Shop</a>
+      <a href="cart.html" class="button button-secondary">Cart <span class="count-badge" data-count="cart" hidden></span></a>
+    </div>
+  </header>
+
+  <main class="giftcard-page">
+    <section class="giftcard-hero">
+      <h1>Groceries</h1>
+      <p>Write your grocery list here, then pick Aldi, Costco, Restaurant Depot, Kroger or another store near you on Instacart. Instacart shops and delivers it.</p>
+    </section>
+
+    <div class="giftcard-layout">
+      <form id="grocery-form" class="giftcard-form" novalidate>
+        <label class="grocery-list-field">
+          Your list, one item a line
+          <textarea id="grocery-list" rows="10" maxlength="4000" placeholder="2 lb bananas&#10;1 gallon milk&#10;12 eggs&#10;rice"></textarea>
+        </label>
+        <div>
+          <p class="grocery-quick-label">Quick add</p>
+          <div class="giftcard-presets" id="grocery-quick"></div>
+        </div>
+        <button type="submit" id="grocery-submit" class="button button-primary full-width">Shop this list on Instacart</button>
+        <p id="grocery-status" class="checkout-status" role="status"></p>
+        <a id="grocery-open" class="button button-primary full-width" target="_blank" rel="sponsored noopener" hidden>Open my list on Instacart</a>
+        <p class="checkout-muted checkout-fineprint">You check out and pay on Instacart, not Lyrshop. Lyrshop may earn a commission when you buy through this link, at no extra cost to you. Prices and stores depend on your area.</p>
+      </form>
+
+      <aside class="giftcard-preview-wrap" aria-label="How it works">
+        <ul id="grocery-preview" class="grocery-preview"></ul>
+        <ol class="giftcard-steps">
+          <li>Type what you need. Amounts like "2 lb" or "12" are optional.</li>
+          <li>Open your list on Instacart.</li>
+          <li>Pick a store near you, such as Aldi, Costco or Restaurant Depot.</li>
+          <li>Instacart finds each item and delivers it, often the same day.</li>
+        </ol>
+      </aside>
+    </div>
+  </main>
+
+  <footer data-site-footer>
+    <p>&copy; 2026 Lyrshop. Powered by Lyrcloud.</p>
+  </footer>
+
+  <script src="auth.js?v=20261023-1"></script>
+  <script src="locale.js?v=20261018-1"></script>
+  <script src="ui.js?v=20261019-1"></script>
+  <script src="groceries.js?v=20261024-1"></script>
+  <script src="footer.js?v=20261024-1"></script>
+  <script src="lyrbot.js?v=20261018-1"></script>
+</body>
+</html>

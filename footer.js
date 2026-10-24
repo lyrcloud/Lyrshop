@@ -9,6 +9,7 @@ const FOOTER_COLUMNS = [
       ["Watchlist", "index.html?view=watchlist#product-list"],
       ["Cart", "cart.html"],
       ["Gift cards", "giftcards.html"],
+      ["Groceries (Aldi, Costco & more)", "groceries.html"],
     ],
   },
   {

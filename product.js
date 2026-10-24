@@ -965,7 +965,7 @@ function renderSimilar(product, products) {
 }
 
 // ── Affiliate listings ──────────────────────────────────────────────────────────
-// Brand products from Rakuten (source "affiliate") are sold on the brand's own site: the buttons link there through
+// Brand and retailer products from Rakuten or Impact (source "affiliate") are sold on the seller's own site: the buttons link there through
 // the tracked affiliate link, and the cart, quantity, business pricing and Lyrshop shipping don't apply.
 
 function affiliateLink(product, className, label) {
