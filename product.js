@@ -169,7 +169,7 @@ function renderSpecifics(product, specs = []) {
       ? `<a href="index.html?view=brands&brand=${encodeURIComponent(product.brand)}#product-list">${escapeHtml(product.brand)}</a>`
       : escapeHtml(describedBrand || "Unbranded")],
     ["Category", escapeHtml([product.category, product.subcategory].filter(Boolean).join(" › "))],
-    ["Model", escapeHtml(model || product.id.toUpperCase())],
+    ["Model", escapeHtml(model || "Does not apply")],
     ...specs.filter(([label]) => fromDescription.has(label.toLowerCase())).map(([label, value]) => [escapeHtml(label), escapeHtml(value)]),
     ["Item location", escapeHtml(itemLocationLabel(product)) + (product.nearby_label ? ` <small>(${escapeHtml(product.nearby_label.toLowerCase())})</small>` : "")],
     ["Returns", "30 days"],
