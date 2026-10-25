@@ -30,6 +30,19 @@ const pointsToggle = document.getElementById("points-toggle");
 const usePointsInput = document.getElementById("use-points");
 const pointsEarn = document.getElementById("points-earn");
 const COUNTRY_KEY = "lyrshopShippingCountry";
+const DELIVERY_KEY = "lyrshopDeliveryAddress";
+// The delivery address form; country and ZIP come from the shipping quote fields above it.
+const deliveryFields = {
+  name: document.getElementById("delivery-name"),
+  address: document.getElementById("delivery-address1"),
+  address2: document.getElementById("delivery-address2"),
+  city: document.getElementById("delivery-city"),
+  province: document.getElementById("delivery-province"),
+  phone: document.getElementById("delivery-phone"),
+};
+const deliveryProvinceLabel = document.getElementById("delivery-province-label");
+// Countries whose addresses need a state or province (the server checks the same list).
+const STATE_COUNTRIES = ["US", "CA", "MX", "AU"];
 // The quoted rates were for this country; they're cleared when the shopper picks another.
 let quotedCountry = "US";
 // The ZIP the current carrier rates were quoted for; the server re-quotes the same rates at checkout.
@@ -563,6 +576,53 @@ async function loadProductDetails() {
   }
 }
 
+// ── Delivery address ──────────────────────────────────────────────────────────
+
+function deliveryAddress() {
+  const address = Object.fromEntries(Object.entries(deliveryFields).map(([key, input]) => [key, input.value.trim()]));
+  return { ...address, zip: shippingZipInput.value.trim(), country_code: shippingCountry() };
+}
+
+function saveDeliveryDraft() {
+  const { zip, country_code, ...draft } = deliveryAddress();
+  try { localStorage.setItem(DELIVERY_KEY, JSON.stringify(draft)); } catch { /* storage blocked */ }
+}
+
+function loadDeliveryDraft() {
+  let draft = {};
+  try { draft = JSON.parse(localStorage.getItem(DELIVERY_KEY) || "{}") || {}; } catch { /* storage blocked */ }
+  const user = getCurrentUser() || {};
+  draft = { name: user.name || "", phone: user.phone || "", ...Object.fromEntries(Object.entries(draft).filter(([, v]) => v)) };
+  Object.entries(deliveryFields).forEach(([key, input]) => { if (!input.value) input.value = String(draft[key] || ""); });
+}
+
+// The first missing field (focused, with a message), or "" when the address can go to checkout.
+function deliveryProblem() {
+  const address = deliveryAddress();
+  const needsState = STATE_COUNTRIES.includes(address.country_code);
+  const checks = [
+    [deliveryFields.name, address.name, "your full name"],
+    [deliveryFields.address, address.address, "your street address"],
+    [deliveryFields.city, address.city, "your city"],
+    [deliveryFields.province, !needsState || address.province, address.country_code === "US" ? "your state" : "your state or province"],
+    [shippingZipInput, address.country_code !== "US" || address.zip, "your ZIP code"],
+    [deliveryFields.phone, address.phone.replace(/\D/g, "").length >= 7, "a phone number the courier can reach"],
+  ];
+  const missing = checks.find(([, ok]) => !ok);
+  if (!missing) return "";
+  missing[0].focus();
+  return `Add ${missing[2]} to the delivery address.`;
+}
+
+function syncDeliveryFields() {
+  const country = shippingCountry();
+  deliveryProvinceLabel.textContent = country === "US" ? "State" : STATE_COUNTRIES.includes(country) ? "State / province" : "Region (optional)";
+  deliveryFields.province.placeholder = country === "US" ? "NY" : "";
+  deliveryFields.province.required = STATE_COUNTRIES.includes(country);
+}
+
+Object.values(deliveryFields).forEach((input) => input.addEventListener("input", saveDeliveryDraft));
+
 async function checkout() {
   if (!cart.length || checkoutInProgress) return;
   const user = getCurrentUser();
@@ -570,6 +630,12 @@ async function checkout() {
   if (!user) {
     localStorage.setItem("lyrshopAuthReturnTo", "cart.html");
     window.location.href = "auth.html";
+    return;
+  }
+
+  const problem = deliveryProblem();
+  if (problem) {
+    setCheckoutState(problem);
     return;
   }
 
@@ -582,6 +648,7 @@ async function checkout() {
       headers: authHeaders(),
       body: JSON.stringify({
         ...checkoutRequest(),
+        delivery_address: deliveryAddress(),
         display_currency: LyrLocale.currency(),
         success_url: `${window.location.origin}/dashboard.html`,
         cancel_url: `${window.location.origin}/cart.html`,
@@ -668,6 +735,7 @@ function syncCountryFields() {
   shippingZipInput.placeholder = isUs ? "10001" : "";
   shippingZipInput.inputMode = isUs ? "numeric" : "text";
   detectLocationButton.hidden = !isUs;
+  syncDeliveryFields();
 }
 
 // A new ZIP can change the state's sales tax, or make the order tax-free.
@@ -724,6 +792,7 @@ usePointsInput.addEventListener("change", () => {
 initShippingCountry();
 shippingZipInput.value = getStoredZip();
 renderCheckoutAccount();
+loadDeliveryDraft();
 renderShippingRates();
 renderCart();
 loadProductDetails();

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261024-2" />
+  <link rel="stylesheet" href="styles.css?v=20261024-3" />
 </head>
 <body class="checkout-body">
   <header class="checkout-header">
@@ -66,6 +66,18 @@
             <p id="shipping-status">Choose where to ship, then get rates from USPS, UPS, FedEx and DHL.</p>
           </div>
           <div id="shipping-rates" class="shipping-rates"></div>
+          <fieldset class="delivery-address" id="delivery-address">
+            <legend>Delivery address</legend>
+            <p class="checkout-muted">Where we'll deliver. The country and ZIP code above are part of it.</p>
+            <div class="delivery-grid">
+              <label class="delivery-wide">Full name<input id="delivery-name" autocomplete="shipping name" maxlength="80" required /></label>
+              <label class="delivery-wide">Street address<input id="delivery-address1" autocomplete="shipping address-line1" maxlength="100" required /></label>
+              <label class="delivery-wide">Apt, suite, unit (optional)<input id="delivery-address2" autocomplete="shipping address-line2" maxlength="100" /></label>
+              <label>City<input id="delivery-city" autocomplete="shipping address-level2" maxlength="60" required /></label>
+              <label><span id="delivery-province-label">State</span><input id="delivery-province" autocomplete="shipping address-level1" maxlength="60" /></label>
+              <label class="delivery-wide">Phone (for the courier)<input id="delivery-phone" type="tel" autocomplete="shipping tel" maxlength="24" required /></label>
+            </div>
+          </fieldset>
         </section>
 
         <section class="checkout-card needs-items" aria-labelledby="payment-heading" hidden>
@@ -157,7 +169,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="ui.js?v=20261019-1"></script>
-  <script src="cart.js?v=20261019-1"></script>
+  <script src="cart.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>
 </html>
