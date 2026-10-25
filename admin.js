@@ -1158,6 +1158,7 @@ function openOrder(order) {
       (${escapeHtml(order.shipping_estimate || "no estimate")})</p>
   `;
   renderOrderCj(order);
+  renderOrderLyrtrip(order);
   orderPaymentStatus.value = order.payment_status || "pending";
   orderFulfillmentStatus.value = getFulfillmentStatus(order);
   orderCarrier.value = order.shipping_carrier || "";
@@ -1891,6 +1892,217 @@ async function handleOrderCjClick(event) {
     if (button.isConnected) button.disabled = false;
   }
 }
+
+// ── Shipping through Lyrtrip: labels and same-day couriers per order ──
+
+const orderLyrtripPanel = document.getElementById("order-lyrtrip");
+const LYRTRIP_LABEL_STATUS = {
+  confirmed: "Label bought", processing: "Buying the label…", needs_review: "Payment went through; Lyrtrip is checking the label",
+  label_failed: "Label failed",
+};
+let lyrtripRates = [];
+
+function lyrtripLabelBlock(label) {
+  if (!label) return "";
+  const docs = (label.documents || []).map((doc) => `<a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener">${escapeHtml(doc.category || "document")}</a>`).join(" · ");
+  return `<p><strong>Lyrtrip label</strong> · ${escapeHtml(LYRTRIP_LABEL_STATUS[label.status] || label.status || "")}
+    ${label.courier ? ` · ${escapeHtml(label.courier)}` : ""}${label.price != null ? ` · ${formatMoney(label.price)}` : ""}
+    ${label.delivery_state ? ` · ${escapeHtml(String(label.delivery_state).replaceAll("_", " "))}` : ""}</p>
+    ${docs ? `<p>${docs}</p>` : ""}${label.error ? `<p class="is-error">${escapeHtml(label.error)}</p>` : ""}`;
+}
+
+function lyrtripCourierBlock(courier) {
+  if (!courier) return "";
+  const who = courier.courier?.name ? ` · ${escapeHtml(courier.courier.name)}${courier.courier.vehicle ? ` (${escapeHtml(courier.courier.vehicle)})` : ""}` : "";
+  return `<p><strong>Same-day courier</strong> · ${escapeHtml(courier.status || "")}${courier.step ? ` (${escapeHtml(String(courier.step).replaceAll("_", " "))})` : ""}
+    ${courier.price != null ? ` · ${escapeHtml(courier.currency || "USD")} ${Number(courier.price).toFixed(2)}` : ""}${who}
+    ${courier.tracking_url ? ` · <a href="${escapeHtml(courier.tracking_url)}" target="_blank" rel="noopener">Live tracking</a>` : ""}</p>
+    ${courier.error ? `<p class="is-error">${escapeHtml(courier.error)}</p>` : ""}`;
+}
+
+function renderOrderLyrtrip(order) {
+  lyrtripRates = [];
+  const label = order.lyrtrip_label;
+  const courier = order.lyrtrip_courier;
+  const status = `${lyrtripLabelBlock(label)}${lyrtripCourierBlock(courier)}`;
+  const sync = label || courier ? `<button type="button" class="button button-secondary" data-lyrtrip-action="sync">Refresh tracking</button>` : "";
+  if (order.cj_order_id || (order.kind || "order") !== "order") {
+    orderLyrtripPanel.innerHTML = status;
+    return;
+  }
+  if (order.payment_status !== "paid") {
+    orderLyrtripPanel.innerHTML = `${status}<p class="cj-hint">Lyrtrip shipping: a label or courier can be booked once the order is paid.</p>`;
+    return;
+  }
+  if (!order.shipping_address?.address) {
+    orderLyrtripPanel.innerHTML = `${status}<p class="cj-hint">Lyrtrip shipping needs the buyer's address, which Stripe Checkout saves on paid orders.</p>${sync}`;
+    return;
+  }
+  const hasLabel = label?.status === "confirmed" || label?.status === "needs_review";
+  const hasCourier = ["active", "delivered", "processing"].includes(courier?.status);
+  orderLyrtripPanel.innerHTML = `${status}
+    <fieldset class="cj-send">
+      <legend>Ship with Lyrtrip</legend>
+      ${hasLabel ? "" : `
+      <div class="cj-address-fields">
+        <label>Weight (kg)<input type="number" id="lyrtrip-weight" min="0.01" max="70" step="0.01" placeholder="from the listings" /></label>
+        <label>Length (cm)<input type="number" id="lyrtrip-length" min="1" max="200" step="0.5" placeholder="default box" /></label>
+        <label>Width (cm)<input type="number" id="lyrtrip-width" min="1" max="200" step="0.5" /></label>
+        <label>Height (cm)<input type="number" id="lyrtrip-height" min="1" max="200" step="0.5" /></label>
+      </div>
+      <button type="button" class="button button-secondary" data-lyrtrip-action="rates">Get label rates</button>
+      <label>Courier <select id="lyrtrip-rate" disabled><option value="">Get rates first</option></select></label>
+      <button type="button" class="button button-primary" data-lyrtrip-action="label" disabled>Buy label</button>`}
+      ${hasCourier ? "" : `
+      <p class="cj-hint">Or, for a buyer nearby, a same-day courier from the ship-from address:</p>
+      <label>Drop-off notes<input type="text" id="lyrtrip-dropoff-notes" maxlength="280" placeholder="Leave with the doorman" /></label>
+      <button type="button" class="button button-secondary" data-lyrtrip-action="courier-quote">Quote a courier</button>
+      <button type="button" class="button button-primary" data-lyrtrip-action="courier-book" disabled>Book courier</button>
+      <span id="lyrtrip-courier-quote" class="cj-hint"></span>`}
+      ${sync}
+      <p class="cj-hint">Billed to Lyrshop's Lyrtrip account. Buying a label marks the order shipped with its tracking number.</p>
+    </fieldset>`;
+}
+
+function readLyrtripParcel() {
+  const value = (id) => Number(document.getElementById(id)?.value) || undefined;
+  const parcel = { weight_kg: value("lyrtrip-weight"), length_cm: value("lyrtrip-length"), width_cm: value("lyrtrip-width"), height_cm: value("lyrtrip-height") };
+  return Object.values(parcel).some(Boolean) ? parcel : undefined;
+}
+
+async function handleOrderLyrtripClick(event) {
+  const button = event.target.closest("[data-lyrtrip-action]");
+  if (!button) return;
+  const order = adminOrders.find((item) => item.id === orderEditId.value);
+  if (!order) return;
+  const action = button.dataset.lyrtripAction;
+  const base = `/orders/${encodeURIComponent(order.id)}/lyrtrip`;
+  button.disabled = true;
+  try {
+    if (action === "rates") {
+      const reply = await authApi(`${base}/rates`, { method: "POST", body: { parcel: readLyrtripParcel() } });
+      lyrtripRates = reply.rates || [];
+      const select = document.getElementById("lyrtrip-rate");
+      select.innerHTML = lyrtripRates.length
+        ? lyrtripRates.map((rate) => `<option value="${escapeHtml(rate.id)}">${escapeHtml(rate.courier)} · ${formatMoney(rate.price)} · ${rate.minDays ?? "?"}-${rate.maxDays ?? "?"} days</option>`).join("")
+        : `<option value="">${escapeHtml(reply.error || "No courier ships this parcel")}</option>`;
+      if (reply.chosen && lyrtripRates.some((rate) => rate.id === reply.chosen)) select.value = reply.chosen;
+      select.disabled = !lyrtripRates.length;
+      orderLyrtripPanel.querySelector("[data-lyrtrip-action='label']").disabled = !lyrtripRates.length;
+      if (!document.getElementById("lyrtrip-weight").value) document.getElementById("lyrtrip-weight").placeholder = `${reply.parcel?.weightKg} kg`;
+      showMessage(orderMessage, `The buyer paid ${formatMoney(order.shipping_total)} for shipping.`);
+      return;
+    }
+    if (action === "courier-quote") {
+      const { quote, error } = await authApi(`${base}/courier/quote`, { method: "POST", body: { dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value } });
+      document.getElementById("lyrtrip-courier-quote").textContent = quote
+        ? `${quote.currency} ${Number(quote.price).toFixed(2)} · pickup in about ${quote.pickupMinutes ?? "?"} min · delivered in about ${quote.totalMinutes ?? "?"} min`
+        : error || "No courier can do this trip.";
+      const book = orderLyrtripPanel.querySelector("[data-lyrtrip-action='courier-book']");
+      book.disabled = !quote;
+      book.dataset.maxPrice = quote ? String(Math.ceil(quote.price * 1.05 * 100) / 100) : "";
+      return;
+    }
+    let body = {};
+    if (action === "label") {
+      const rate = lyrtripRates.find((item) => item.id === document.getElementById("lyrtrip-rate").value);
+      if (!rate || !confirm(`Buy a ${rate.courier} label for ${formatMoney(rate.price)}? It's billed to Lyrshop's Lyrtrip account.`)) return;
+      body = { rate_id: rate.id, max_price: rate.price, parcel: readLyrtripParcel() };
+    }
+    if (action === "courier-book") {
+      if (!confirm(`Book a same-day courier for up to $${button.dataset.maxPrice}? It's billed to Lyrshop's Lyrtrip account.`)) return;
+      body = { max_price: Number(button.dataset.maxPrice), dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value };
+    }
+    const path = { label: `${base}/label`, "courier-book": `${base}/courier/book`, sync: `${base}/sync` }[action];
+    const { order: updated } = await authApi(path, { method: "POST", body });
+    adminOrders = adminOrders.map((existing) => (existing.id === updated.id ? updated : existing));
+    renderOrders();
+    openOrder(updated);
+    const done = {
+      label: updated.lyrtrip_label?.status === "confirmed" ? `Label bought. Tracking ${updated.tracking_number}.` : LYRTRIP_LABEL_STATUS[updated.lyrtrip_label?.status] || "Label requested.",
+      "courier-book": updated.lyrtrip_courier?.status === "active" ? "Courier booked." : "Booking the courier… refresh tracking in a minute.",
+      sync: "Tracking refreshed.",
+    };
+    showMessage(orderMessage, done[action]);
+  } catch (error) {
+    showMessage(orderMessage, error.message, true);
+    if (action === "label" || action === "courier-book") loadOrders();
+  } finally {
+    if (button.isConnected) button.disabled = false;
+  }
+}
+
+orderLyrtripPanel.addEventListener("click", handleOrderLyrtripClick);
+
+// ── Shipping (Lyrtrip) settings and statement, super admin ──
+
+const lyrtripSettingsForm = document.getElementById("lyrtrip-settings");
+const lyrtripMessage = document.getElementById("lyrtrip-message");
+const LYRTRIP_ORIGIN_FIELDS = ["name", "company", "phone", "email", "line1", "line2", "city", "state", "postal_code", "country"];
+const LYRTRIP_BOX_SIDES = ["length_cm", "width_cm", "height_cm"];
+
+function renderLyrtripSettings({ settings, connected }) {
+  LYRTRIP_ORIGIN_FIELDS.forEach((field) => { document.getElementById(`lyrtrip-origin-${field}`).value = settings.origin[field] || ""; });
+  LYRTRIP_BOX_SIDES.forEach((side) => { document.getElementById(`lyrtrip-box-${side}`).value = settings.box[side]; });
+  document.getElementById("lyrtrip-pickup-notes").value = settings.pickup_notes || "";
+  document.getElementById("lyrtrip-live-rates").checked = !!settings.live_rates;
+  document.getElementById("lyrtrip-margin").value = settings.margin_pct ?? 0;
+  document.getElementById("lyrtrip-status").innerHTML = connected
+    ? "<strong>Connected to Lyrtrip.</strong> Labels and couriers can be booked from each paid order."
+    : "<strong>Not connected.</strong> Put Lyrtrip's partner API url and key in the <code>lyrshop/lyrtrip</code> secret and deploy with <code>LyrtripSecret=lyrshop/lyrtrip</code>.";
+}
+
+async function loadLyrtripSettings() {
+  const select = document.getElementById("lyrtrip-origin-country");
+  select.innerHTML = LyrLocale.countryOptions().map(({ code, name }) => `<option value="${code}">${escapeHtml(name)}</option>`).join("");
+  document.getElementById("lyrtrip-month").value = new Date().toISOString().slice(0, 7);
+  try {
+    renderLyrtripSettings(await authApi("/lyrtrip/settings"));
+  } catch (error) {
+    showMessage(lyrtripMessage, error.message, true);
+  }
+}
+
+async function saveLyrtripSettings(event) {
+  event.preventDefault();
+  try {
+    renderLyrtripSettings(await authApi("/lyrtrip/settings", {
+      method: "PUT",
+      body: {
+        origin: Object.fromEntries(LYRTRIP_ORIGIN_FIELDS.map((field) => [field, document.getElementById(`lyrtrip-origin-${field}`).value])),
+        box: Object.fromEntries(LYRTRIP_BOX_SIDES.map((side) => [side, Number(document.getElementById(`lyrtrip-box-${side}`).value)])),
+        pickup_notes: document.getElementById("lyrtrip-pickup-notes").value,
+        live_rates: document.getElementById("lyrtrip-live-rates").checked,
+        margin_pct: Number(document.getElementById("lyrtrip-margin").value) || 0,
+      },
+    }));
+    showMessage(lyrtripMessage, "Shipping settings saved.");
+  } catch (error) {
+    showMessage(lyrtripMessage, error.message, true);
+  }
+}
+
+async function loadLyrtripStatement() {
+  const panel = document.getElementById("lyrtrip-statement");
+  const month = document.getElementById("lyrtrip-month").value;
+  panel.innerHTML = "<p class=\"cj-hint\">Loading…</p>";
+  try {
+    const { totals = {}, entries = [], truncated } = await authApi(`/lyrtrip/statement${month ? `?month=${encodeURIComponent(month)}` : ""}`);
+    const sums = Object.entries(totals).map(([currency, t]) => `<strong>${escapeHtml(currency)} ${Number(t.amount).toFixed(2)}</strong> owed for ${t.count} label${t.count === 1 ? "" : "s"}/courier${t.count === 1 ? "" : "s"}`).join(" · ");
+    panel.innerHTML = entries.length
+      ? `<p>${sums}${truncated ? " (first 500 shown)" : ""}</p>
+        <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Date</th><th>What</th><th>Order</th><th>Amount</th></tr></thead><tbody>
+        ${entries.map((entry) => `<tr><td>${escapeHtml(String(entry.createdAt).slice(0, 10))}</td><td>${escapeHtml(entry.description || entry.kind)}</td>
+          <td>${escapeHtml(shortOrderId(entry.reference))}</td><td>${escapeHtml(entry.currency)} ${Number(entry.amount).toFixed(2)}</td></tr>`).join("")}
+        </tbody></table></div>`
+      : "<p class=\"cj-hint\">Nothing shipped through Lyrtrip this month.</p>";
+  } catch (error) {
+    panel.innerHTML = `<p class="is-error">${escapeHtml(error.message)}</p>`;
+  }
+}
+
+lyrtripSettingsForm.addEventListener("submit", saveLyrtripSettings);
+document.getElementById("lyrtrip-statement-load").addEventListener("click", loadLyrtripStatement);
 
 // ── Category management ────────────────────────────────────────────────────────
 
@@ -2951,6 +3163,7 @@ async function initAdminPage() {
     loadCoupons();
     loadBusinessApplications();
     loadPartners();
+    loadLyrtripSettings();
     document.getElementById("attributes-intro").textContent =
       "Colors, sizes and other options buyers choose from. As super admin you can edit or delete every attribute.";
   }

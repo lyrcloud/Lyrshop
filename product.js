@@ -40,10 +40,28 @@ function normalizeProduct(product) {
 }
 
 // The seller's ordered photos and videos; listings from before galleries existed show their single photo.
+// Photos of particular options (option_images, e.g. each color of a supplier listing) follow, so picking that color
+// can show it.
 function productMedia(product) {
   const media = (Array.isArray(product.media) ? product.media : [])
     .filter((item) => item && item.url && (item.type === "image" || item.type === "video"));
-  return media.length ? media : [{ type: "image", url: product.image_url || DETAIL_PLACEHOLDER_IMAGE_URL }];
+  const optionPhotos = Object.values(product.option_images || {}).flatMap((photos) => Object.values(photos || {}))
+    .filter((url, index, all) => typeof url === "string" && url && all.indexOf(url) === index && !media.some((item) => item.url === url));
+  const all = [...media, ...optionPhotos.map((url) => ({ type: "image", url }))];
+  return all.length ? all : [{ type: "image", url: product.image_url || DETAIL_PLACEHOLDER_IMAGE_URL }];
+}
+
+// The photo of the value just picked, when the listing has one; for a color-size option picked one part at a time,
+// the first listed value of that color.
+function optionPhoto(product, name, part, value) {
+  const photos = product.option_images?.[name];
+  if (!photos) return null;
+  if (chosenOptions[name] && photos[chosenOptions[name]]) return photos[chosenOptions[name]];
+  if (!part) return photos[value] || null;
+  if (part !== "color") return null;
+  const wanted = String(value).toLowerCase();
+  const match = Object.keys(photos).find((listed) => listed.toLowerCase().startsWith(wanted));
+  return match ? photos[match] : null;
 }
 
 function escapeHtml(value) {
@@ -331,6 +349,9 @@ function bindOptions(product) {
       chosenOptions[name] = value;
     }
     missingGroups.delete(`${name}|${part}`);
+    const photo = optionPhoto(product, name, part, value);
+    const photoIndex = photo ? product.media.findIndex((item) => item.url === photo) : -1;
+    if (photoIndex >= 0) showMedia(product, photoIndex, { user: true });
     renderOptions(product);
     const selector = control.tagName === "SELECT"
       ? `select[data-option="${CSS.escape(name)}"][data-part="${part}"]`

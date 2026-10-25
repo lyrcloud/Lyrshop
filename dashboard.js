@@ -276,7 +276,8 @@ function renderOrder(order) {
   ].filter(Boolean);
   const others = items.length - 1;
   const tracking = order.tracking_number
-    ? `<p class="my-order-tracking">${myEscape(order.shipping_carrier || "Tracking")} <strong>${myEscape(order.tracking_number)}</strong></p>`
+    ? `<p class="my-order-tracking">${myEscape(order.shipping_carrier || "Tracking")} <strong>${myEscape(order.tracking_number)}</strong>${
+      /^https:\/\//.test(order.tracking_url || "") ? ` · <a href="${myEscape(order.tracking_url)}" target="_blank" rel="noopener">Track package</a>` : ""}</p>`
     : "";
   return `
     <article class="my-order">

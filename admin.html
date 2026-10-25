@@ -38,6 +38,7 @@
       <button class="admin-tab superadmin-only" type="button" data-admin-section="calendar" hidden>Sales calendar</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="coupons" hidden>Coupons</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="business" hidden>Business accounts <span class="count-badge" id="business-pending-count" hidden></span></button>
+      <button class="admin-tab superadmin-only" type="button" data-admin-section="shipping" hidden>Shipping (Lyrtrip)</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="partners" hidden>Dropship partners <span class="count-badge" id="partners-pending-count" hidden></span></button>
     </nav>
 
@@ -263,6 +264,7 @@
         <input type="hidden" id="order-edit-id" />
         <div id="order-summary" class="order-summary"></div>
         <div id="order-cj" class="order-cj"></div>
+        <div id="order-lyrtrip" class="order-cj"></div>
         <label>
           Payment status
           <select id="order-payment-status">
@@ -614,6 +616,50 @@
       <div id="business-list" class="business-list"></div>
     </section>
 
+    <section class="admin-panel admin-section superadmin-only" id="admin-shipping-section" hidden>
+      <div class="panel-header">
+        <h2>Shipping through Lyrtrip</h2>
+        <p>Orders Lyrshop ships itself (not CJ imports or brand listings) can get a printable label (USPS, UPS, FedEx, DHL and more, through Easyship) or a same-day courier, booked from the order. Lyrtrip bills these to Lyrshop's partner account instead of a card; the statement below shows what Lyrshop owes Lyrtrip.</p>
+      </div>
+      <p id="lyrtrip-status" class="cj-hint"></p>
+      <form id="lyrtrip-settings" class="admin-crud-form">
+        <fieldset>
+          <legend>Ship-from address (on every label, and where couriers pick up)</legend>
+          <div class="cj-address-fields">
+            <label>Contact name<input type="text" id="lyrtrip-origin-name" maxlength="50" /></label>
+            <label>Company<input type="text" id="lyrtrip-origin-company" maxlength="50" /></label>
+            <label>Phone (with country code)<input type="tel" id="lyrtrip-origin-phone" placeholder="+1 212 555 0100" /></label>
+            <label>Email<input type="email" id="lyrtrip-origin-email" /></label>
+            <label>Street<input type="text" id="lyrtrip-origin-line1" maxlength="35" /></label>
+            <label>Apt, suite<input type="text" id="lyrtrip-origin-line2" maxlength="35" /></label>
+            <label>City<input type="text" id="lyrtrip-origin-city" maxlength="35" required /></label>
+            <label>State / province<input type="text" id="lyrtrip-origin-state" maxlength="35" /></label>
+            <label>Postal code<input type="text" id="lyrtrip-origin-postal_code" maxlength="12" required /></label>
+            <label>Country<select id="lyrtrip-origin-country"></select></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Default box (orders can change it before buying a label)</legend>
+          <div class="cj-address-fields">
+            <label>Length (cm)<input type="number" id="lyrtrip-box-length_cm" min="1" max="200" step="0.5" /></label>
+            <label>Width (cm)<input type="number" id="lyrtrip-box-width_cm" min="1" max="200" step="0.5" /></label>
+            <label>Height (cm)<input type="number" id="lyrtrip-box-height_cm" min="1" max="200" step="0.5" /></label>
+          </div>
+        </fieldset>
+        <label>Courier pickup notes<input type="text" id="lyrtrip-pickup-notes" maxlength="280" placeholder="Ring the bell at the side door" /></label>
+        <label class="checkbox-row"><input type="checkbox" id="lyrtrip-live-rates" /> Charge live carrier rates at checkout (instead of Lyrshop's estimates)</label>
+        <label>Margin on live checkout rates (%)<input type="number" id="lyrtrip-margin" min="0" max="100" step="0.5" /></label>
+        <button type="submit" class="button button-primary">Save shipping settings</button>
+      </form>
+      <div id="lyrtrip-message" class="admin-message"></div>
+      <h3>Statement</h3>
+      <div class="admin-filters">
+        <label>Month<input type="month" id="lyrtrip-month" /></label>
+        <button type="button" class="button button-secondary" id="lyrtrip-statement-load">Show</button>
+      </div>
+      <div id="lyrtrip-statement"></div>
+    </section>
+
     <section class="admin-panel admin-section superadmin-only" id="admin-partners-section" hidden>
       <div class="panel-header">
         <h2>Dropshipping partners (API)</h2>
@@ -812,7 +858,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261024-4"></script>
+  <script src="admin.js?v=20261025-1"></script>
   <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>
