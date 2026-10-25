@@ -427,6 +427,50 @@ function dropQuote() {
   try { localStorage.removeItem(QUOTE_KEY); } catch (error) { /* storage blocked */ }
 }
 
+// ── Won auctions and accepted offers ─────────────────────────────────────────────
+// Emails link to cart.html?deal=<ref>; the cart then holds exactly that item at the agreed price (the server checks it).
+
+function renderDealNote(quote) {
+  const note = document.getElementById("deal-note");
+  note.hidden = !quote?.deal;
+  note.textContent = quote?.deal === "auction" ? "Your winning bid is applied. Pay to complete your purchase."
+    : quote?.deal === "offer" ? "Your accepted offer price is applied. Pay to complete your purchase." : "";
+}
+
+async function loadDeal() {
+  const params = new URLSearchParams(window.location.search);
+  const ref = params.get("deal");
+  if (!ref) return;
+  if (!getCurrentUser()?.token) {
+    try { localStorage.setItem("lyrshopAuthReturnTo", `cart.html?deal=${encodeURIComponent(ref)}`); } catch (error) { /* ignore */ }
+    window.location.href = "auth.html";
+    return;
+  }
+  try {
+    const { deal } = await authApi(`/market/deals/${encodeURIComponent(ref)}`);
+    if (deal.status !== "quoted") {
+      setCheckoutState(deal.status === "paid" ? "You've already paid for this item." : "This purchase has expired.");
+      return;
+    }
+    // One cart entry per unit, like the product page adds them.
+    const items = deal.lines.flatMap((line) => Array.from({ length: line.quantity }, () => ({
+      id: line.id, name: line.name, price: line.price,
+      ...(line.variant ? { variant: line.variant, options: Object.fromEntries(line.variant.split(" · ").map((part) => part.split(": "))) } : {}),
+    })));
+    localStorage.setItem(CART_KEY, JSON.stringify(items));
+    localStorage.setItem(QUOTE_KEY, JSON.stringify({ id: deal.ref }));
+    cart = readStoredCart();
+    renderCart();
+    loadProductDetails();
+    scheduleQuote();
+  } catch (error) {
+    setCheckoutState(error.message);
+  } finally {
+    params.delete("deal");
+    history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
+  }
+}
+
 // Approved business accounts: an applied quote, ordering on invoice (net terms) and asking for a quote.
 function renderBusinessCheckout(quote) {
   const box = document.getElementById("business-checkout");
@@ -504,6 +548,7 @@ async function fetchQuote() {
     serverQuote = json;
     if (json.errors?.quote) dropQuote();
     renderBusinessCheckout(json);
+    renderDealNote(json);
     renderCodeStatus("coupon", json.errors?.coupon, json.coupon && `${json.coupon.code} applied${json.coupon.description ? `: ${json.coupon.description}` : ""}.`);
     renderCodeStatus("gift_card", json.errors?.gift_card,
       json.gift_card && `Gift card ${json.gift_card.code} applied. ${formatPrice(json.gift_card.remaining_after)} will be left on it.`);
@@ -877,3 +922,4 @@ renderShippingRates();
 renderCart();
 loadProductDetails();
 if (shippingCountry() !== "US" && cart.length) quoteShippingRates();
+loadDeal();

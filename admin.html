@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261025-1" />
+  <link rel="stylesheet" href="styles.css?v=20261025-2" />
 </head>
 <body>
   <header class="page-header">
@@ -63,6 +63,63 @@
           <textarea id="product-description" placeholder="A short product description."></textarea>
         </label>
         <label>
+          Condition
+          <select id="product-condition">
+            <option value="new">New</option>
+            <option value="open_box">Open box</option>
+            <option value="new_defects">New with defects</option>
+            <option value="certified_refurbished">Certified - Refurbished</option>
+            <option value="excellent_refurbished">Excellent - Refurbished</option>
+            <option value="very_good_refurbished">Very Good - Refurbished</option>
+            <option value="good_refurbished">Good - Refurbished</option>
+            <option value="seller_refurbished">Seller refurbished</option>
+            <option value="used_excellent">Used - Excellent</option>
+            <option value="used_good">Used - Good</option>
+            <option value="used_fair">Used - Fair</option>
+            <option value="for_parts">For parts or not working</option>
+          </select>
+          <small class="field-hint" id="product-condition-hint"></small>
+        </label>
+        <label class="wide-field" id="product-condition-note-field" hidden>
+          Condition description
+          <textarea id="product-condition-note" maxlength="1000" placeholder="Describe any wear, scratches, missing parts or defects buyers should know about."></textarea>
+        </label>
+        <fieldset class="selling-format wide-field">
+          <legend>Selling format</legend>
+          <div class="format-choices" role="radiogroup">
+            <label class="format-choice"><input type="radio" name="product-format" value="fixed" checked />
+              <span><strong>Buy It Now</strong><small>Sell at a fixed price. Optionally let buyers make offers.</small></span></label>
+            <label class="format-choice"><input type="radio" name="product-format" value="auction" />
+              <span><strong>Auction</strong><small>Buyers bid; the highest bid wins when time runs out.</small></span></label>
+          </div>
+          <div class="auction-fields" id="auction-fields" hidden>
+            <label>Starting bid (USD)
+              <input type="number" id="auction-start" min="0.01" step="0.01" placeholder="e.g. 0.99" /></label>
+            <label>Reserve price (optional)
+              <input type="number" id="auction-reserve" min="0.01" step="0.01" placeholder="Lowest price you'll sell for" />
+              <small class="field-hint">Hidden from buyers. Below it, the item doesn't sell.</small></label>
+            <label>Buy It Now price (optional)
+              <input type="number" id="auction-buy-now" min="0.01" step="0.01" placeholder="At least 30% over the starting bid" />
+              <small class="field-hint">Disappears once someone bids.</small></label>
+            <label>Duration
+              <select id="auction-days">
+                <option value="1">1 day</option><option value="3">3 days</option><option value="5">5 days</option>
+                <option value="7" selected>7 days</option><option value="10">10 days</option>
+              </select></label>
+            <p class="field-hint wide-field" id="auction-status" hidden></p>
+          </div>
+          <div class="offer-fields" id="offer-fields">
+            <label class="checkbox-field"><input type="checkbox" id="offer-enabled" />
+              <span>Allow offers <small class="field-hint">Buyers can send you an offer; you accept, decline or counter.</small></span></label>
+            <div class="offer-thresholds" id="offer-thresholds" hidden>
+              <label>Automatically accept offers of at least (optional)
+                <input type="number" id="offer-auto-accept" min="0.01" step="0.01" placeholder="e.g. 45.00" /></label>
+              <label>Automatically decline offers below (optional)
+                <input type="number" id="offer-auto-decline" min="0.01" step="0.01" placeholder="e.g. 30.00" /></label>
+            </div>
+          </div>
+        </fieldset>
+        <label id="product-price-field">
           Price (USD)
           <input type="number" id="product-price" min="0.01" step="0.01" placeholder="0.00" required />
           <small id="product-price-hint" class="field-hint" hidden></small>
@@ -904,7 +961,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261025-3"></script>
+  <script src="admin.js?v=20261025-4"></script>
   <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

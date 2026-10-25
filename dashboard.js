@@ -5,7 +5,7 @@ const MY_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.lo
 const MY_PLACEHOLDER_IMAGE_URL = "logo.svg";
 const SUMMARY_ORDER_COUNT = 3;
 const SUMMARY_ITEM_COUNT = 6;
-const SECTIONS = ["summary", "recently-viewed", "purchases", "watchlist", "rewards", "gift-cards", "affiliate", "quotes", "account"];
+const SECTIONS = ["summary", "recently-viewed", "purchases", "watchlist", "offers", "rewards", "gift-cards", "affiliate", "quotes", "account"];
 
 const user = getCurrentUser();
 let myOrders = null;
@@ -660,6 +660,156 @@ document.getElementById("quote-list").addEventListener("click", async (event) =>
   }
 });
 
+// ── Bids & offers ──────────────────────────────────────────────────────────────
+// GET /market/offers: auctions the account bid on, offers it made or received, and accepted ones waiting for payment.
+
+let market = { offers: [], deals: [], bids: [] };
+const OFFER_STATUS_LABELS = {
+  pending: "Waiting for the seller", countered: "Counteroffer", accepted: "Accepted", declined: "Declined",
+  expired: "Expired", withdrawn: "Withdrawn", purchased: "Purchased",
+};
+
+function offerHistory(offer) {
+  return (offer.history || []).map((step) => {
+    const who = step.by === offer.side ? "You" : offer.side === "buyer" ? "Seller" : "Buyer";
+    const what = { offer: "offered", counter: "countered with", accept: "accepted", decline: "declined", withdraw: "withdrew" }[step.action] || step.action;
+    const amount = ["offer", "counter"].includes(step.action) ? ` ${money(step.amount)}` : "";
+    return `<li>${myEscape(who)} ${myEscape(what)}${myEscape(amount)} · ${myEscape(formatDate(step.at))}${step.message ? `<br><q>${myEscape(step.message)}</q>` : ""}</li>`;
+  }).join("");
+}
+
+function offerCard(offer) {
+  const open = ["pending", "countered"].includes(offer.status);
+  const quantity = Number(offer.quantity || 1);
+  const status = offer.your_turn ? "Your turn to answer" : OFFER_STATUS_LABELS[offer.status] || offer.status;
+  const deal = market.deals.find((item) => item.ref === offer.deal_ref && item.status === "quoted");
+  return `
+    <article class="market-card" data-offer="${myEscape(offer.ref)}">
+      <a href="${productUrl(offer.product_id)}"><img src="${myEscape(offer.image_url || MY_PLACEHOLDER_IMAGE_URL)}" alt="" loading="lazy" /></a>
+      <div class="market-card-body">
+        <a class="market-card-title" href="${productUrl(offer.product_id)}">${myEscape(offer.product_name)}</a>
+        <p><strong>${money(offer.amount)}</strong>${quantity > 1 ? ` each × ${quantity}` : ""} · Buy It Now ${money(offer.list_price)}${offer.variant ? ` · ${myEscape(offer.variant)}` : ""}</p>
+        <p class="market-status status-${myEscape(offer.status)}${offer.your_turn ? " is-your-turn" : ""}">${myEscape(status)}${open ? ` · expires ${myEscape(auctionTimeLeft(offer.expires_at))}` : ""}</p>
+        <ol class="offer-history">${offerHistory(offer)}</ol>
+        <div class="market-actions">
+          ${offer.your_turn ? `
+            <button type="button" class="button button-primary" data-offer-action="accept">Accept ${money(offer.amount)}</button>
+            <button type="button" class="button button-secondary" data-offer-action="counter">Counter</button>
+            <button type="button" class="button button-secondary" data-offer-action="decline">Decline</button>` : ""}
+          ${open && offer.side === "buyer" && !offer.your_turn ? `<button type="button" class="button button-secondary" data-offer-action="withdraw">Withdraw offer</button>` : ""}
+          ${deal ? `<a class="button button-primary" href="cart.html?deal=${encodeURIComponent(deal.ref)}">Pay now</a>` : ""}
+        </div>
+      </div>
+    </article>`;
+}
+
+function bidCard(entry) {
+  const auction = entry.auction;
+  const live = auction.status === "live" && Number(auction.ends_at) * 1000 > Date.now();
+  const deal = market.deals.find((item) => item.source === "auction" && item.source_ref === entry.product_id && item.status === "quoted");
+  const standing = live ? (auction.you_lead ? "You're the high bidder" : "Outbid")
+    : auction.winner === "You" ? (deal ? "You won! Pay now" : "You won") : "Didn't win";
+  return `
+    <article class="market-card">
+      <a href="${productUrl(entry.product_id)}"><img src="${myEscape(entry.image_url || MY_PLACEHOLDER_IMAGE_URL)}" alt="" loading="lazy" /></a>
+      <div class="market-card-body">
+        <a class="market-card-title" href="${productUrl(entry.product_id)}">${myEscape(entry.name)}</a>
+        <p><strong>${money(auction.final_price || auction.current_price)}</strong> · ${Number(auction.bid_count || 0)} bids${auction.your_max ? ` · your max ${money(auction.your_max)}` : ""}</p>
+        <p class="market-status ${auction.you_lead || auction.winner === "You" ? "is-winning" : "is-outbid"}">${myEscape(standing)} · ${live ? `${myEscape(auctionTimeLeft(auction.ends_at))} left` : "Ended"}</p>
+        <div class="market-actions">
+          ${live && !auction.you_lead ? `<a class="button button-primary" href="${productUrl(entry.product_id)}">Bid again</a>` : ""}
+          ${deal ? `<a class="button button-primary" href="cart.html?deal=${encodeURIComponent(deal.ref)}">Pay now</a>` : ""}
+        </div>
+      </div>
+    </article>`;
+}
+
+function renderMarket() {
+  const buying = market.offers.filter((offer) => offer.side === "buyer");
+  const selling = market.offers.filter((offer) => offer.side === "seller");
+  const waiting = market.deals.filter((deal) => deal.status === "quoted");
+  document.getElementById("deal-list").innerHTML = waiting.length ? `
+    <div class="deal-banner">${waiting.map((deal) => `
+      <p><strong>${myEscape(deal.lines?.[0]?.name || "Item")}</strong>: ${deal.source === "auction" ? "you won it" : "your offer was accepted"}
+        for ${money(deal.total)}. Pay within ${myEscape(auctionTimeLeft(deal.valid_until))}.
+        <a class="button button-primary" href="cart.html?deal=${encodeURIComponent(deal.ref)}">Pay now</a></p>`).join("")}</div>` : "";
+  document.getElementById("bid-list").innerHTML = market.bids.map(bidCard).join("")
+    || `<p class="my-empty">You haven't bid on any auctions yet. <a href="index.html?format=auction#product-list">Browse auctions</a></p>`;
+  document.getElementById("buying-offer-list").innerHTML = buying.map(offerCard).join("")
+    || `<p class="my-empty">No offers yet. Look for "or Best Offer" on items you like.</p>`;
+  document.getElementById("selling-offer-list").innerHTML = selling.map(offerCard).join("")
+    || `<p class="my-empty">No offers on your items. Turn on "Allow offers" when you list an item.</p>`;
+  const attention = market.offers.filter((offer) => offer.your_turn).length + waiting.length;
+  const badge = document.getElementById("offers-count");
+  badge.hidden = !attention;
+  badge.textContent = attention;
+}
+
+async function loadMarket() {
+  try {
+    market = await authApi("/market/offers");
+  } catch (error) {
+    market = { offers: [], deals: [], bids: [] };
+  }
+  renderMarket();
+}
+
+document.querySelector('[data-section="offers"]').addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-offer-action]");
+  if (!button) return;
+  const ref = button.closest("[data-offer]").dataset.offer;
+  const offer = market.offers.find((item) => item.ref === ref);
+  const action = button.dataset.offerAction;
+  const body = { action };
+  if (action === "counter") {
+    const amount = prompt(`Your counteroffer${Number(offer.quantity) > 1 ? " per item" : ""} (USD). Buy It Now is ${LyrLocale.formatUsd(offer.list_price)}.`);
+    if (!amount) return;
+    body.amount = Number(amount);
+    body.message = prompt("Message (optional)") || "";
+  } else if (action === "decline") {
+    body.message = prompt("Tell them why (optional)") || "";
+  } else if (!confirm(action === "accept" ? `Accept ${LyrLocale.formatUsd(offer.amount)} USD? This is binding.` : "Withdraw this offer?")) {
+    return;
+  }
+  button.disabled = true;
+  try {
+    const reply = await authApi(`/market/offers/${encodeURIComponent(ref)}`, { method: "POST", body });
+    if (reply.deal && offer.side === "buyer") {
+      window.location.href = `cart.html?deal=${encodeURIComponent(reply.deal.ref)}`;
+      return;
+    }
+    showToast({ accept: "Offer accepted. We've emailed the buyer to pay.", decline: "Offer declined.",
+      counter: "Counteroffer sent.", withdraw: "Offer withdrawn." }[action]);
+  } catch (error) {
+    alert(error.message);
+  }
+  loadMarket();
+});
+
+// ── Email preferences ──────────────────────────────────────────────────────────
+
+async function loadEmailPrefs() {
+  const form = document.getElementById("email-prefs-form");
+  try {
+    const { prefs, has_email: hasEmail } = await authApi("/market/prefs");
+    form.offers.checked = prefs.offers;
+    form.updates.checked = prefs.updates;
+    form.hidden = !hasEmail;
+    document.getElementById("email-prefs-none").hidden = hasEmail;
+  } catch (error) {
+    form.hidden = true;
+  }
+  form.addEventListener("change", async () => {
+    const status = document.getElementById("email-prefs-message");
+    try {
+      await authApi("/market/prefs", { method: "PUT", body: { offers: form.offers.checked, updates: form.updates.checked } });
+      status.textContent = "Saved.";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+}
+
 if (!user) {
   window.location.href = "auth.html";
 } else {
@@ -676,6 +826,10 @@ if (!user) {
   loadProducts();
   loadRewards();
   loadQuotes();
+  loadMarket();
+  loadEmailPrefs();
+  // The browser's watchlist is the source; the account copy drives price-drop emails.
+  if (getWatchlist().length) syncWatchInterest();
 
   window.addEventListener("hashchange", () => {
     showSection();

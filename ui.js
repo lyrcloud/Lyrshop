@@ -17,7 +17,53 @@ function itemLocationLabel(product) {
 
 // What a shopper pays now. While a sales-calendar event is open the server adds event_price to the trending and new
 // listings it discounts; otherwise it is the seller's price with their optional "was" price.
+// ── Condition and selling format (eBay-style; see backend/market_core.py) ───────
+const CONDITION_LABELS = {
+  new: "New", open_box: "Open box", new_defects: "New with defects", certified_refurbished: "Certified - Refurbished",
+  excellent_refurbished: "Excellent - Refurbished", very_good_refurbished: "Very Good - Refurbished",
+  good_refurbished: "Good - Refurbished", seller_refurbished: "Seller refurbished", used_excellent: "Used - Excellent",
+  used_good: "Used - Good", used_fair: "Used - Fair", for_parts: "For parts or not working",
+};
+
+// Listings from before conditions were recorded were all new stock.
+function conditionLabel(product) {
+  return CONDITION_LABELS[product?.condition] || "New";
+}
+
+// The filter groups eBay shows: New, Open box, Refurbished, Used, For parts.
+function conditionGroup(product) {
+  const condition = product?.condition || "new";
+  if (condition === "new" || condition === "new_defects") return "new";
+  if (condition.endsWith("refurbished")) return "refurbished";
+  if (condition.startsWith("used")) return "used";
+  return condition;
+}
+
+function isAuctionListing(product) {
+  return product?.format === "auction" && Boolean(product.auction);
+}
+
+function auctionLive(product) {
+  return isAuctionListing(product) && product.auction.status === "live" && Number(product.auction.ends_at) * 1000 > Date.now();
+}
+
+// "2d 4h", "3h 12m", "45m 10s", or "Ended".
+function auctionTimeLeft(endsAt) {
+  const seconds = Math.max(0, Math.floor(Number(endsAt) - Date.now() / 1000));
+  if (!seconds) return "Ended";
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${minutes}m ${seconds % 60}s`;
+}
+
 function listingPrices(product) {
+  if (isAuctionListing(product)) {
+    // Auctions show and sort by the current bid; Buy It Now (if still open) is shown separately.
+    return { price: Number(product.auction.current_price || product.auction.start_price || product.price), original_price: 0, sale_event: "" };
+  }
   const price = Number(product.price);
   const eventPrice = Number(product.event_price);
   if (eventPrice > 0 && eventPrice < price) {
@@ -88,7 +134,38 @@ function toggleWatchlist(productId) {
   const watched = !list.includes(id);
   localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watched ? [...list, id] : list.filter((item) => item !== id)));
   updateHeaderCounts();
+  syncWatchInterest();
   return watched;
+}
+
+// ── Email updates ────────────────────────────────────────────────────────────
+// Signed-in shoppers' searches and watchlist go to their account, so the daily email can tell them about new matching
+// listings, price drops and watched auctions ending soon (they can switch it off in Account → Email preferences).
+
+function signedInForInterests() {
+  return typeof getCurrentUser === "function" && typeof authApi === "function" && getCurrentUser()?.token;
+}
+
+let watchSyncTimer = null;
+function syncWatchInterest() {
+  if (!signedInForInterests()) return;
+  window.clearTimeout(watchSyncTimer);
+  watchSyncTimer = window.setTimeout(() => {
+    authApi("/market/interests", { method: "POST", body: { watch: getWatchlist() } }).catch(() => {});
+  }, 1500);
+}
+
+const SEARCH_REPORTED_KEY = "lyrshopSearchReported";
+function recordSearchInterest(query) {
+  const q = String(query || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 80);
+  if (q.length < 2 || !signedInForInterests()) return;
+  try {
+    // Each search is sent once per browser session.
+    const sent = JSON.parse(sessionStorage.getItem(SEARCH_REPORTED_KEY) || "[]");
+    if (sent.includes(q)) return;
+    sessionStorage.setItem(SEARCH_REPORTED_KEY, JSON.stringify([...sent, q].slice(-50)));
+  } catch (error) { /* storage blocked: send anyway */ }
+  authApi("/market/interests", { method: "POST", body: { search: q } }).catch(() => {});
 }
 
 const RECENTLY_VIEWED_KEY = "lyrshopRecentlyViewed";

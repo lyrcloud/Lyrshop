@@ -138,7 +138,11 @@ async function fetchProducts(query) {
   const timeoutId = window.setTimeout(() => controller.abort(), DETAIL_REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(shopperProductsUrl(DETAIL_API_BASE_URL, undefined, query), { signal: controller.signal });
+    // Signed in, this page's own listing comes back with the shopper's bids ("you're the high bidder").
+    const token = query.startsWith("ids=") ? getCurrentUser()?.token : "";
+    const response = await fetch(shopperProductsUrl(DETAIL_API_BASE_URL, undefined, query), {
+      signal: controller.signal, ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+    });
     if (!response.ok) throw new Error(`Product request failed with ${response.status}`);
     const json = await response.json();
     const products = (json.products || []).map(normalizeProduct).filter(Boolean);
@@ -164,7 +168,7 @@ function renderSpecifics(product, specs = []) {
   const describedBrand = take("Brand");
   const model = take("Model") || take("Model number");
   const specifics = [
-    ["Condition", "New"],
+    ["Condition", escapeHtml(conditionLabel(product)) + (product.condition_note ? `<br><small>${escapeHtml(product.condition_note)}</small>` : "")],
     ["Brand", product.brand
       ? `<a href="index.html?view=brands&brand=${encodeURIComponent(product.brand)}#product-list">${escapeHtml(product.brand)}</a>`
       : escapeHtml(describedBrand || "Unbranded")],
@@ -614,6 +618,7 @@ function renderProduct(product) {
   renderSpecifics(product, description.specs);
   renderOptions(product);
   renderMeasurements(product);
+  renderCondition(product);
 }
 
 // ── Gallery ─────────────────────────────────────────────────────────────────────
@@ -904,6 +909,190 @@ function bindActions(product) {
 
 }
 
+// ── Condition, auctions and offers ──────────────────────────────────────────────
+// Auctions: proxy bidding like eBay (the shopper enters a maximum; the server bids only as much as needed).
+// Fixed-price listings that accept offers get a Make offer button; the seller accepts, declines or counters.
+
+function renderCondition(product) {
+  document.getElementById("detail-condition").textContent = conditionLabel(product);
+  const note = document.getElementById("detail-condition-note");
+  note.hidden = !product.condition_note;
+  note.textContent = product.condition_note ? `"${product.condition_note}"` : "";
+}
+
+function requireSignIn() {
+  if (getCurrentUser()?.token) return true;
+  try { localStorage.setItem("lyrshopAuthReturnTo", window.location.pathname.split("/").pop() + window.location.search); } catch (error) { /* ignore */ }
+  window.location.href = "auth.html";
+  return false;
+}
+
+let auctionTimer = null;
+
+function renderAuction(product) {
+  const auction = product.auction;
+  const live = auctionLive(product);
+  document.getElementById("auction-box").hidden = false;
+  document.getElementById("quantity-fact").hidden = true;
+  document.getElementById("detail-cart-button").hidden = true;
+  document.getElementById("buy-bar-button").textContent = live ? "Place bid" : "View";
+  // Buy It Now stays until the first bid (or until a reserve auction's reserve is met).
+  const buyNow = live && Number(auction.buy_now_price) > 0 ? Number(auction.buy_now_price) : 0;
+  document.getElementById("price-block").hidden = !buyNow;
+  document.getElementById("price-label").textContent = "Buy It Now";
+  if (buyNow) {
+    product.price = buyNow;
+    document.getElementById("detail-price").textContent = formatPrice(buyNow);
+    document.getElementById("detail-original-price").textContent = "";
+  }
+  document.getElementById("buy-now-button").hidden = !buyNow;
+  document.getElementById("auction-price-label").textContent = live ? (auction.bid_count ? "Current bid" : "Starting bid")
+    : auction.status === "sold" ? "Winning bid" : "Ended";
+  document.getElementById("auction-price").textContent = formatPrice(auction.final_price || auction.current_price);
+  const bids = Number(auction.bid_count || 0);
+  document.getElementById("bid-history-button").textContent = `${bids} bid${bids === 1 ? "" : "s"}`;
+  document.getElementById("auction-reserve").textContent = auction.reserve ? (auction.reserve_met ? "· Reserve met" : "· Reserve not met") : "";
+  const ends = new Date(Number(auction.ends_at) * 1000);
+  document.getElementById("auction-ends").textContent = `${live ? "Ends" : "Ended"} ${ends.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
+  const standing = document.getElementById("auction-standing");
+  const text = !live
+    ? (auction.winner === "You" ? `You won this item for ${formatPrice(auction.final_price)}. Check your email to pay.`
+      : auction.status === "sold" ? `This item sold for ${formatPrice(auction.final_price)}.` : "This auction ended without a sale.")
+    : auction.you_lead ? `You're the high bidder. Your maximum bid: ${formatPrice(auction.your_max)}.`
+      : auction.your_max ? "You've been outbid. Bid again to get back in the lead." : "";
+  standing.hidden = !text;
+  standing.textContent = text;
+  standing.className = `auction-standing${auction.you_lead || auction.winner === "You" ? " is-winning" : auction.your_max ? " is-outbid" : ""}`;
+  const form = document.getElementById("bid-form");
+  form.hidden = !live;
+  const input = document.getElementById("bid-amount");
+  input.min = auction.next_bid;
+  input.placeholder = Number(auction.next_bid).toFixed(2);
+  document.getElementById("bid-hint").textContent = `Enter ${formatPrice(auction.next_bid)} or more`;
+  tickAuction(product);
+}
+
+function tickAuction(product) {
+  window.clearInterval(auctionTimer);
+  const clock = document.getElementById("auction-time");
+  const tick = () => {
+    const left = auctionTimeLeft(product.auction.ends_at);
+    clock.textContent = left;
+    const seconds = Number(product.auction.ends_at) - Date.now() / 1000;
+    clock.classList.toggle("is-ending", seconds > 0 && seconds < 3600);
+    if (seconds <= 0) {
+      window.clearInterval(auctionTimer);
+      document.getElementById("bid-form").hidden = true;
+    }
+  };
+  tick();
+  auctionTimer = window.setInterval(tick, 1000);
+}
+
+function renderBidHistory(product) {
+  const auction = product.auction;
+  const bids = auction.bids || [];
+  document.getElementById("bid-history-summary").textContent =
+    `${Number(auction.bid_count || 0)} bids from ${Number(auction.bidders || 0)} bidder${auction.bidders === 1 ? "" : "s"} · starting bid ${formatPrice(auction.start_price)}`;
+  document.getElementById("bid-history-body").innerHTML = bids.length
+    ? bids.map((bid) => `<tr><td>${escapeHtml(bid.bidder)}</td><td>${escapeHtml(formatPrice(bid.amount))}</td>
+        <td>${escapeHtml(new Date(Number(bid.at) * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</td></tr>`).join("")
+    : `<tr><td colspan="3">No bids yet. Be the first!</td></tr>`;
+}
+
+function bindAuction(product) {
+  renderAuction(product);
+  LyrLocale.onChange(() => renderAuction(product));
+  document.getElementById("bid-history-button").addEventListener("click", () => {
+    renderBidHistory(product);
+    document.getElementById("bid-history-dialog").showModal();
+  });
+  const form = document.getElementById("bid-form");
+  const error = document.getElementById("bid-error");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    error.textContent = "";
+    if (!requireSignIn()) return;
+    const amount = Number(document.getElementById("bid-amount").value);
+    if (!(amount >= Number(product.auction.next_bid))) {
+      error.textContent = `Enter ${formatPrice(product.auction.next_bid)} or more.`;
+      return;
+    }
+    if (!confirm(`Confirm your maximum bid of ${LyrLocale.formatUsd(amount)} USD?\n\nWe'll bid for you only as much as needed, up to this amount. Bids can't be withdrawn.`)) return;
+    const button = document.getElementById("bid-button");
+    button.disabled = true;
+    try {
+      const reply = await authApi("/market/bids", { method: "POST", body: { product_id: product.id, max_bid: amount } });
+      product.auction = reply.auction;
+      document.getElementById("bid-amount").value = "";
+      renderAuction(product);
+      showToast(reply.message, { tone: reply.leading ? "success" : "error" });
+      if (!isWatched(product.id)) {
+        toggleWatchlist(product.id);
+        renderWatchButton(document.querySelector(".watch-button"), product);
+      }
+    } catch (failure) {
+      error.textContent = failure.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+function bindOffers(product) {
+  const button = document.getElementById("offer-button");
+  if (!product.best_offer?.enabled || isAuctionListing(product) || product.source === "affiliate") return;
+  button.hidden = false;
+  document.getElementById("price-label").textContent = "Buy It Now";
+  const dialog = document.getElementById("offer-dialog");
+  const error = document.getElementById("offer-error");
+  button.addEventListener("click", () => {
+    if (!requireSignIn() || !checkOptions(product)) return;
+    const variant = variantLabel(product);
+    document.getElementById("offer-item").textContent = `${product.name}${variant ? ` (${variant})` : ""} · Buy It Now ${formatPrice(product.price)}`;
+    document.getElementById("offer-quantity").value = document.getElementById("quantity-select").value || 1;
+    error.textContent = "";
+    dialog.showModal();
+    document.getElementById("offer-amount").focus();
+  });
+  document.getElementById("offer-cancel").addEventListener("click", () => dialog.close());
+  document.getElementById("offer-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    error.textContent = "";
+    const amount = Number(document.getElementById("offer-amount").value);
+    if (!(amount > 0)) {
+      error.textContent = "Enter your offer.";
+      return;
+    }
+    if (amount >= Number(product.price)) {
+      error.textContent = "Your offer is at or above the Buy It Now price. Use Buy It Now instead.";
+      return;
+    }
+    const quantity = Math.max(1, Math.min(50, Math.round(Number(document.getElementById("offer-quantity").value) || 1)));
+    if (!confirm(`Send an offer of ${LyrLocale.formatUsd(amount)} USD${quantity > 1 ? ` each for ${quantity}` : ""}? If the seller accepts, you agree to buy.`)) return;
+    const submit = document.getElementById("offer-submit");
+    submit.disabled = true;
+    try {
+      const options = Object.fromEntries((product.options || []).map((option) => [option.name, chosenOptions[option.name]]));
+      const reply = await authApi("/market/offers", { method: "POST", body: {
+        product_id: product.id, amount, quantity, variant: variantLabel(product), options,
+        message: document.getElementById("offer-message").value,
+      } });
+      dialog.close();
+      if (reply.deal) {
+        showToast(reply.message, { actionLabel: "Pay now", actionHref: `cart.html?deal=${encodeURIComponent(reply.deal.ref)}` });
+      } else {
+        showToast(reply.message, { tone: reply.offer?.status === "declined" ? "error" : "success",
+          actionLabel: "Your offers", actionHref: "dashboard.html#offers" });
+      }
+    } catch (failure) {
+      error.textContent = failure.message;
+    } finally {
+      submit.disabled = false;
+    }
+  });
+}
+
 // ── Live shopper counts ─────────────────────────────────────────────────────────
 // Real numbers only: other visitors with this page open now (heartbeats), carts holding the listing (ui.js reports
 // cart changes) and units sold in the last 30 days (the server's trending count). Nothing shows when they're zero.
@@ -1119,7 +1308,14 @@ function bindBuyBar(product) {
   const price = () => { document.getElementById("buy-bar-price").textContent = formatPrice(product.price); };
   price();
   LyrLocale.onChange(price);
-  document.getElementById("buy-bar-button").addEventListener("click", () => document.getElementById("detail-cart-button").click());
+  document.getElementById("buy-bar-button").addEventListener("click", () => {
+    if (isAuctionListing(product)) {
+      document.getElementById("auction-box").scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("bid-amount").focus({ preventScroll: true });
+      return;
+    }
+    document.getElementById("detail-cart-button").click();
+  });
   // Shown once the page's own buttons have scrolled up out of view (under the sticky header counts as out of view).
   // A scroll check rather than an IntersectionObserver, which misses jumps straight past the buttons.
   const header = document.querySelector(".header");
@@ -1202,6 +1398,8 @@ async function initProductDetail() {
   bindShare(product);
   bindBuyBar(product);
   if (product.source === "affiliate") renderAffiliate(product);
+  if (isAuctionListing(product)) bindAuction(product);
+  bindOffers(product);
   renderAskLyrbot(product);
   renderSimilar(product, products);
   renderShippingEstimate(product);

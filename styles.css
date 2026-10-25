@@ -8804,3 +8804,385 @@ iframe.skiptranslate,
   padding-top: 1.5rem;
   border-top: 1px solid var(--line);
 }
+
+/* ── Condition, auctions and offers (eBay-style selling formats) ───────────── */
+/* The hidden attribute always wins over a component's display (buttons and labels set their own). */
+[hidden] {
+  display: none !important;
+}
+
+.condition-note {
+  display: block;
+  margin-top: 0.2rem;
+  color: #555;
+  font-size: 0.88rem;
+  font-style: italic;
+}
+
+.product-condition {
+  margin: 0.15rem 0;
+  color: #555;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.product-selling {
+  margin: 0.1rem 0 0.4rem;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.product-selling .time-left {
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.offer-button {
+  background: #ffffff;
+  border: 1px solid var(--button-soft-border);
+  color: var(--button-bg);
+}
+
+.offer-button:hover {
+  background: var(--button-hover);
+  border-color: var(--button-hover);
+  color: #ffffff;
+}
+
+.auction-box {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid #d9dde6;
+  border-radius: var(--radius);
+  background: #fafbfc;
+}
+
+.auction-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.auction-head > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.auction-head strong {
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.auction-clock strong.is-ending {
+  color: #c2410c;
+}
+
+.auction-meta {
+  color: #555;
+  font-size: 0.88rem;
+}
+
+.auction-standing {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background: #eef2ff;
+  font-weight: 600;
+}
+
+.auction-standing.is-winning {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.auction-standing.is-outbid {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.bid-form {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.bid-form label {
+  font-weight: 600;
+}
+
+.bid-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bid-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #c5cad6;
+  border-radius: 999px;
+  font-size: 1.05rem;
+}
+
+.bid-row .button {
+  flex: 0 0 auto;
+}
+
+.bid-currency {
+  font-weight: 700;
+}
+
+.market-dialog {
+  width: min(480px, calc(100vw - 32px));
+  border: 0;
+  border-radius: 16px;
+  padding: 1.4rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+}
+
+.market-dialog::backdrop {
+  background: rgba(17, 24, 39, 0.45);
+}
+
+.market-dialog h2 {
+  margin: 0 0 0.6rem;
+  font-size: 1.25rem;
+}
+
+.market-dialog form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.market-dialog label {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 600;
+}
+
+.market-dialog input,
+.market-dialog textarea {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #c5cad6;
+  border-radius: 10px;
+  font-weight: 400;
+}
+
+.market-dialog textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+.offer-item {
+  margin: 0;
+  color: #555;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.bid-history {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.bid-history th,
+.bid-history td {
+  padding: 0.4rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+/* Seller form */
+.selling-format {
+  border: 1px solid #d9dde6;
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+}
+
+.selling-format legend {
+  font-weight: 700;
+  padding: 0 0.3rem;
+}
+
+.format-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.format-choice {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #d9dde6;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.format-choice input,
+.offer-fields .checkbox-field input,
+.email-prefs input {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0.3rem 0 0;
+}
+
+.format-choice:has(input:checked) {
+  border-color: var(--button-bg);
+  background: var(--button-soft);
+}
+
+.format-choice span {
+  display: grid;
+}
+
+.format-choice small {
+  color: #555;
+}
+
+.auction-fields,
+.offer-thresholds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.offer-fields .checkbox-field {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.selling-pill {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+/* Account: bids, offers and email preferences */
+.my-subhead {
+  margin: 1.4rem 0 0.6rem;
+  font-size: 1.05rem;
+}
+
+.market-card {
+  display: flex;
+  gap: 0.9rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.market-card img {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #f3f4f6;
+}
+
+.market-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.market-card-body p {
+  margin: 0.2rem 0;
+}
+
+.market-card-title {
+  font-weight: 600;
+  color: #0f4fd6;
+}
+
+.market-status {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.market-status.is-your-turn,
+.market-status.is-outbid {
+  color: #b91c1c;
+}
+
+.market-status.is-winning,
+.market-status.status-accepted,
+.market-status.status-purchased {
+  color: #047857;
+}
+
+.offer-history {
+  margin: 0.4rem 0;
+  padding-left: 1.1rem;
+  color: #555;
+  font-size: 0.86rem;
+}
+
+.market-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.deal-banner,
+.deal-note {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.deal-banner p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.3rem 0;
+}
+
+.deal-note {
+  margin: 0.75rem 0;
+  font-weight: 600;
+}
+
+.email-prefs {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.email-prefs .checkbox-field {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.email-prefs small {
+  color: #555;
+}
+
+.unsubscribe-page .button {
+  margin: 0.25rem 0.5rem 0.25rem 0;
+}
+
+@media (max-width: 600px) {
+  .market-card img {
+    width: 64px;
+    height: 64px;
+  }
+
+  .bid-row .button {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

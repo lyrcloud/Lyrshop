@@ -17,6 +17,21 @@ const brandOptions = document.getElementById("brand-options");
 const comparePriceInput = document.getElementById("product-compare-price");
 const discountInput = document.getElementById("product-discount");
 const saleEventInput = document.getElementById("product-sale-event");
+const conditionInput = document.getElementById("product-condition");
+const conditionHint = document.getElementById("product-condition-hint");
+const conditionNoteField = document.getElementById("product-condition-note-field");
+const conditionNoteInput = document.getElementById("product-condition-note");
+const auctionFields = document.getElementById("auction-fields");
+const auctionStart = document.getElementById("auction-start");
+const auctionReserve = document.getElementById("auction-reserve");
+const auctionBuyNow = document.getElementById("auction-buy-now");
+const auctionDays = document.getElementById("auction-days");
+const auctionStatus = document.getElementById("auction-status");
+const offerFields = document.getElementById("offer-fields");
+const offerEnabled = document.getElementById("offer-enabled");
+const offerThresholds = document.getElementById("offer-thresholds");
+const offerAutoAccept = document.getElementById("offer-auto-accept");
+const offerAutoDecline = document.getElementById("offer-auto-decline");
 const countryInput = document.getElementById("product-country");
 const cityInput = document.getElementById("product-city");
 const regionalPricingInput = document.getElementById("product-regional-pricing");
@@ -274,6 +289,7 @@ function renderProducts(session) {
       <div class="card-body">
         <div>
           ${isDraft ? `<span class="draft-badge">Draft · hidden from store</span>` : ""}
+          ${sellingBadge(product)}
           ${product.brand ? `<small class="product-brand">${escapeHtml(product.brand)}</small>` : ""}
           <h3>${escapeHtml(product.name)}</h3>
           <p>${escapeHtml(product.description || "No description.")}</p>
@@ -331,6 +347,94 @@ function renderBrandOptions(products) {
   brandOptions.innerHTML = brands.map((brand) => `<option value="${escapeHtml(brand)}"></option>`).join("");
 }
 
+// ── Condition and selling format (eBay-style) ────────────────────────────────
+const CONDITION_HINTS = {
+  new: "Brand-new, unused, unopened, in its original packaging.",
+  open_box: "New and unused; the packaging may be opened or missing.",
+  new_defects: "New and unused, with defects such as scuffs or damaged packaging.",
+  certified_refurbished: "Restored to like-new by the manufacturer or an approved vendor.",
+  excellent_refurbished: "Works and looks like new; professionally restored.",
+  very_good_refurbished: "Works like new with minimal wear; professionally restored.",
+  good_refurbished: "Works like new with moderate wear; professionally restored.",
+  seller_refurbished: "Restored to working order by you or a third party.",
+  used_excellent: "Used, with little sign of wear. Works fully.",
+  used_good: "Used, with some signs of wear. Works fully.",
+  used_fair: "Used, with heavy wear. Works fully.",
+  for_parts: "Doesn't fully work. Sold as is, for parts or repair.",
+};
+
+function sellingFormat() {
+  return form.querySelector('input[name="product-format"]:checked')?.value || "fixed";
+}
+
+function syncSellingFields() {
+  const auction = sellingFormat() === "auction";
+  conditionHint.textContent = CONDITION_HINTS[conditionInput.value] || "";
+  // eBay asks for a condition description on anything that isn't brand new.
+  conditionNoteField.hidden = conditionInput.value === "new";
+  auctionFields.hidden = !auction;
+  offerFields.hidden = auction;
+  offerThresholds.hidden = auction || !offerEnabled.checked;
+  auctionStart.required = auction;
+  priceInput.required = !auction;
+  // Auctions have one price from their own terms; fixed-price extras don't apply.
+  for (const field of [priceInput.closest("label"), comparePriceInput.closest("label"), discountInput.closest("label"),
+    document.querySelector(".wholesale-tiers")]) {
+    if (field) field.hidden = auction;
+  }
+}
+
+function setSellingFields(product) {
+  conditionInput.value = product?.condition || "new";
+  conditionNoteInput.value = product?.condition_note || "";
+  const auction = product?.format === "auction" ? product.auction || {} : null;
+  form.querySelector(`input[name="product-format"][value="${auction ? "auction" : "fixed"}"]`).checked = true;
+  auctionStart.value = auction?.start_price ?? "";
+  auctionReserve.value = auction?.reserve_price ?? "";
+  auctionBuyNow.value = auction?.listed_buy_now_price ?? auction?.buy_now_price ?? "";
+  auctionDays.value = String(auction?.days || 7);
+  const bids = Number(auction?.bid_count || 0);
+  const ended = auction && ["sold", "unsold"].includes(auction.status);
+  auctionStatus.hidden = !auction;
+  auctionStatus.textContent = !auction ? "" : ended
+    ? `This auction ${auction.status === "sold" ? `sold for $${Number(auction.final_price || 0).toFixed(2)}` : "ended without a sale"}. Saving relists it with a new clock.`
+    : bids ? `${bids} bid${bids === 1 ? "" : "s"} so far, current bid $${Number(auction.current_price).toFixed(2)}. Prices and duration are locked until it ends.`
+      : `Live, no bids yet. Ends ${new Date(Number(auction.ends_at) * 1000).toLocaleString()}.`;
+  for (const input of [auctionStart, auctionReserve, auctionBuyNow, auctionDays]) input.disabled = Boolean(bids && !ended);
+  const offers = product?.best_offer || {};
+  offerEnabled.checked = Boolean(offers.enabled);
+  offerAutoAccept.value = offers.auto_accept ?? "";
+  offerAutoDecline.value = offers.auto_decline ?? "";
+  syncSellingFields();
+}
+
+function collectSellingFields() {
+  const fields = { condition: conditionInput.value, condition_note: conditionNoteField.hidden ? "" : conditionNoteInput.value.trim() };
+  if (sellingFormat() === "auction") {
+    Object.assign(fields, {
+      format: "auction",
+      auction: { start_price: auctionStart.value, reserve_price: auctionReserve.value, buy_now_price: auctionBuyNow.value, days: Number(auctionDays.value) },
+    });
+    fields.price = parseFloat(auctionBuyNow.value) || parseFloat(auctionStart.value);
+  } else {
+    Object.assign(fields, {
+      format: "fixed",
+      best_offer: { enabled: offerEnabled.checked, auto_accept: offerAutoAccept.value, auto_decline: offerAutoDecline.value },
+    });
+  }
+  return fields;
+}
+
+function sellingBadge(product) {
+  const auction = product.format === "auction" ? product.auction : null;
+  if (auction) {
+    const label = auction.status === "live" ? `Auction · ${Number(auction.bid_count || 0)} bids · $${Number(auction.current_price || 0).toFixed(2)}`
+      : auction.status === "sold" ? `Auction sold · $${Number(auction.final_price || 0).toFixed(2)}` : "Auction ended · unsold";
+    return `<span class="meta-pill selling-pill">${escapeHtml(label)}</span>`;
+  }
+  return product.best_offer?.enabled ? `<span class="meta-pill selling-pill">Accepts offers</span>` : "";
+}
+
 function startEditProduct(product) {
   productEditId.value = product.id;
   nameInput.value = product.name || "";
@@ -353,6 +457,7 @@ function startEditProduct(product) {
   setProductMedia(product);
   setWholesaleTiers(product.wholesale_tiers);
   setProductOptions(product);
+  setSellingFields(product);
   resetAiAssist();
   productSubmit.textContent = "Update product";
   productCancel.hidden = false;
@@ -780,6 +885,7 @@ function cancelProductEdit() {
   setProductMedia(null);
   setWholesaleTiers([]);
   setProductOptions(null);
+  setSellingFields(null);
   resetAiAssist();
   renderPreview();
   showMessage(message, "");
@@ -791,6 +897,11 @@ async function submitProduct(event) {
   if (!session) return;
 
   const editId = productEditId.value;
+  const selling = collectSellingFields();
+  if (selling.format === "auction") {
+    comparePriceInput.value = "";
+    discountInput.value = "";
+  }
   const comparePrice = comparePriceInput.value === "" ? "" : parseFloat(comparePriceInput.value);
   if (discountInput.value !== "" && !(parseFloat(discountInput.value) > 0 && parseFloat(discountInput.value) < 100)) {
     showMessage(message, "The discount must be between 1 and 99% off.", true);
@@ -822,7 +933,9 @@ async function submitProduct(event) {
     regional_pricing: regionalPricingInput.checked,
     options: collectProductOptions(),
     measurements: collectMeasurements(),
+    ...selling,
   };
+  if (selling.format === "auction") delete product.wholesale_tiers;
   // A new listing is the signed-in seller's; editing keeps whoever it's listed under (e.g. an import stays Lyrshop's).
   if (!editId) Object.assign(product, { seller_email: session.email, seller_name: session.name });
 
@@ -3359,6 +3472,10 @@ function initProductMediaPicker() {
 // ── Init ───────────────────────────────────────────────────────────────────────
 
 form.addEventListener("submit", submitProduct);
+conditionInput.addEventListener("change", syncSellingFields);
+offerEnabled.addEventListener("change", syncSellingFields);
+form.querySelectorAll('input[name="product-format"]').forEach((input) => input.addEventListener("change", syncSellingFields));
+syncSellingFields();
 productCancel.addEventListener("click", cancelProductEdit);
 currentProducts.addEventListener("click", handleProductActions);
 productFilterSearch.addEventListener("input", () => { adminProductLimit = ADMIN_PRODUCT_PAGE_SIZE; renderProducts(readSession()); });

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261025-1" />
+  <link rel="stylesheet" href="styles.css?v=20261025-2" />
 </head>
 <body>
   <header class="header">
@@ -103,9 +103,10 @@
         <dl class="listing-facts">
           <div>
             <dt>Condition</dt>
-            <dd>New</dd>
+            <dd><span id="detail-condition">New</span>
+              <span class="condition-note" id="detail-condition-note" hidden></span></dd>
           </div>
-          <div>
+          <div id="quantity-fact">
             <dt>Quantity</dt>
             <dd>
               <input type="number" id="quantity-select" class="quantity-input" min="1" max="500" step="1" value="1" inputmode="numeric" aria-label="Quantity" />
@@ -121,8 +122,36 @@
           <span class="size-note" id="size-note" hidden>Asian sizing: this item usually runs 1–2 sizes smaller than US/EU sizes. Check the chest size in the guide.</span>
         </div>
 
-        <div class="price-block">
-          <span class="price-label">Price</span>
+        <section class="auction-box" id="auction-box" aria-labelledby="auction-price-label" hidden>
+          <div class="auction-head">
+            <div>
+              <span class="price-label" id="auction-price-label">Current bid</span>
+              <strong id="auction-price">$0.00</strong>
+              <span class="auction-meta"><button type="button" class="link-button" id="bid-history-button">0 bids</button>
+                <span id="auction-reserve"></span></span>
+            </div>
+            <div class="auction-clock">
+              <span class="price-label">Time left</span>
+              <strong id="auction-time">–</strong>
+              <span class="auction-meta" id="auction-ends"></span>
+            </div>
+          </div>
+          <p class="auction-standing" id="auction-standing" role="status" hidden></p>
+          <form class="bid-form" id="bid-form" novalidate>
+            <label for="bid-amount">Your maximum bid</label>
+            <div class="bid-row">
+              <span class="bid-currency">$</span>
+              <input type="number" id="bid-amount" min="0.01" step="0.01" inputmode="decimal" />
+              <button type="submit" class="button buy-now-button" id="bid-button">Place bid</button>
+            </div>
+            <small class="field-hint" id="bid-hint"></small>
+            <small class="field-hint">We bid for you, only as much as needed to keep you in the lead, up to your maximum.</small>
+            <p class="option-error" id="bid-error" role="alert"></p>
+          </form>
+        </section>
+
+        <div class="price-block" id="price-block">
+          <span class="price-label" id="price-label">Price</span>
           <strong id="detail-price">$0.00</strong>
           <span id="detail-original-price" class="detail-original-price"></span>
         </div>
@@ -138,6 +167,7 @@
         <div class="purchase-actions">
           <button class="button buy-now-button" id="buy-now-button" type="button">Buy It Now</button>
           <button class="button detail-cart-button" id="detail-cart-button" type="button">Add to cart</button>
+          <button class="button offer-button" id="offer-button" type="button" hidden>Make offer</button>
           <button class="button watch-button" type="button">Add to Watchlist</button>
           <button class="button share-button" id="share-button" type="button" aria-label="Share this item">&#10150; Share</button>
         </div>
@@ -201,6 +231,37 @@
     </section>
   </main>
 
+  <dialog class="market-dialog" id="offer-dialog" aria-labelledby="offer-title">
+    <form method="dialog" id="offer-form" novalidate>
+      <h2 id="offer-title">Make an offer</h2>
+      <p class="offer-item" id="offer-item"></p>
+      <label>Your offer, per item (USD)
+        <input type="number" id="offer-amount" min="0.01" step="0.01" inputmode="decimal" required />
+      </label>
+      <label id="offer-quantity-field">Quantity
+        <input type="number" id="offer-quantity" min="1" max="50" step="1" value="1" />
+      </label>
+      <label>Message to the seller (optional)
+        <textarea id="offer-message" maxlength="500" placeholder="e.g. Would you take this? I can pay today."></textarea>
+      </label>
+      <p class="field-hint">If the seller accepts, you'll get an email and have 48 hours to pay at your offer price. Offers are binding.</p>
+      <p class="option-error" id="offer-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" class="button button-secondary" id="offer-cancel">Cancel</button>
+        <button type="submit" class="button buy-now-button" id="offer-submit">Review and send offer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="market-dialog" id="bid-history-dialog" aria-labelledby="bid-history-title">
+    <form method="dialog">
+      <h2 id="bid-history-title">Bid history</h2>
+      <p class="field-hint" id="bid-history-summary"></p>
+      <table class="bid-history"><thead><tr><th>Bidder</th><th>Bid</th><th>Time</th></tr></thead><tbody id="bid-history-body"></tbody></table>
+      <div class="dialog-actions"><button class="button button-secondary">Close</button></div>
+    </form>
+  </dialog>
+
   <div class="buy-bar" id="buy-bar" hidden>
     <img id="buy-bar-image" alt="" />
     <div class="buy-bar-text">
@@ -238,9 +299,9 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="ui.js?v=20261019-1"></script>
+  <script src="ui.js?v=20261025-1"></script>
   <script src="sizing.js?v=20261018-1"></script>
-  <script src="product.js?v=20261025-4"></script>
+  <script src="product.js?v=20261025-5"></script>
   <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

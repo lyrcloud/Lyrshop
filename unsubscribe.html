@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Email preferences - Lyrshop</title>
+  <meta name="description" content="Unsubscribe from Lyrshop email updates." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+  <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
+  <link rel="manifest" href="/site.webmanifest?v=2" />
+  <meta name="theme-color" content="#e53238" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=20261025-2" />
+</head>
+<body>
+  <header class="page-header compact-header">
+    <a href="index.html" aria-label="Lyrshop home">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+        <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238">lyrshop</text>
+      </svg>
+    </a>
+    <div class="header-actions">
+      <a href="index.html" class="button button-secondary">Shop</a>
+      <a href="cart.html" class="button button-secondary">Cart <span class="count-badge" data-count="cart" hidden></span></a>
+    </div>
+  </header>
+
+  <main class="legal-page unsubscribe-page">
+    <h1 id="unsubscribe-title">Updating your email preferences…</h1>
+    <p id="unsubscribe-message">One moment.</p>
+    <p><a href="dashboard.html#account" class="button button-secondary">Manage all email preferences</a>
+      <a href="index.html" class="button button-primary">Keep shopping</a></p>
+  </main>
+
+  <footer data-site-footer>
+    <p>&copy; 2026 Lyrshop. Powered by Lyrcloud.</p>
+  </footer>
+
+  <script src="auth.js?v=20261023-1"></script>
+  <script src="locale.js?v=20261018-1"></script>
+  <script src="ui.js?v=20261025-1"></script>
+  <script src="footer.js?v=20261024-1"></script>
+  <script>
+    // One-click unsubscribe from the link at the bottom of offer, bid and digest emails (no sign-in needed).
+    (async () => {
+      const title = document.getElementById("unsubscribe-title");
+      const message = document.getElementById("unsubscribe-message");
+      const token = new URLSearchParams(window.location.search).get("t");
+      try {
+        const reply = await authApi("/market/unsubscribe", { method: "POST", body: { t: token } });
+        title.textContent = "You're unsubscribed";
+        message.textContent = `We won't email you about ${reply.label} any more. Order confirmations and shipping updates still arrive.`;
+      } catch (error) {
+        title.textContent = "We couldn't update your preferences";
+        message.textContent = error.message;
+      }
+    })();
+  </script>
+</body>
+</html>

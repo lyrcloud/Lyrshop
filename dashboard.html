@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261025-1" />
+  <link rel="stylesheet" href="styles.css?v=20261025-2" />
 </head>
 <body>
   <header class="page-header compact-header">
@@ -47,6 +47,7 @@
         <a href="#recently-viewed" data-section-link="recently-viewed">Recently viewed</a>
         <a href="#purchases" data-section-link="purchases">Purchases</a>
         <a href="#watchlist" data-section-link="watchlist">Watchlist</a>
+        <a href="#offers" data-section-link="offers">Bids &amp; offers <span class="count-badge" id="offers-count" hidden></span></a>
         <a href="#rewards" data-section-link="rewards">Rewards &amp; badges</a>
         <a href="#gift-cards" data-section-link="gift-cards">Gift cards</a>
         <a href="#affiliate" data-section-link="affiliate">Affiliate</a>
@@ -144,6 +145,17 @@
           <div id="affiliate-panel" class="affiliate-panel"><p class="my-empty">Loading…</p></div>
         </section>
 
+        <section class="my-section" data-section="offers" aria-labelledby="offers-title" hidden>
+          <div class="my-block-header"><h2 id="offers-title">Bids &amp; offers</h2></div>
+          <div id="deal-list"></div>
+          <h3 class="my-subhead">Auctions you bid on</h3>
+          <div id="bid-list"><p class="my-empty">Loading…</p></div>
+          <h3 class="my-subhead">Offers you made</h3>
+          <div id="buying-offer-list"><p class="my-empty">Loading…</p></div>
+          <h3 class="my-subhead">Offers on your items</h3>
+          <div id="selling-offer-list"><p class="my-empty">Loading…</p></div>
+        </section>
+
         <section class="my-section" data-section="quotes" aria-labelledby="quotes-title" hidden>
           <div class="my-block-header">
             <h2 id="quotes-title">Business quotes</h2>
@@ -183,6 +195,19 @@
             <div><dt>Account type</dt><dd id="profile-buyer-type"></dd></div>
           </dl>
 
+          <div class="my-block email-prefs-block">
+            <div class="my-block-header"><h3>Email preferences</h3></div>
+            <p class="my-muted">Order confirmations and shipping updates are always emailed to you.</p>
+            <form id="email-prefs-form" class="email-prefs">
+              <label class="checkbox-field"><input type="checkbox" name="offers" />
+                <span><strong>Offers and bids</strong><br><small>Offers and counteroffers, outbid alerts, auctions you win or sell.</small></span></label>
+              <label class="checkbox-field"><input type="checkbox" name="updates" />
+                <span><strong>Updates for you</strong><br><small>A daily email with new items matching your searches, price drops on your watchlist and watched auctions ending soon.</small></span></label>
+              <span id="email-prefs-message" class="profile-message" role="status"></span>
+            </form>
+            <p class="my-muted" id="email-prefs-none" hidden>Add an email address to your account to get email updates.</p>
+          </div>
+
           <div class="my-block business-block" id="business-block">
             <div class="my-block-header"><h3>Business account (B2B)</h3></div>
             <p id="business-status" class="business-status"></p>
@@ -216,8 +241,8 @@
 
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
-  <script src="ui.js?v=20261019-1"></script>
-  <script src="dashboard.js?v=20261025-2"></script>
+  <script src="ui.js?v=20261025-1"></script>
+  <script src="dashboard.js?v=20261025-3"></script>
   <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

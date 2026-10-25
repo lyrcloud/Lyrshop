@@ -40,6 +40,9 @@ const DEFAULT_SORT = "nearby";
 let activeSort = pageParams.get("sort") || DEFAULT_SORT;
 // "country" or "region" keeps only items listed near the shopper; empty shows everywhere.
 let activeNear = pageParams.get("near") || "";
+// eBay-style filters: condition group (new, open_box, refurbished, used, for_parts) and buying format.
+let activeCondition = pageParams.get("condition") || "";
+let activeFormat = pageParams.get("format") || "";
 let productsLoaded = false;
 let searchBox = null;
 
@@ -58,6 +61,7 @@ const SORTS = {
   "price-desc": { label: "Price: high to low", compare: (a, b) => b.price - a.price },
   discount: { label: "Biggest discount", compare: (a, b) => getDiscountPercent(b.original_price, b.price) - getDiscountPercent(a.original_price, a.price) },
   name: { label: "Name: A to Z", compare: (a, b) => a.name.localeCompare(b.name) },
+  ending: { label: "Auctions: ending soonest", compare: (a, b) => auctionEnd(a) - auctionEnd(b) || byNewest(a, b) },
 };
 
 function saveCart() {
@@ -200,6 +204,15 @@ function getFilteredProducts() {
     filtered = filtered.filter((p) => p.nearby >= minimum);
   }
 
+  if (activeCondition) {
+    filtered = filtered.filter((p) => conditionGroup(p) === activeCondition);
+  }
+
+  if (activeFormat) {
+    filtered = filtered.filter((p) => activeFormat === "auction" ? auctionLive(p)
+      : activeFormat === "offers" ? Boolean(p.best_offer?.enabled) : !isAuctionListing(p));
+  }
+
   if (searchQuery.trim()) {
     const terms = getSearchTerms(searchQuery);
     filtered = filtered.filter((p) => matchesSearch(productSearchFields(p), terms));
@@ -208,6 +221,14 @@ function getFilteredProducts() {
   const sort = SORTS[activeSort] || SORTS[DEFAULT_SORT];
   return sort.compare ? [...filtered].sort(sort.compare) : filtered;
 }
+
+// Live auctions first, soonest ending; everything else after.
+function auctionEnd(product) {
+  return auctionLive(product) ? Number(product.auction.ends_at) : Number.MAX_SAFE_INTEGER;
+}
+
+const CONDITION_FILTER_LABELS = { new: "New", open_box: "Open box", refurbished: "Refurbished", used: "Used", for_parts: "For parts" };
+const FORMAT_FILTER_LABELS = { auction: "Auction", fixed: "Buy It Now", offers: "Accepts offers" };
 
 function isOnSale(product) {
   return product.original_price > product.price;
@@ -292,6 +313,8 @@ function renderListingToolbar() {
     activeBrand && { key: "brand", label: activeBrand },
     activeEvent && { key: "event", label: activeEvent },
     activeNear && { key: "near", label: activeNear === "country" ? "In your country" : "In your region" },
+    activeCondition && { key: "condition", label: CONDITION_FILTER_LABELS[activeCondition] || activeCondition },
+    activeFormat && { key: "format", label: FORMAT_FILTER_LABELS[activeFormat] || activeFormat },
   ].filter(Boolean);
   active.innerHTML = chips.map((chip) => `
     <button type="button" class="active-filter" data-clear="${chip.key}" aria-label="Remove filter ${escapeHtml(chip.label)}">
@@ -301,6 +324,10 @@ function renderListingToolbar() {
   sortSelect.value = SORTS[activeSort] ? activeSort : DEFAULT_SORT;
   const nearSelect = document.getElementById("near-select");
   if (nearSelect) nearSelect.value = activeNear;
+  const conditionSelect = document.getElementById("condition-select");
+  if (conditionSelect) conditionSelect.value = activeCondition;
+  const formatSelect = document.getElementById("format-select");
+  if (formatSelect) formatSelect.value = activeFormat;
 }
 
 function clearFilter(key) {
@@ -310,6 +337,8 @@ function clearFilter(key) {
   if (key === "brand" || key === "all") activeBrand = "";
   if (key === "event" || key === "all") activeEvent = "";
   if (key === "near" || key === "all") activeNear = "";
+  if (key === "condition" || key === "all") activeCondition = "";
+  if (key === "format" || key === "all") activeFormat = "";
   if (key === "all") activeView = "";
   refreshListing();
 }
@@ -325,6 +354,8 @@ function syncListingUrl() {
   if (activeEvent) params.set("event", activeEvent);
   if (activeSort !== DEFAULT_SORT) params.set("sort", activeSort);
   if (activeNear) params.set("near", activeNear);
+  if (activeCondition) params.set("condition", activeCondition);
+  if (activeFormat) params.set("format", activeFormat);
   const query = params.toString();
   history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
 }
@@ -610,11 +641,15 @@ function renderProductCards(products) {
           ${product.regional_factor ? `<span class="regional-badge" title="The seller lowered this price for shoppers in your country">Fair price for your country</span>` : ""}
           <p class="product-location${product.nearby >= 3 ? " is-local" : ""}" title="${escapeHtml(product.nearby_label || "Item location")}">&#128205; ${escapeHtml(itemLocationLabel(product))}</p>
           <div class="product-rating">${ratingStars(product.rating || 4)}</div>
+          ${product.condition && product.condition !== "new" ? `<p class="product-condition">${escapeHtml(conditionLabel(product))}</p>` : ""}
           <div class="product-pricing">
             <span class="current-price">${formatPrice(product.price)}</span>
             ${isOnSale(product) ? `<span class="original-price">${formatPrice(product.original_price)}</span>` : ""}
           </div>
-          ${product.source === "affiliate"
+          ${cardSellingLine(product)}
+          ${isAuctionListing(product)
+            ? `<a class="button button-primary add-cart-btn" href="${productUrl}">${auctionLive(product) ? "Place bid" : "View auction"}</a>`
+            : product.source === "affiliate"
             ? `<a class="button button-primary add-cart-btn" href="${productUrl}">View deal</a>`
             : product.options?.length
             ? `<a class="button button-primary add-cart-btn" href="${productUrl}">Choose options</a>`
@@ -622,6 +657,17 @@ function renderProductCards(products) {
         </div>
       </article>`;
   }).join("");
+}
+
+// eBay's line under the price: "3 bids · 2d 4h left" for auctions, "or Best Offer" for fixed prices.
+function cardSellingLine(product) {
+  if (isAuctionListing(product)) {
+    const auction = product.auction;
+    const bids = Number(auction.bid_count || 0);
+    const buyNow = auction.buy_now_price ? ` · or Buy It Now ${formatPrice(auction.buy_now_price)}` : "";
+    return `<p class="product-selling">${bids} bid${bids === 1 ? "" : "s"} · <span class="time-left">${escapeHtml(auctionTimeLeft(auction.ends_at))}</span>${auctionLive(product) ? " left" : ""}${buyNow}</p>`;
+  }
+  return product.best_offer?.enabled ? `<p class="product-selling">or Best Offer</p>` : "";
 }
 
 // One delegated handler for every card: add to cart, watchlist hearts, and empty-state reset.
@@ -669,6 +715,14 @@ function bindProductListActions() {
   });
   document.getElementById("near-select")?.addEventListener("change", (event) => {
     activeNear = event.target.value;
+    refreshListing();
+  });
+  document.getElementById("condition-select")?.addEventListener("change", (event) => {
+    activeCondition = event.target.value;
+    refreshListing();
+  });
+  document.getElementById("format-select")?.addEventListener("change", (event) => {
+    activeFormat = event.target.value;
     refreshListing();
   });
 }
@@ -829,6 +883,7 @@ function bindCategoryMenu() {
 
 function applySearch(query, category) {
   searchQuery = query;
+  if (query) debouncedSearchInterest(query);
   const nextCategory = category || "All";
   if (nextCategory !== activeCategory) {
     activeCategory = nextCategory;
@@ -843,6 +898,9 @@ function applySearch(query, category) {
   updateNavActive();
   refreshListing();
 }
+
+// Typing searches as you go; only the search the shopper settles on is remembered for email updates.
+const debouncedSearchInterest = debounce((query) => recordSearchInterest(query), 2500);
 
 function bindListingFilters() {
   const filters = document.getElementById("listing-filters");
