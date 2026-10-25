@@ -308,6 +308,8 @@ function renderProducts(session) {
       <div class="table-actions" style="padding:0.5rem 1rem 1rem">
         <button class="button button-secondary" type="button" data-product-action="edit" data-product-id="${escapeHtml(product.id)}">${isDraft ? "Edit & publish" : "Edit"}</button>
         <button class="button danger-button" type="button" data-product-action="delete" data-product-id="${escapeHtml(product.id)}">Delete</button>
+        ${!isDraft && product.format !== "auction" && product.source !== "affiliate"
+          ? `<button class="button button-secondary" type="button" data-product-action="watchers" data-product-id="${escapeHtml(product.id)}">Offer to watchers</button>` : ""}
       </div>` : ""}
     `;
     currentProducts.appendChild(card);
@@ -995,10 +997,33 @@ function handleProductActions(event) {
     return;
   }
 
+  if (button.dataset.productAction === "watchers") {
+    offerToWatchers(adminProducts.find((p) => p.id === productId));
+    return;
+  }
+
   if (button.dataset.productAction === "edit") {
     const product = adminProducts.find((p) => p.id === productId);
     if (product) startEditProduct(product);
   }
+}
+
+// Like eBay's "Send offers to buyers": everyone signed in and watching the item gets the lower price for 48 hours.
+async function offerToWatchers(product) {
+  if (!product) return;
+  const amount = prompt(`Offer price for everyone watching "${product.name}" (USD). It must be below $${Number(product.price).toFixed(2)}.`);
+  if (!amount) return;
+  const note = prompt("Message to watchers (optional)") || "";
+  try {
+    const res = await fetch(`${API_BASE_URL}/market/watcher-offers`, {
+      method: "POST", headers: sessionHeaders(), body: JSON.stringify({ product_id: product.id, amount: Number(amount), message: note }),
+    });
+    const json = await res.json().catch(() => ({}));
+    showMessage(message, json.message || (res.ok ? "Offer sent." : "Unable to send the offer."), !res.ok);
+  } catch {
+    showMessage(message, "Unable to reach the backend.", true);
+  }
+  message.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 // ── User management ────────────────────────────────────────────────────────────

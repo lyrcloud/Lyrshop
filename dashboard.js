@@ -730,7 +730,7 @@ function renderMarket() {
   const waiting = market.deals.filter((deal) => deal.status === "quoted");
   document.getElementById("deal-list").innerHTML = waiting.length ? `
     <div class="deal-banner">${waiting.map((deal) => `
-      <p><strong>${myEscape(deal.lines?.[0]?.name || "Item")}</strong>: ${deal.source === "auction" ? "you won it" : "your offer was accepted"}
+      <p><strong>${myEscape(deal.lines?.[0]?.name || "Item")}</strong>: ${{ auction: "you won it", watcher: "the seller sent you an offer" }[deal.source] || "your offer was accepted"}
         for ${money(deal.total)}. Pay within ${myEscape(auctionTimeLeft(deal.valid_until))}.
         <a class="button button-primary" href="cart.html?deal=${encodeURIComponent(deal.ref)}">Pay now</a></p>`).join("")}</div>` : "";
   document.getElementById("bid-list").innerHTML = market.bids.map(bidCard).join("")

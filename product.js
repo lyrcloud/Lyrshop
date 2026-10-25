@@ -953,7 +953,9 @@ function renderAuction(product) {
   document.getElementById("bid-history-button").textContent = `${bids} bid${bids === 1 ? "" : "s"}`;
   document.getElementById("auction-reserve").textContent = auction.reserve ? (auction.reserve_met ? "· Reserve met" : "· Reserve not met") : "";
   const ends = new Date(Number(auction.ends_at) * 1000);
-  document.getElementById("auction-ends").textContent = `${live ? "Ends" : "Ended"} ${ends.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
+  const extended = Number(auction.extensions || 0);
+  document.getElementById("auction-ends").textContent = `${live ? "Ends" : "Ended"} ${ends.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+    + (extended ? ` · extended ${extended}×` : "");
   const standing = document.getElementById("auction-standing");
   const text = !live
     ? (auction.winner === "You" ? `You won this item for ${formatPrice(auction.final_price)}. Check your email to pay.`

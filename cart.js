@@ -434,7 +434,8 @@ function renderDealNote(quote) {
   const note = document.getElementById("deal-note");
   note.hidden = !quote?.deal;
   note.textContent = quote?.deal === "auction" ? "Your winning bid is applied. Pay to complete your purchase."
-    : quote?.deal === "offer" ? "Your accepted offer price is applied. Pay to complete your purchase." : "";
+    : quote?.deal === "offer" ? "Your accepted offer price is applied. Pay to complete your purchase."
+      : quote?.deal === "watcher" ? "The seller's offer price is applied. Pay to complete your purchase." : "";
 }
 
 async function loadDeal() {
