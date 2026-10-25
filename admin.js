@@ -1594,7 +1594,7 @@ function initCjPanel() {
   if (isSuperAdmin()) initAffiliatePanel();
 }
 
-// ── Brand and retailer (affiliate) imports from Rakuten and Impact ──
+// ── Brand and retailer (affiliate) imports from Rakuten, Impact and CJ Affiliate ──
 
 const affiliateSection = document.getElementById("affiliate-import");
 const affiliateForm = document.getElementById("affiliate-settings");
@@ -1602,6 +1602,7 @@ const affiliateKeywords = document.getElementById("affiliate-keywords");
 const affiliatePerKeyword = document.getElementById("affiliate-per-keyword");
 const affiliateAdvertisers = document.getElementById("affiliate-advertisers");
 const affiliateImpactCampaigns = document.getElementById("affiliate-impact-campaigns");
+const affiliateCjAdvertisers = document.getElementById("affiliate-cj-advertisers");
 const affiliateNewStatus = document.getElementById("affiliate-new-status");
 const affiliatePublishPerDay = document.getElementById("affiliate-publish-per-day");
 const affiliateEnabled = document.getElementById("affiliate-enabled");
@@ -1643,6 +1644,7 @@ function renderAffiliateState() {
   affiliatePerKeyword.value = settings.per_keyword;
   affiliateAdvertisers.value = (settings.advertisers || []).join(", ");
   affiliateImpactCampaigns.value = (settings.impact_campaigns || []).join(", ");
+  affiliateCjAdvertisers.value = (settings.cj_advertisers || []).join(", ");
   affiliateNewStatus.value = settings.new_status || "draft";
   affiliatePublishPerDay.value = settings.publish_per_day ?? 10;
   affiliatePublishPerDay.disabled = affiliateNewStatus.value !== "draft";
@@ -1650,16 +1652,17 @@ function renderAffiliateState() {
   const brandListings = adminProducts.filter((product) => product.source === "affiliate");
   const listed = brandListings.filter((product) => (product.status || "published") === "published").length;
   const queued = brandListings.filter((product) => product.status === "draft" && product.affiliate?.queued).length;
-  const approved = { rakuten: "Rakuten brands", impact: "Impact retailers" };
-  const where = { rakuten: "the Rakuten publisher dashboard", impact: "the Impact partner dashboard (Brands → Marketplace)" };
+  const approved = { rakuten: "Rakuten brands", impact: "Impact retailers", cjaff: "CJ Affiliate brands" };
+  const where = { rakuten: "the Rakuten publisher dashboard", impact: "the Impact partner dashboard (Brands → Marketplace)",
+    cjaff: "the CJ Account Manager (Advertisers → Search)" };
   const brands = partners
     ? Object.entries(partners).map(([network, list]) => (list.length
       ? `${approved[network] || network}: ${list.map((p) => `${escapeHtml(p.name)} (${escapeHtml(String(p.mid))})`).join(", ")}.`
       : `No ${(approved[network] || network).toLowerCase()} approved Lyrshop yet; apply in ${where[network] || network}.`)).join(" ")
     : "Approved brands and retailers show here after the first import.";
   document.getElementById("affiliate-status").innerHTML = connected
-    ? `<strong>Connected to ${networks.map(escapeHtml).join(" and ")}.</strong> ${brands} ${listed} affiliate listing${listed === 1 ? "" : "s"} live, ${queued} draft${queued === 1 ? "" : "s"} waiting to publish.`
-    : "<strong>Not connected.</strong> Add your Rakuten credentials to the <code>lyrshop/rakuten</code> secret (deploy with <code>RakutenSecret=lyrshop/rakuten</code>) and/or your Impact account SID and auth token to <code>lyrshop/impact</code> (deploy with <code>ImpactSecret=lyrshop/impact</code>).";
+    ? `<strong>Connected to ${networks.map(escapeHtml).join(", ")}.</strong> ${brands} ${listed} affiliate listing${listed === 1 ? "" : "s"} live, ${queued} draft${queued === 1 ? "" : "s"} waiting to publish.`
+    : "<strong>Not connected.</strong> Add your Rakuten credentials to the <code>lyrshop/rakuten</code> secret (deploy with <code>RakutenSecret=lyrshop/rakuten</code>) and/or your Impact account SID and auth token to <code>lyrshop/impact</code> (deploy with <code>ImpactSecret=lyrshop/impact</code>) and/or your CJ token, company ID and website PID to <code>lyrshop/cj-affiliate</code> (deploy with <code>CjAffiliateSecret=lyrshop/cj-affiliate</code>).";
   affiliateRun.disabled = running || !connected;
   affiliateRunning.textContent = running ? "Importing… this page updates when it's done." : "";
   document.getElementById("affiliate-last").innerHTML = affiliateRunSummary(lastRun);
@@ -1688,6 +1691,7 @@ async function saveAffiliateSettings(event) {
         per_keyword: Number(affiliatePerKeyword.value),
         advertisers: affiliateAdvertisers.value,
         impact_campaigns: affiliateImpactCampaigns.value,
+        cj_advertisers: affiliateCjAdvertisers.value,
         new_status: affiliateNewStatus.value,
         publish_per_day: Number(affiliatePublishPerDay.value),
         enabled: affiliateEnabled.checked,

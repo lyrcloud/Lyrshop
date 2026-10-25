@@ -936,7 +936,7 @@
 
       <section id="affiliate-import" class="affiliate-import" hidden>
         <h3>Brand &amp; retailer products (affiliate)</h3>
-        <p class="cj-hint">Real brand products (Merrell, Puma, Lenovo…) from brands that approved Lyrshop on Rakuten Advertising, and retailer products (Walmart, Target, The Home Depot…) from programs that accepted Lyrshop on Impact.com. Each listing links to the seller's site, where the shopper buys and Lyrshop earns a commission. Runs every day at 07:00 UTC; prices are refreshed and products the brand drops are hidden after 7 days.</p>
+        <p class="cj-hint">Real brand products (Merrell, Puma, Lenovo…) from brands that approved Lyrshop on Rakuten Advertising, and retailer products (Walmart, Target, The Home Depot…) from programs that accepted Lyrshop on Impact.com, and brands such as Nike (US), Dell and HP that joined Lyrshop on CJ Affiliate. Each listing links to the seller's site, where the shopper buys and Lyrshop earns a commission. Runs every day at 07:00 UTC; prices are refreshed and products the brand drops are hidden after 7 days.</p>
         <p id="affiliate-status" class="cj-hint"></p>
         <form id="affiliate-settings" class="admin-crud-form cj-import-settings">
           <label class="wide-field">
@@ -967,6 +967,10 @@
           <label>
             Only these Impact retailers (campaign IDs)
             <input type="text" id="affiliate-impact-campaigns" placeholder="Blank = all accepted retailers" />
+          </label>
+          <label>
+            Only these CJ Affiliate brands (advertiser IDs)
+            <input type="text" id="affiliate-cj-advertisers" placeholder="Blank = all joined brands" />
           </label>
           <label class="regional-pricing-field">
             <input type="checkbox" id="affiliate-enabled" />
@@ -1044,7 +1048,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261025-1"></script>
-  <script src="admin.js?v=20261025-6"></script>
+  <script src="admin.js?v=20261025-7"></script>
   <script src="footer.js?v=20261025-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>
