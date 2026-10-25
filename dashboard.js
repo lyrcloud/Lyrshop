@@ -5,7 +5,7 @@ const MY_API_BASE_URL = ["localhost", "127.0.0.1", "0.0.0.0"].includes(window.lo
 const MY_PLACEHOLDER_IMAGE_URL = "logo.svg";
 const SUMMARY_ORDER_COUNT = 3;
 const SUMMARY_ITEM_COUNT = 6;
-const SECTIONS = ["summary", "recently-viewed", "purchases", "watchlist", "rewards", "gift-cards", "affiliate", "account"];
+const SECTIONS = ["summary", "recently-viewed", "purchases", "watchlist", "rewards", "gift-cards", "affiliate", "quotes", "account"];
 
 const user = getCurrentUser();
 let myOrders = null;
@@ -121,10 +121,11 @@ function renderRewards() {
       </li>`).join("")
     : '<li class="my-empty">No points yet. You earn points when an order is paid, when your items sell, and when people you refer buy.</li>';
   const rules = data.rules;
+  const points = (n) => `${Number(n)} point${Number(n) === 1 ? "" : "s"}`;
   document.getElementById("rewards-rules").innerHTML = `
-    <li>Buying: ${rules.points_per_dollar_spent} point for every $1 of items (after coupons), once the payment clears.</li>
-    <li>Selling: ${rules.points_per_dollar_sold} point for every $1 of your items sold.</li>
-    <li>Affiliate: ${Math.round(rules.affiliate_rate * 100)}% of what your referrals spend, paid as points.</li>
+    <li>Buying: ${points(rules.points_per_dollar_spent)} for every $1 of items (after coupons), once the payment clears.</li>
+    <li>Selling: ${points(rules.points_per_dollar_sold)} for every $1 of your items sold.</li>
+    <li>Affiliate: ${Math.round(rules.affiliate_rate * 1000) / 10}% of what your referrals spend, paid as points.</li>
     <li>Spending: ${rules.points_per_dollar} points = $1 off at checkout. Points from refunded orders are taken back.</li>
     <li>Tiers: ${rules.tiers.slice().reverse().map((tier) => `${myEscape(tier.name)} ${tier.points.toLocaleString()}+`).join(" · ")} lifetime points.</li>`;
   renderGiftCards();
@@ -177,8 +178,8 @@ function renderGiftCards() {
 function renderAffiliate() {
   const referral = rewards.referral;
   document.getElementById("affiliate-panel").innerHTML = `
-    <p>Share your link. When someone buys within 30 days of opening it, you earn <strong>${Math.round(referral.rate * 100)}%</strong>
-      of their item total as points (100 points = $1). Your own orders don't count.</p>
+    <p>Share your link. When someone buys within 30 days of opening it, you earn <strong>${Math.round(referral.rate * 1000) / 10}%</strong>
+      of their item total as points (${Number(rewards.rules?.points_per_dollar) || 100} points = $1). Your own orders don't count.</p>
     <div class="affiliate-link">
       <input type="text" readonly value="${myEscape(referral.link)}" aria-label="Your affiliate link" />
       <button type="button" class="button button-primary" data-copy="${myEscape(referral.link)}">Copy link</button>
@@ -279,6 +280,17 @@ function renderOrder(order) {
     ? `<p class="my-order-tracking">${myEscape(order.shipping_carrier || "Tracking")} <strong>${myEscape(order.tracking_number)}</strong>${
       /^https:\/\//.test(order.tracking_url || "") ? ` · <a href="${myEscape(order.tracking_url)}" target="_blank" rel="noopener">Track package</a>` : ""}</p>`
     : "";
+  // Orders with items from several places arrive as several parcels, each with its own tracking number.
+  const moreParcels = (order.tracking_numbers || []).filter((number) => number !== order.tracking_number);
+  const overdue = order.payment_status === "invoiced" && Number(order.invoice_due_at) * 1000 < Date.now();
+  const invoice = order.invoice_number
+    ? `<p class="my-order-invoice${overdue ? " is-overdue" : ""}">Invoice ${myEscape(order.invoice_number)} · ${
+      order.payment_status === "invoiced" ? `${overdue ? "overdue since" : "due"} ${myEscape(formatDate(order.invoice_due_at))}` : "paid"
+    } · <a href="invoice.html?id=${encodeURIComponent(order.id)}">View invoice</a></p>`
+    : "";
+  const parcels = moreParcels.length
+    ? `<p class="my-order-tracking">Also shipped separately: ${moreParcels.map((number) => `<strong>${myEscape(number)}</strong>`).join(", ")}</p>`
+    : "";
   return `
     <article class="my-order">
       <div class="my-order-meta">
@@ -298,7 +310,7 @@ function renderOrder(order) {
           </p>
           ${first.variant ? `<p class="my-muted">${myEscape(first.variant)}</p>` : ""}
           ${others > 0 ? `<p class="my-muted">and ${others} more item${others === 1 ? "" : "s"}</p>` : ""}
-          ${tracking}
+          ${tracking}${parcels}${invoice}
           ${savings.length ? `<p class="my-muted">${savings.join(" · ")}</p>` : ""}
         </div>
         <div class="my-order-badges">
@@ -513,15 +525,22 @@ function renderBusiness(account) {
     ? `Business — ${info.company}${info.tax_exempt ? " (tax-exempt)" : ""}` : "Personal (retail prices)";
   const status = document.getElementById("business-status");
   status.dataset.status = info.status || "";
+  const waiting = approved && info.wants_tax_exempt && !info.tax_exempt
+    ? info.certificate_key ? " Your certificate is being checked for tax exemption." : " Tax exemption needs your certificate: upload it below."
+    : "";
+  const terms = approved && info.net_terms ? ` You can order on invoice (net 30), up to ${money(info.credit_limit)} unpaid at a time.` : "";
   status.textContent = info.status
-    ? `${BUSINESS_STATUS_TEXT[info.status] || ""}${approved && info.tax_exempt ? " Your orders are tax-exempt." : ""}${approved && info.wants_tax_exempt && !info.tax_exempt ? " Tax exemption is pending your certificate: email it to support@lyrshop.com." : ""}`
+    ? `${BUSINESS_STATUS_TEXT[info.status] || ""}${approved && info.tax_exempt ? " Your orders are tax-exempt." : ""}${waiting}${terms}`
     : "Buying for a business? Apply for wholesale prices on bulk orders and, with a resale certificate, tax-exempt checkout.";
+  document.getElementById("quotes-link").hidden = !approved;
   const form = document.getElementById("business-form");
   if (document.activeElement?.form !== form) {
     for (const field of ["company", "tax_id", "phone", "address", "website", "industry"]) form.elements[field].value = info[field] || "";
     form.elements.country.value = info.country || LyrLocale.country() || "US";
     form.elements.wants_tax_exempt.checked = Boolean(info.wants_tax_exempt);
   }
+  document.getElementById("certificate-field").hidden = !form.elements.wants_tax_exempt.checked;
+  document.getElementById("certificate-on-file").hidden = !info.certificate_key;
   document.getElementById("business-submit").textContent = info.status ? "Update business details" : "Apply for a business account";
 }
 
@@ -531,17 +550,24 @@ function bindBusinessForm() {
   form.elements.country.innerHTML = "AE AR AT AU BD BE BR CA CH CL CN CO CZ DE DK EG ES FI FR GB GH GR HK ID IE IL IN IT JP KE KR LK MX MY NG NL NO NZ PH PK PL PT QA RO SA SE SG TH TR TW UA US VN ZA"
     .split(" ").map((code) => ({ code, name: names.of(code) || code })).sort((a, b) => a.name.localeCompare(b.name))
     .map(({ code, name }) => `<option value="${code}">${myEscape(name)}</option>`).join("");
+  form.elements.wants_tax_exempt.addEventListener("change", () => {
+    document.getElementById("certificate-field").hidden = !form.elements.wants_tax_exempt.checked;
+  });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const message = document.getElementById("business-message");
     const fields = Object.fromEntries(new FormData(form));
+    delete fields.certificate;
     fields.wants_tax_exempt = form.elements.wants_tax_exempt.checked;
+    const file = form.elements.wants_tax_exempt.checked ? form.elements.certificate.files[0] : null;
     const current = getCurrentUser()?.business;
     if (current?.status === "approved" && !confirm("Changing your business details sends your account back for review, and wholesale prices pause until it's approved again. Continue?")) return;
     message.textContent = "Sending…";
     message.classList.remove("is-error");
     try {
+      if (file) fields.certificate_key = await uploadCertificate(file);
       const { user: updated } = await authApi("/business/apply", { method: "POST", body: fields });
+      form.elements.certificate.value = "";
       setCurrentUser(updated, getCurrentUser().token);
       renderProfile(updated);
       message.textContent = updated.business.status === "approved" ? "No changes needed." : "Application sent. We'll review it shortly.";
@@ -551,6 +577,88 @@ function bindBusinessForm() {
     }
   });
 }
+
+// The certificate goes straight to private storage with a one-time upload form; the application keeps its key.
+async function uploadCertificate(file) {
+  if (file.size > 10 * 1024 * 1024) throw new Error("The certificate file must be 10 MB or smaller.");
+  const upload = await authApi("/business/certificate/upload-url", { method: "POST", body: { content_type: file.type } });
+  const form = new FormData();
+  Object.entries(upload.fields).forEach(([name, value]) => form.append(name, value));
+  form.append("file", file);
+  const response = await fetch(upload.url, { method: "POST", body: form });
+  if (!response.ok) throw new Error("The certificate didn't upload. Please try again.");
+  return upload.key;
+}
+
+// ── Business quotes ────────────────────────────────────────────────────────────
+
+const QUOTE_STATUS_TEXT = {
+  requested: "Waiting for our prices", quoted: "Prices ready", declined: "Declined", ordered: "Ordered",
+  expired: "Expired", withdrawn: "Withdrawn",
+};
+let myQuotes = [];
+
+function renderQuotes() {
+  const list = document.getElementById("quote-list");
+  if (!myQuotes.length) {
+    list.innerHTML = `<p class="my-empty">No quotes yet. Fill your cart with what you need and choose "Request a quote".</p>`;
+    return;
+  }
+  list.innerHTML = myQuotes.map((quote) => {
+    const lines = quote.lines.map((line) => `<li>${line.quantity} × ${myEscape(line.name)}${line.variant ? ` (${myEscape(line.variant)})` : ""}${
+      line.price != null ? ` at <strong>${money(line.price)}</strong> <span class="my-muted">(list ${money(line.list_price)})</span>` : ""}</li>`).join("");
+    const open = quote.status === "quoted";
+    return `
+      <article class="my-quote">
+        <div class="my-quote-head">
+          <strong>Quote ${myEscape(quote.id.slice(0, 6).toUpperCase())} · ${myEscape(formatDate(quote.created_at))}</strong>
+          <span class="status-badge status-quote-${myEscape(quote.status)}">${myEscape(QUOTE_STATUS_TEXT[quote.status] || quote.status)}</span>
+        </div>
+        <ul>${lines}</ul>
+        ${quote.total != null ? `<p>Quoted total <strong>${money(quote.total)}</strong> <span class="my-muted">instead of ${money(quote.list_total)}, before shipping and tax${open ? ` · valid until ${myEscape(formatDate(quote.valid_until))}` : ""}</span></p>` : ""}
+        ${quote.reply_note ? `<p class="my-muted">${myEscape(quote.reply_note)}</p>` : ""}
+        <div class="my-quote-actions">
+          ${open ? `<button type="button" class="button button-primary" data-quote-checkout="${myEscape(quote.id)}">Check out at these prices</button>` : ""}
+          ${["requested", "quoted"].includes(quote.status) ? `<button type="button" class="button button-secondary" data-quote-withdraw="${myEscape(quote.id)}">Withdraw</button>` : ""}
+        </div>
+      </article>`;
+  }).join("");
+}
+
+async function loadQuotes() {
+  try {
+    myQuotes = (await authApi("/business/quotes")).quotes || [];
+  } catch (error) {
+    myQuotes = [];
+  }
+  renderQuotes();
+}
+
+document.getElementById("quote-list").addEventListener("click", async (event) => {
+  const checkout = event.target.closest("[data-quote-checkout]");
+  if (checkout) {
+    const quote = myQuotes.find((item) => item.id === checkout.dataset.quoteCheckout);
+    if (!quote || (readStoredList(CART_KEY).length && !confirm("This replaces what's in your cart with the quoted items. Continue?"))) return;
+    // One cart entry per unit, as the product page adds them; the server checks the cart matches the quote.
+    const items = quote.lines.flatMap((line) => Array.from({ length: line.quantity }, () => ({
+      id: line.id, name: line.name, price: line.price,
+      ...(line.variant ? { variant: line.variant, options: Object.fromEntries(line.variant.split(" · ").map((part) => part.split(": "))) } : {}),
+    })));
+    localStorage.setItem(CART_KEY, JSON.stringify(items));
+    localStorage.setItem("lyrshopQuote", JSON.stringify({ id: quote.id }));
+    window.location.href = "cart.html";
+    return;
+  }
+  const withdraw = event.target.closest("[data-quote-withdraw]");
+  if (withdraw && confirm("Withdraw this quote?")) {
+    try {
+      await authApi(`/business/quotes/${encodeURIComponent(withdraw.dataset.quoteWithdraw)}/withdraw`, { method: "POST", body: {} });
+    } catch (error) {
+      alert(error.message);
+    }
+    loadQuotes();
+  }
+});
 
 if (!user) {
   window.location.href = "auth.html";
@@ -567,6 +675,7 @@ if (!user) {
   loadOrders();
   loadProducts();
   loadRewards();
+  loadQuotes();
 
   window.addEventListener("hashchange", () => {
     showSection();

@@ -151,14 +151,26 @@ async function fetchProducts(query) {
   }
 }
 
-function renderSpecifics(product) {
+// Item specifics like eBay's: the listing's own facts first, then every "Name: value" line of the description
+// (supplier descriptions list Brand, Model, Battery capacity, Bluetooth version… one per line).
+function renderSpecifics(product, specs = []) {
+  const fromDescription = new Map(specs.map(([label, value]) => [label.toLowerCase(), value]));
+  const take = (label) => {
+    const value = fromDescription.get(label.toLowerCase());
+    fromDescription.delete(label.toLowerCase());
+    return value;
+  };
+  // Only the listing's own brand links to the brand page; a supplier's description saying "Brand: …" isn't proof.
+  const describedBrand = take("Brand");
+  const model = take("Model") || take("Model number");
   const specifics = [
     ["Condition", "New"],
     ["Brand", product.brand
       ? `<a href="index.html?view=brands&brand=${encodeURIComponent(product.brand)}#product-list">${escapeHtml(product.brand)}</a>`
-      : "Unbranded"],
-    ["Category", escapeHtml(product.category)],
-    ["Model", escapeHtml(product.id.toUpperCase())],
+      : escapeHtml(describedBrand || "Unbranded")],
+    ["Category", escapeHtml([product.category, product.subcategory].filter(Boolean).join(" › "))],
+    ["Model", escapeHtml(model || product.id.toUpperCase())],
+    ...specs.filter(([label]) => fromDescription.has(label.toLowerCase())).map(([label, value]) => [escapeHtml(label), escapeHtml(value)]),
     ["Item location", escapeHtml(itemLocationLabel(product)) + (product.nearby_label ? ` <small>(${escapeHtml(product.nearby_label.toLowerCase())})</small>` : "")],
     ["Returns", "30 days"],
   ];
@@ -166,6 +178,64 @@ function renderSpecifics(product) {
   document.getElementById("specifics-grid").innerHTML = specifics
     .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`)
     .join("");
+}
+
+// ── Description ────────────────────────────────────────────────────────────────
+// Descriptions are plain text, one fact per line. "Name: value" lines become item specifics; a line ending in ":"
+// ("Packing list:", "Features:") starts a section, shown as a heading with its lines as a list; the rest are paragraphs.
+
+const MAX_SPECIFICS = 24;
+const SPEC_LINE = /^([A-Za-z][A-Za-z0-9 ()/&.+'-]{0,38}?)\s*[:：]\s*(\S.{0,119})$/;
+const HEADING_LINE = /^(\S.{0,48}?)\s*[:：]$/;
+// Sections that are lists of things rather than prose, and headings with nothing useful under them.
+const LIST_SECTIONS = /pack(ing|age)|in the box|includ|contents|feature|accessor/i;
+const SKIPPED_HEADINGS = /^(product )?(image|picture|photo)s?$/i;
+// Descriptions longer than this are folded to their first lines until the shopper opens them.
+const DESCRIPTION_FOLD_CHARS = 600;
+
+function parseDescription(text) {
+  const specs = [];
+  const sections = [{ heading: "", lines: [] }];
+  for (const raw of String(text || "").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const heading = line.match(HEADING_LINE);
+    if (heading) {
+      sections.push({ heading: heading[1], lines: [] });
+      continue;
+    }
+    const spec = line.match(SPEC_LINE);
+    // Short "Name: value" pairs are specifications; a sentence with a colon in it stays prose.
+    if (spec && spec[1].split(/\s+/).length <= 5 && specs.length < MAX_SPECIFICS
+        && !specs.some(([label]) => label.toLowerCase() === spec[1].toLowerCase())) {
+      specs.push([spec[1], spec[2]]);
+      continue;
+    }
+    sections[sections.length - 1].lines.push(line);
+  }
+  return { specs, sections: sections.filter((section) => section.lines.length && !SKIPPED_HEADINGS.test(section.heading)) };
+}
+
+function renderDescription({ specs, sections }) {
+  const body = document.getElementById("detail-description");
+  const toggle = document.getElementById("description-toggle");
+  body.innerHTML = sections.map(({ heading, lines }) => {
+    const asList = LIST_SECTIONS.test(heading) || (lines.length > 2 && lines.every((line) => line.length < 90));
+    const content = asList
+      ? `<ul>${lines.map((line) => `<li>${escapeHtml(line.replace(/^[-•*·]\s*/, ""))}</li>`).join("")}</ul>`
+      : lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
+    return `${heading ? `<h3>${escapeHtml(/in the box|pack/i.test(heading) ? "What's in the box" : heading)}</h3>` : ""}${content}`;
+  }).join("") || (specs.length ? `<p>See the item specifics above.</p>` : "<p>The seller hasn't added a description.</p>");
+
+  const long = sections.reduce((total, section) => total + section.lines.join(" ").length, 0) > DESCRIPTION_FOLD_CHARS;
+  body.classList.toggle("is-collapsed", long);
+  toggle.hidden = !long;
+  toggle.onclick = () => {
+    const open = body.classList.toggle("is-collapsed") === false;
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.textContent = open ? "Show less" : "Show full description";
+    if (!open) body.closest(".description-section").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 }
 
 // ── Options (color, size, ...) ─────────────────────────────────────────────────
@@ -178,6 +248,11 @@ const chosenParts = {};
 const missingGroups = new Set();
 // Above this many colors the color picker is a dropdown rather than a wall of buttons.
 const COLOR_MENU_AFTER = 10;
+
+// Options the supplier dropped or ran out of, as cart labels ("Color: Red · Size: M"); checkout refuses them too.
+function soldOutVariants(product) {
+  return new Set(product.unavailable_variants || []);
+}
 
 function variantLabel(product) {
   return (product.options || []).map((option) => `${option.name}: ${chosenOptions[option.name]}`).join(" · ");
@@ -237,7 +312,7 @@ function optionGroup(option, part, label, chosen, chosenAlt, body) {
 }
 
 // Buttons for the values of one picker. `unavailable` values are shown but can't be picked with the other choice.
-function optionButtons(option, part, label, values, chosen, product, unavailable = new Set()) {
+function optionButtons(option, part, label, values, chosen, product, unavailable = new Set(), why = "not available with your other choice") {
   const shown = { name: label, values, type: part === "color" ? "color" : part === "size" ? "size" : option.type };
   const colorful = part === "color" || (!part && LyrSizing.isColorOption(option));
   const buttons = values.map((value) => {
@@ -245,7 +320,7 @@ function optionButtons(option, part, label, values, chosen, product, unavailable
     const alt = LyrSizing.altLabel(value, shown, product);
     const off = unavailable.has(value);
     const data = `data-option="${escapeHtml(option.name)}" data-part="${part}" data-value="${escapeHtml(value)}" aria-pressed="${chosen === value}"${off ? ' aria-disabled="true"' : ""}`;
-    const title = escapeHtml(value + (off ? " (not available with your other choice)" : ""));
+    const title = escapeHtml(value + (off ? ` (${why})` : ""));
     if (shown.type === "color" && swatch) {
       return `<button type="button" class="option-swatch${off ? " is-unavailable" : ""}" ${data} aria-label="${title}" title="${title}"><span style="${escapeHtml(swatch)}"></span></button>`;
     }
@@ -276,7 +351,11 @@ function renderOptions(product) {
     if (!split) {
       const chosen = chosenOptions[option.name];
       const values = LyrSizing.sortedValues(option);
-      const body = optionButtons(option, "", option.name, values, chosen, product);
+      // With a single option each value is a whole variant, so sold-out ones can be greyed out up front.
+      const soldOut = (product.options || []).length === 1
+        ? new Set(values.filter((value) => soldOutVariants(product).has(`${option.name}: ${value}`)))
+        : new Set();
+      const body = optionButtons(option, "", option.name, values, chosen, product, soldOut, "sold out");
       return optionGroup(option, "", option.name, chosen, chosen ? LyrSizing.altLabel(chosen, option, product) : "", body);
     }
     const chosen = chosenParts[option.name] || {};
@@ -375,7 +454,8 @@ function checkOptions(product) {
   const labels = [];
   for (const option of product.options || []) {
     if (chosenOptions[option.name]) continue;
-    if (!splitOption(option)) {
+    const split = splitOption(option);
+    if (!split) {
       missingGroups.add(`${option.name}|`);
       labels.push(option.name.toLowerCase());
       continue;
@@ -389,9 +469,11 @@ function checkOptions(product) {
     }
   }
   renderOptions(product);
-  document.getElementById("option-error").textContent = labels.length ? `Please choose ${labels.join(" and ")}.` : "";
+  const soldOut = !labels.length && soldOutVariants(product).has(variantLabel(product));
+  document.getElementById("option-error").textContent = labels.length ? `Please choose ${labels.join(" and ")}.`
+    : soldOut ? "That option is sold out. Please pick another." : "";
   if (labels.length) document.querySelector(".detail-option.is-missing")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  return !labels.length;
+  return !labels.length && !soldOut;
 }
 
 function renderMeasurements(product) {
@@ -516,14 +598,14 @@ function renderProduct(product) {
     `${ratingStars(product.rating, { label: "out of 5 seller rating" })}<span>${escapeHtml(product.rating.toFixed(1))} seller rating · ${escapeHtml(product.category)}</span>`;
   renderPrice(product);
   LyrLocale.onChange(() => renderPrice(product));
-  document.getElementById("detail-description").textContent = product.description;
-
+  const description = parseDescription(product.description);
+  renderDescription(description);
 
   renderGallery(product);
 
   renderSeller(product);
   renderWholesale(product);
-  renderSpecifics(product);
+  renderSpecifics(product, description.specs);
   renderOptions(product);
   renderMeasurements(product);
 }

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261024-2" />
+  <link rel="stylesheet" href="styles.css?v=20261025-1" />
 </head>
 <body>
   <header class="header">
@@ -186,7 +186,8 @@
 
     <section class="detail-section description-section">
       <h2>Item description from the seller</h2>
-      <p id="detail-description"></p>
+      <div id="detail-description" class="description-body"></div>
+      <button type="button" class="description-toggle" id="description-toggle" aria-expanded="false" aria-controls="detail-description" hidden>Show full description</button>
       <ul class="description-list">
         <li>Inspected by the seller before shipping.</li>
         <li>Packaged for safe delivery with tracking included.</li>
@@ -239,7 +240,7 @@
   <script src="categories.js?v=20261011-2"></script>
   <script src="ui.js?v=20261019-1"></script>
   <script src="sizing.js?v=20261018-1"></script>
-  <script src="product.js?v=20261024-2"></script>
+  <script src="product.js?v=20261025-2"></script>
   <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261024-2" />
+  <link rel="stylesheet" href="styles.css?v=20261025-1" />
 </head>
 <body>
   <header class="page-header">
@@ -275,6 +275,7 @@
           <select id="order-payment-status">
             <option value="pending">Pending</option>
             <option value="authorized">Authorized</option>
+            <option value="invoiced">Invoiced (net terms)</option>
             <option value="paid">Paid</option>
             <option value="refunded">Refunded</option>
             <option value="failed">Failed</option>
@@ -321,6 +322,7 @@
           <option value="">All payments</option>
           <option value="pending">Pending</option>
           <option value="authorized">Authorized</option>
+          <option value="invoiced">Invoiced</option>
           <option value="paid">Paid</option>
           <option value="refunded">Refunded</option>
           <option value="failed">Failed</option>
@@ -599,6 +601,22 @@
           <tbody id="coupon-table-body"></tbody>
         </table>
       </div>
+
+      <div class="panel-header quote-admin-header">
+        <h2>Reward rates</h2>
+        <p>Points shoppers, sellers and affiliates earn once an order is paid. New rates apply to orders placed after you save; earlier orders keep the rates they were placed with. Changing what points are worth also changes the value of points people already hold.</p>
+      </div>
+      <form id="reward-rates-form" class="admin-crud-form">
+        <label>Points per $1 spent<input type="number" id="reward-spent" min="0" max="20" step="0.1" required /></label>
+        <label>Points per $1 sold (sellers)<input type="number" id="reward-sold" min="0" max="20" step="0.1" required /></label>
+        <label>Affiliate commission (%)<input type="number" id="reward-affiliate" min="0" max="30" step="0.5" required /></label>
+        <label>Points worth $1 at checkout<input type="number" id="reward-per-dollar" min="10" max="1000" step="1" required /></label>
+        <div class="form-actions">
+          <button type="submit" class="button button-primary">Save rates</button>
+          <button type="button" class="button button-secondary" id="reward-defaults">Back to defaults</button>
+        </div>
+      </form>
+      <div id="reward-message" class="admin-message" role="status"></div>
     </section>
 
     <section class="admin-panel admin-section superadmin-only" id="admin-business-section" hidden>
@@ -619,6 +637,23 @@
       </div>
       <div id="business-message" class="admin-message"></div>
       <div id="business-list" class="business-list"></div>
+
+      <div class="panel-header quote-admin-header">
+        <h2>Quote requests <span class="count-badge" id="quotes-open-count" hidden></span></h2>
+        <p>Businesses ask for prices on large carts. Give a unit price per line (at most the list price); the buyer can check out once at those prices until the quote expires.</p>
+      </div>
+      <div class="admin-filters">
+        <label>
+          Show
+          <select id="quote-filter">
+            <option value="requested">Waiting for prices</option>
+            <option value="quoted">Quoted</option>
+            <option value="">All</option>
+          </select>
+        </label>
+      </div>
+      <div id="quote-admin-message" class="admin-message"></div>
+      <div id="quote-admin-list" class="business-list"></div>
     </section>
 
     <section class="admin-panel admin-section superadmin-only" id="admin-shipping-section" hidden>
@@ -869,7 +904,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261025-2"></script>
+  <script src="admin.js?v=20261025-3"></script>
   <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

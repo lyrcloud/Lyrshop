@@ -30,6 +30,8 @@ const pointsToggle = document.getElementById("points-toggle");
 const usePointsInput = document.getElementById("use-points");
 const pointsEarn = document.getElementById("points-earn");
 const COUNTRY_KEY = "lyrshopShippingCountry";
+// A business quote the buyer loaded from their account page ({ id }); its prices apply while the cart matches it.
+const QUOTE_KEY = "lyrshopQuote";
 const DELIVERY_KEY = "lyrshopDeliveryAddress";
 // The delivery address form; country and ZIP come from the shipping quote fields above it.
 const deliveryFields = {
@@ -376,6 +378,7 @@ function renderCart() {
   }
 
   document.querySelectorAll(".needs-items").forEach((section) => { section.hidden = !cart.length; });
+  if (!cart.length) document.getElementById("business-checkout").hidden = true;
   const steps = document.querySelectorAll(".checkout-steps li");
   steps[0].classList.toggle("is-done", cart.length > 0);
   steps[0].classList.toggle("is-current", !cart.length);
@@ -408,7 +411,68 @@ function checkoutRequest() {
     gift_card_code: appliedCodes.gift_card,
     use_points: usePoints,
     ref: readReferral(),
+    ...(activeQuoteId() ? { quote_id: activeQuoteId() } : {}),
   };
+}
+
+function activeQuoteId() {
+  try {
+    return JSON.parse(localStorage.getItem(QUOTE_KEY) || "null")?.id || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function dropQuote() {
+  try { localStorage.removeItem(QUOTE_KEY); } catch (error) { /* storage blocked */ }
+}
+
+// Approved business accounts: an applied quote, ordering on invoice (net terms) and asking for a quote.
+function renderBusinessCheckout(quote) {
+  const box = document.getElementById("business-checkout");
+  const business = quote?.buyer_type === "business";
+  box.hidden = !business || !cart.length;
+  if (!business) return;
+  const note = document.getElementById("business-quote-note");
+  note.hidden = !quote.quote_id && !quote.errors?.quote;
+  note.innerHTML = quote.quote_id
+    ? `Quote prices applied. <button type="button" class="link-button" id="drop-quote">Use regular prices</button>`
+    : escapeHtml(quote.errors?.quote || "");
+  const terms = quote.net_terms;
+  const invoice = document.getElementById("invoice-button");
+  invoice.hidden = !terms;
+  invoice.textContent = terms ? `Place order on invoice (net ${terms.days})` : "";
+  const invoiceNote = document.getElementById("invoice-note");
+  invoiceNote.hidden = !terms;
+  invoiceNote.textContent = terms ? `We ship now and email the invoice; pay within ${terms.days} days. Credit limit ${formatPrice(terms.credit_limit)}.` : "";
+  document.getElementById("quote-request").hidden = Boolean(quote.quote_id);
+}
+
+async function requestQuote() {
+  const status = document.getElementById("quote-request-status");
+  const user = getCurrentUser();
+  if (!user) {
+    window.location.href = "auth.html";
+    return;
+  }
+  status.textContent = "Sending…";
+  try {
+    const response = await fetch(`${API_BASE_URL}/business/quotes`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        items: cart.map(({ id, name, variant }) => ({ id, name, ...(variant ? { variant } : {}) })),
+        note: document.getElementById("quote-note").value,
+        country: shippingCountry(),
+      }),
+    });
+    const json = await response.json().catch(() => ({}));
+    status.textContent = response.ok
+      ? "Quote requested. We'll email you, and it will appear under Quotes in your account."
+      : json.message || "Couldn't send the quote request.";
+  } catch (error) {
+    status.textContent = "We couldn't reach Lyrshop. Check your connection and try again.";
+  }
 }
 
 function authHeaders() {
@@ -438,6 +502,8 @@ async function fetchQuote() {
       return;
     }
     serverQuote = json;
+    if (json.errors?.quote) dropQuote();
+    renderBusinessCheckout(json);
     renderCodeStatus("coupon", json.errors?.coupon, json.coupon && `${json.coupon.code} applied${json.coupon.description ? `: ${json.coupon.description}` : ""}.`);
     renderCodeStatus("gift_card", json.errors?.gift_card,
       json.gift_card && `Gift card ${json.gift_card.code} applied. ${formatPrice(json.gift_card.remaining_after)} will be left on it.`);
@@ -623,7 +689,7 @@ function syncDeliveryFields() {
 
 Object.values(deliveryFields).forEach((input) => input.addEventListener("input", saveDeliveryDraft));
 
-async function checkout() {
+async function checkout({ byInvoice = false } = {}) {
   if (!cart.length || checkoutInProgress) return;
   const user = getCurrentUser();
 
@@ -648,6 +714,7 @@ async function checkout() {
       headers: authHeaders(),
       body: JSON.stringify({
         ...checkoutRequest(),
+        ...(byInvoice ? { pay_by_invoice: true } : {}),
         delivery_address: deliveryAddress(),
         display_currency: LyrLocale.currency(),
         success_url: `${window.location.origin}/dashboard.html`,
@@ -667,12 +734,18 @@ async function checkout() {
   }
 
   saveOrderForCurrentUser(result.order);
+  dropQuote();
   cart = [];
   appliedCodes.coupon = "";
   appliedCodes.gift_card = "";
   usePoints = false;
   saveCart();
   renderCart();
+  if (result.invoiced) {
+    setCheckoutState("Order placed on invoice. Taking you to your invoice...", true);
+    setTimeout(() => { window.location.href = `invoice.html?id=${encodeURIComponent(result.order.id)}`; }, 1200);
+    return;
+  }
   if (result.paid) {
     setCheckoutState("Order placed and paid with your gift card and points. Taking you to your orders...", true);
     setTimeout(() => { window.location.href = "dashboard.html"; }, 1500);
@@ -712,7 +785,14 @@ window.addEventListener("storage", (event) => {
   renderCart();
 });
 
-checkoutButton.addEventListener("click", checkout);
+checkoutButton.addEventListener("click", () => checkout());
+document.getElementById("invoice-button").addEventListener("click", () => checkout({ byInvoice: true }));
+document.getElementById("quote-request-button").addEventListener("click", requestQuote);
+document.getElementById("business-quote-note").addEventListener("click", (event) => {
+  if (event.target.id !== "drop-quote") return;
+  dropQuote();
+  scheduleQuote();
+});
 quoteShippingButton.addEventListener("click", quoteShippingRates);
 detectLocationButton.addEventListener("click", detectUserLocation);
 paymentMethodInputs.forEach((input) => input.addEventListener("change", renderCart));

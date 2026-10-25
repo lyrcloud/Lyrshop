@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261024-2" />
+  <link rel="stylesheet" href="styles.css?v=20261025-1" />
 </head>
 <body>
   <header class="page-header compact-header">
@@ -50,6 +50,7 @@
         <a href="#rewards" data-section-link="rewards">Rewards &amp; badges</a>
         <a href="#gift-cards" data-section-link="gift-cards">Gift cards</a>
         <a href="#affiliate" data-section-link="affiliate">Affiliate</a>
+        <a href="#quotes" data-section-link="quotes" id="quotes-link" hidden>Business quotes</a>
         <a href="admin.html">Selling</a>
       </nav>
 
@@ -143,6 +144,14 @@
           <div id="affiliate-panel" class="affiliate-panel"><p class="my-empty">Loading…</p></div>
         </section>
 
+        <section class="my-section" data-section="quotes" aria-labelledby="quotes-title" hidden>
+          <div class="my-block-header">
+            <h2 id="quotes-title">Business quotes</h2>
+            <a href="cart.html" class="button button-secondary">Request one from your cart</a>
+          </div>
+          <div id="quote-list"><p class="my-empty">Loading…</p></div>
+        </section>
+
         <section class="my-section" data-section="account" aria-labelledby="account-title" hidden>
           <div class="my-block-header">
             <h2 id="account-title">Personal info</h2>
@@ -185,7 +194,11 @@
               <label class="wide">Business address<input type="text" name="address" maxlength="200" required /></label>
               <label>Website (optional)<input type="text" name="website" maxlength="200" placeholder="https://" /></label>
               <label>Industry (optional)<input type="text" name="industry" maxlength="60" placeholder="e.g. Retail store" /></label>
-              <label class="checkbox-field wide"><input type="checkbox" name="wants_tax_exempt" /> We buy for resale or are tax-exempt (we'll ask for your certificate)</label>
+              <label class="checkbox-field wide"><input type="checkbox" name="wants_tax_exempt" /> We buy for resale or are tax-exempt</label>
+              <label class="wide certificate-field" id="certificate-field" hidden>Resale or exemption certificate (PDF, JPEG or PNG, up to 10 MB)
+                <input type="file" name="certificate" id="business-certificate" accept="application/pdf,image/jpeg,image/png" />
+                <small id="certificate-on-file" class="my-muted" hidden>A certificate is on file. Choose a file only to replace it.</small>
+              </label>
               <div class="profile-form-actions wide">
                 <button type="submit" class="button button-primary" id="business-submit">Apply for a business account</button>
                 <span id="business-message" class="profile-message" role="status"></span>
@@ -204,7 +217,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="ui.js?v=20261019-1"></script>
-  <script src="dashboard.js?v=20261025-1"></script>
+  <script src="dashboard.js?v=20261025-2"></script>
   <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

@@ -157,6 +157,18 @@
         <p id="currency-note" class="currency-note" hidden></p>
         <button id="checkout-button" class="button button-primary full-width" disabled>Checkout with Stripe</button>
         <p id="checkout-status" class="checkout-status" aria-live="polite"></p>
+        <div class="business-checkout" id="business-checkout" hidden>
+          <p class="business-quote-note" id="business-quote-note" hidden></p>
+          <button id="invoice-button" class="button button-secondary full-width" type="button" hidden>Place order on invoice</button>
+          <p class="checkout-muted" id="invoice-note" hidden></p>
+          <details class="quote-request" id="quote-request">
+            <summary>Ordering in bulk? Request a quote</summary>
+            <label for="quote-note">Anything we should know (delivery dates, recurring orders…)</label>
+            <textarea id="quote-note" maxlength="1000" rows="3"></textarea>
+            <button id="quote-request-button" class="button button-secondary" type="button">Send quote request</button>
+            <p class="checkout-muted" id="quote-request-status" role="status"></p>
+          </details>
+        </div>
         <p class="checkout-muted checkout-fineprint">Payment is processed by Stripe. Lyrshop never sees your card number.</p>
       </aside>
     </div>
@@ -169,7 +181,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="ui.js?v=20261019-1"></script>
-  <script src="cart.js?v=20261024-1"></script>
+  <script src="cart.js?v=20261025-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>
 </html>

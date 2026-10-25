@@ -1811,7 +1811,7 @@ function renderOrderCj(order) {
     orderCjPanel.innerHTML = addressBlock;
     return;
   }
-  if (order.payment_status !== "paid") {
+  if (!["paid", "invoiced"].includes(order.payment_status)) {
     orderCjPanel.innerHTML = `${addressBlock}<p class="cj-hint">CJ: this order can be sent for fulfillment once it's paid.</p>`;
     return;
   }
@@ -1909,6 +1909,9 @@ let lyrtripShipFrom = "";
 function lyrtripLabelBlock(label, from) {
   if (!label) return "";
   const docs = (label.documents || []).map((doc) => `<a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener">${escapeHtml(doc.category || "document")}</a>`).join(" · ");
+  if (label.manual) {
+    return `<p><strong>Shipped by hand</strong>${from ? ` (from ${escapeHtml(from)})` : ""} · ${escapeHtml(label.courier || "")} ${escapeHtml(label.tracking_number || "")}</p>`;
+  }
   return `<p><strong>Lyrtrip label</strong>${from ? ` (from ${escapeHtml(from)})` : ""} · ${escapeHtml(LYRTRIP_LABEL_STATUS[label.status] || label.status || "")}
     ${label.courier ? ` · ${escapeHtml(label.courier)}` : ""}${label.price != null ? ` · ${formatMoney(label.price)}` : ""}
     ${label.delivery_state ? ` · ${escapeHtml(String(label.delivery_state).replaceAll("_", " "))}` : ""}</p>
@@ -1918,7 +1921,7 @@ function lyrtripLabelBlock(label, from) {
 function lyrtripCourierBlock(courier) {
   if (!courier) return "";
   const who = courier.courier?.name ? ` · ${escapeHtml(courier.courier.name)}${courier.courier.vehicle ? ` (${escapeHtml(courier.courier.vehicle)})` : ""}` : "";
-  return `<p><strong>Same-day courier</strong> · ${escapeHtml(courier.status || "")}${courier.step ? ` (${escapeHtml(String(courier.step).replaceAll("_", " "))})` : ""}
+  return `<p><strong>Same-day courier</strong>${courier.provider ? ` (${escapeHtml(courier.provider)})` : ""} · ${escapeHtml(courier.status || "")}${courier.step ? ` (${escapeHtml(String(courier.step).replaceAll("_", " "))})` : ""}
     ${courier.price != null ? ` · ${escapeHtml(courier.currency || "USD")} ${Number(courier.price).toFixed(2)}` : ""}${who}
     ${courier.tracking_url ? ` · <a href="${escapeHtml(courier.tracking_url)}" target="_blank" rel="noopener">Live tracking</a>` : ""}</p>
     ${courier.error ? `<p class="is-error">${escapeHtml(courier.error)}</p>` : ""}`;
@@ -1936,7 +1939,7 @@ function renderOrderLyrtrip(order) {
     orderLyrtripPanel.innerHTML = status;
     return;
   }
-  if (order.payment_status !== "paid") {
+  if (!["paid", "invoiced"].includes(order.payment_status)) {
     orderLyrtripPanel.innerHTML = `${status}<p class="cj-hint">Lyrtrip shipping: a label or courier can be booked once the order is paid.</p>`;
     return;
   }
@@ -1963,11 +1966,12 @@ function renderOrderLyrtrip(order) {
       ${hasCourier ? "" : `
       <p class="cj-hint">Or, for a buyer nearby, a same-day courier from the parcel's ship-from address:</p>
       <label>Drop-off notes<input type="text" id="lyrtrip-dropoff-notes" maxlength="280" placeholder="Leave with the doorman" /></label>
-      <button type="button" class="button button-secondary" data-lyrtrip-action="courier-quote">Quote a courier</button>
+      <button type="button" class="button button-secondary" data-lyrtrip-action="courier-quote">Quote couriers</button>
+      <label>Courier <select id="lyrtrip-courier-choice" disabled><option value="">Quote first</option></select></label>
       <button type="button" class="button button-primary" data-lyrtrip-action="courier-book" disabled>Book courier</button>
       <span id="lyrtrip-courier-quote" class="cj-hint"></span>`}
       ${sync}
-      <p class="cj-hint">Billed to Lyrshop's Lyrtrip account. Buying a label marks the order shipped with its tracking number.</p>
+      <p class="cj-hint">Labels are billed to Lyrshop's Lyrtrip account; couriers to whichever account you book. Buying a label or booking a courier marks the order shipped.</p>
     </fieldset>`;
 }
 
@@ -2002,13 +2006,17 @@ async function handleOrderLyrtripClick(event) {
       return;
     }
     if (action === "courier-quote") {
-      const { quote, error } = await authApi(`${base}/courier/quote`, { method: "POST", body: { dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value, ship_from: lyrtripShipFrom } });
-      document.getElementById("lyrtrip-courier-quote").textContent = quote
-        ? `${quote.currency} ${Number(quote.price).toFixed(2)} · pickup in about ${quote.pickupMinutes ?? "?"} min · delivered in about ${quote.totalMinutes ?? "?"} min`
-        : error || "No courier can do this trip.";
-      const book = orderLyrtripPanel.querySelector("[data-lyrtrip-action='courier-book']");
-      book.disabled = !quote;
-      book.dataset.maxPrice = quote ? String(Math.ceil(quote.price * 1.05 * 100) / 100) : "";
+      // Lyrtrip's courier account and Lyrshop's own DoorDash / Uber Direct accounts, cheapest first.
+      const { quotes = [], error } = await authApi(`${base}/courier/quote`, { method: "POST", body: { dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value, ship_from: lyrtripShipFrom } });
+      const choice = document.getElementById("lyrtrip-courier-choice");
+      choice.innerHTML = quotes.length
+        ? quotes.map((quote, index) => `<option value="${index}">${escapeHtml(quote.provider)} · ${escapeHtml(quote.currency)} ${Number(quote.price).toFixed(2)}${
+          quote.totalMinutes != null ? ` · delivered in about ${quote.totalMinutes} min` : ""}</option>`).join("")
+        : `<option value="">${escapeHtml(error || "No courier can do this trip")}</option>`;
+      choice.disabled = !quotes.length;
+      choice.quotes = quotes;
+      document.getElementById("lyrtrip-courier-quote").textContent = quotes.length && error ? error : "";
+      orderLyrtripPanel.querySelector("[data-lyrtrip-action='courier-book']").disabled = !quotes.length;
       return;
     }
     let body = {};
@@ -2017,19 +2025,32 @@ async function handleOrderLyrtripClick(event) {
       if (!rate || !confirm(`Buy a ${rate.courier} label for ${formatMoney(rate.price)}? It's billed to Lyrshop's Lyrtrip account.`)) return;
       body = { rate_id: rate.id, max_price: rate.price, parcel: readLyrtripParcel(), ship_from: lyrtripShipFrom };
     }
-    if (action === "courier-book") {
-      if (!confirm(`Book a same-day courier for up to $${button.dataset.maxPrice}? It's billed to Lyrshop's Lyrtrip account.`)) return;
-      body = { max_price: Number(button.dataset.maxPrice), dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value, ship_from: lyrtripShipFrom };
+    if (action === "manual") {
+      body = {
+        ship_from: lyrtripShipFrom, carrier: document.getElementById("lyrtrip-manual-carrier").value,
+        tracking_number: document.getElementById("lyrtrip-manual-number").value, tracking_url: document.getElementById("lyrtrip-manual-url").value,
+      };
     }
-    const path = { label: `${base}/label`, "courier-book": `${base}/courier/book`, sync: `${base}/sync` }[action];
+    if (action === "courier-book") {
+      const choice = document.getElementById("lyrtrip-courier-choice");
+      const quote = choice.quotes?.[Number(choice.value)];
+      if (!quote) return;
+      // A little room for the fee moving between the quote and the booking; the server refuses anything above it.
+      const maxPrice = Math.ceil(quote.price * 1.05 * 100) / 100;
+      const account = quote.provider === "Lyrtrip" ? "Lyrshop's Lyrtrip account" : `Lyrshop's ${quote.provider} account`;
+      if (!confirm(`Book a ${quote.provider} courier for up to ${quote.currency} ${maxPrice.toFixed(2)}? It's billed to ${account}.`)) return;
+      body = { provider: quote.provider, max_price: maxPrice, dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value, ship_from: lyrtripShipFrom };
+    }
+    const path = { label: `${base}/label`, manual: `${base}/manual`, "courier-book": `${base}/courier/book`, sync: `${base}/sync` }[action];
     const { order: updated } = await authApi(path, { method: "POST", body });
     adminOrders = adminOrders.map((existing) => (existing.id === updated.id ? updated : existing));
     renderOrders();
     openOrder(updated);
     const done = {
       label: updated.lyrtrip_label?.status === "confirmed" ? `Label bought. Tracking ${updated.tracking_number}.` : LYRTRIP_LABEL_STATUS[updated.lyrtrip_label?.status] || "Label requested.",
-      "courier-book": updated.lyrtrip_courier?.status === "active" ? "Courier booked." : "Booking the courier… refresh tracking in a minute.",
+      "courier-book": updated.lyrtrip_courier?.status === "active" ? `${updated.lyrtrip_courier.provider || "Courier"} booked.` : "Booking the courier… refresh tracking in a minute.",
       sync: "Tracking refreshed.",
+      manual: "Parcel recorded as shipped.",
     };
     showMessage(orderMessage, done[action]);
   } catch (error) {
@@ -2051,9 +2072,19 @@ function renderLyrtripGroups(reply) {
     ? `<label>Parcel <select id="lyrtrip-ship-from">${groups.map((group) => `<option value="${escapeHtml(group.id)}"${group.id === lyrtripShipFrom ? " selected" : ""}>From ${escapeHtml(group.label)}: ${escapeHtml(group.items.join(", "))}${group.lyrtrip_label?.status === "confirmed" ? " (labelled)" : ""}</option>`).join("")}</select></label>`
     : groups.length ? `<p class="cj-hint">Ships from ${escapeHtml(groups[0].label)}.</p>` : "";
   const local = (reply.local_post || []).length
-    ? `<p class="cj-hint">No Lyrtrip courier for this parcel. Local post estimates: ${reply.local_post.map((rate) => `${escapeHtml(rate.service)} ${formatMoney(rate.amount)} (${escapeHtml(rate.estimate)})`).join(" · ")}. Ship it at the post office and add the tracking number above.</p>`
+    ? `<p class="cj-hint">No Lyrtrip courier for this parcel. Local post estimates: ${reply.local_post.map((rate) => `${escapeHtml(rate.service)} ${formatMoney(rate.amount)} (${escapeHtml(rate.estimate)})`).join(" · ")}. Ship it at the post office and record it below.</p>`
     : "";
-  box.innerHTML = picker + local;
+  const chosen = groups.find((group) => group.id === lyrtripShipFrom);
+  const recorded = chosen?.lyrtrip_label?.manual ? chosen.lyrtrip_label : null;
+  // A parcel shipped by hand (local post, EMS, any courier) gets its own tracking number on the order.
+  const manual = chosen?.lyrtrip_label?.status === "confirmed" && !recorded ? "" : `
+      <div class="cj-address-fields">
+        <label>Shipped by hand with<input type="text" id="lyrtrip-manual-carrier" maxlength="60" placeholder="${escapeHtml(reply.local_post?.[0]?.carrier || "Posta Kenya, EMS…")}" value="${escapeHtml(recorded?.courier || "")}" /></label>
+        <label>Tracking number<input type="text" id="lyrtrip-manual-number" maxlength="60" value="${escapeHtml(recorded?.tracking_number || "")}" /></label>
+        <label>Tracking link (optional)<input type="url" id="lyrtrip-manual-url" maxlength="300" placeholder="https://" /></label>
+      </div>
+      <button type="button" class="button button-secondary" data-lyrtrip-action="manual">${recorded ? "Correct tracking" : "Record parcel as shipped"}</button>`;
+  box.innerHTML = picker + local + manual;
 }
 
 orderLyrtripPanel.addEventListener("click", handleOrderLyrtripClick);
@@ -2542,6 +2573,49 @@ function renderCoupons() {
   }).join("") || '<tr><td colspan="6">No coupons yet. Create one above.</td></tr>';
 }
 
+// ── Reward rates (super admin) ─────────────────────────────────────────────────
+
+const rewardForm = document.getElementById("reward-rates-form");
+const rewardMessage = document.getElementById("reward-message");
+let rewardDefaults = null;
+
+function fillRewardRates(rates) {
+  document.getElementById("reward-spent").value = rates.points_per_dollar_spent;
+  document.getElementById("reward-sold").value = rates.points_per_dollar_sold;
+  document.getElementById("reward-affiliate").value = Math.round(rates.affiliate_rate * 1000) / 10;
+  document.getElementById("reward-per-dollar").value = rates.points_per_dollar;
+}
+
+async function loadRewardRates() {
+  try {
+    const reply = await authApi("/rewards/settings");
+    rewardDefaults = reply.defaults;
+    fillRewardRates(reply.rates);
+  } catch (error) {
+    showMessage(rewardMessage, error.message || "Could not load reward rates.", true);
+  }
+}
+
+rewardForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const body = {
+    points_per_dollar_spent: Number(document.getElementById("reward-spent").value),
+    points_per_dollar_sold: Number(document.getElementById("reward-sold").value),
+    affiliate_rate: Number(document.getElementById("reward-affiliate").value) / 100,
+    points_per_dollar: Number(document.getElementById("reward-per-dollar").value),
+  };
+  try {
+    fillRewardRates((await authApi("/rewards/settings", { method: "PUT", body })).rates);
+    showMessage(rewardMessage, "Reward rates saved. They apply to orders placed from now on.");
+  } catch (error) {
+    showMessage(rewardMessage, error.message || "Could not save reward rates.", true);
+  }
+});
+document.getElementById("reward-defaults").addEventListener("click", () => {
+  if (rewardDefaults) fillRewardRates(rewardDefaults);
+  showMessage(rewardMessage, "Defaults filled in. Save to use them.");
+});
+
 async function loadCoupons() {
   try {
     adminCoupons = (await authApi("/coupons")).coupons || [];
@@ -2678,9 +2752,13 @@ function renderBusinessApplications() {
           ${info.industry ? `<div><dt>Industry</dt><dd>${escapeHtml(info.industry)}</dd></div>` : ""}
           ${info.website ? `<div><dt>Website</dt><dd><a href="${escapeHtml(info.website)}" target="_blank" rel="noopener noreferrer">${escapeHtml(info.website)}</a></dd></div>` : ""}
           <div><dt>Applied</dt><dd>${escapeHtml(new Date(Number(info.applied_at) * 1000).toLocaleDateString())}${info.wants_tax_exempt ? " · asks for tax exemption" : ""}</dd></div>
+          ${info.status === "approved" && info.net_terms ? `<div><dt>Net terms</dt><dd>Net 30 · limit ${formatMoney(info.credit_limit)}</dd></div>` : ""}
         </dl>
         <div class="business-review">
+          ${info.certificate_key ? '<button type="button" class="button button-secondary" data-business-certificate>View certificate</button>' : (info.wants_tax_exempt ? '<span class="cj-hint">No certificate uploaded yet.</span>' : "")}
           <label class="checkbox-field"><input type="checkbox" data-business-exempt ${info.tax_exempt ? "checked" : ""} /> Tax-exempt (certificate checked)</label>
+          <label class="checkbox-field"><input type="checkbox" data-business-terms ${info.net_terms ? "checked" : ""} /> Net 30 invoices</label>
+          <label>Credit limit ($)<input type="number" data-business-limit min="0" max="250000" step="100" value="${escapeHtml(info.credit_limit ?? 5000)}" /></label>
           <input type="text" data-business-note maxlength="300" placeholder="Note for your records (optional)" value="${escapeHtml(info.note || "")}" aria-label="Review note" />
           <button type="button" class="button button-primary" data-business-action="approved">${info.status === "approved" ? "Save" : "Approve"}</button>
           ${info.status === "rejected" ? "" : '<button type="button" class="button danger-button" data-business-action="rejected">Reject</button>'}
@@ -2702,6 +2780,22 @@ async function loadBusinessApplications() {
 }
 
 async function reviewBusiness(event) {
+  const certificate = event.target.closest("[data-business-certificate]");
+  if (certificate) {
+    // The link is signed and lasts a few minutes, so it's fetched on each click.
+    const account = certificate.closest(".business-card").dataset.account;
+    const opened = window.open("", "_blank");
+    if (opened) opened.opener = null;
+    try {
+      const { url } = await authApi(`/business/applications/${encodeURIComponent(account)}/certificate`);
+      if (opened) opened.location = url;
+      else window.location.href = url;
+    } catch (error) {
+      opened?.close();
+      showMessage(businessMessage, error.message || "Could not open the certificate.", true);
+    }
+    return;
+  }
   const button = event.target.closest("[data-business-action]");
   if (!button) return;
   const card = button.closest(".business-card");
@@ -2712,7 +2806,10 @@ async function reviewBusiness(event) {
   try {
     await authApi(`/business/applications/${encodeURIComponent(card.dataset.account)}`, {
       method: "PUT",
-      body: { status, tax_exempt: card.querySelector("[data-business-exempt]").checked, note: card.querySelector("[data-business-note]").value },
+      body: {
+        status, tax_exempt: card.querySelector("[data-business-exempt]").checked, note: card.querySelector("[data-business-note]").value,
+        net_terms: card.querySelector("[data-business-terms]").checked, credit_limit: Number(card.querySelector("[data-business-limit]").value) || 0,
+      },
     });
     showMessage(businessMessage, status === "approved" ? `${company} is approved.` : `${company} was rejected.`);
     loadBusinessApplications();
@@ -2724,6 +2821,98 @@ async function reviewBusiness(event) {
 
 businessFilter.addEventListener("change", renderBusinessApplications);
 businessList.addEventListener("click", reviewBusiness);
+
+// ── Business quotes (super admin) ──────────────────────────────────────────────
+// Quote requests from business carts (b2b_core): a unit price per line and how long the prices hold, or a decline.
+
+const quoteAdminList = document.getElementById("quote-admin-list");
+const quoteFilter = document.getElementById("quote-filter");
+const quoteAdminMessage = document.getElementById("quote-admin-message");
+const QUOTE_ADMIN_STATUS = {
+  requested: ["Waiting for prices", "is-early"], quoted: ["Quoted", "is-live"], ordered: ["Ordered", "is-live"],
+  declined: ["Declined", "is-off"], expired: ["Expired", "is-off"], withdrawn: ["Withdrawn", "is-off"],
+};
+let adminQuotes = [];
+
+function renderAdminQuotes() {
+  const waiting = adminQuotes.filter((quote) => quote.status === "requested").length;
+  const badge = document.getElementById("quotes-open-count");
+  badge.textContent = waiting;
+  badge.hidden = !waiting;
+  const shown = adminQuotes.filter((quote) => !quoteFilter.value || quote.status === quoteFilter.value);
+  quoteAdminList.innerHTML = shown.map((quote) => {
+    const [label, tone] = QUOTE_ADMIN_STATUS[quote.status] || [quote.status, ""];
+    const editable = ["requested", "quoted"].includes(quote.status);
+    const rows = quote.lines.map((line, index) => `
+      <tr>
+        <td>${escapeHtml(line.name)}${line.variant ? `<br /><small>${escapeHtml(line.variant)}</small>` : ""}</td>
+        <td>${line.quantity}</td>
+        <td>${formatMoney(line.list_price)}</td>
+        <td>${editable
+          ? `<input type="number" min="0.01" step="0.01" max="${escapeHtml(line.list_price)}" data-quote-price="${index}" value="${escapeHtml(line.price ?? line.list_price)}" aria-label="Unit price for ${escapeHtml(line.name)}" />`
+          : line.price != null ? formatMoney(line.price) : "—"}</td>
+      </tr>`).join("");
+    return `
+      <article class="business-card" data-quote="${escapeHtml(quote.id)}">
+        <header>
+          <div>
+            <h3>${escapeHtml(quote.company || quote.email)} · ${escapeHtml(quote.id.slice(0, 6).toUpperCase())}</h3>
+            <p>${escapeHtml(quote.email)} · ${escapeHtml(new Date(Number(quote.created_at) * 1000).toLocaleDateString())}${quote.shipping_country ? ` · ships to ${escapeHtml(quote.shipping_country)}` : ""}</p>
+          </div>
+          <span class="calendar-phase ${tone}">${escapeHtml(label)}</span>
+        </header>
+        ${quote.note ? `<p class="cj-hint">${escapeHtml(quote.note)}</p>` : ""}
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Item</th><th>Qty</th><th>List</th><th>Quoted unit price</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <p>List total ${formatMoney(quote.list_total)}${quote.total != null ? ` · quoted ${formatMoney(quote.total)}` : ""}${quote.valid_until && quote.status === "quoted" ? ` · valid until ${escapeHtml(new Date(Number(quote.valid_until) * 1000).toLocaleDateString())}` : ""}${quote.order_id ? ` · order ${escapeHtml(quote.order_id.slice(0, 8))}` : ""}</p>
+        ${editable ? `
+        <div class="business-review">
+          <label>Valid for (days)<input type="number" data-quote-days min="1" max="60" value="14" /></label>
+          <input type="text" data-quote-note maxlength="1000" placeholder="Message to the buyer (optional)" value="${escapeHtml(quote.reply_note || "")}" aria-label="Message to the buyer" />
+          <button type="button" class="button button-primary" data-quote-action="quoted">${quote.status === "quoted" ? "Update prices" : "Send prices"}</button>
+          <button type="button" class="button danger-button" data-quote-action="declined">Decline</button>
+        </div>` : ""}
+      </article>`;
+  }).join("") || `<p class="my-empty">${quoteFilter.value === "requested" ? "No quote requests waiting." : "No quotes here."}</p>`;
+}
+
+async function loadAdminQuotes() {
+  try {
+    adminQuotes = (await authApi("/business/quotes?all=1")).quotes || [];
+    renderAdminQuotes();
+  } catch (error) {
+    showMessage(quoteAdminMessage, error.message || "Could not load quotes.", true);
+  }
+}
+
+quoteFilter.addEventListener("change", renderAdminQuotes);
+quoteAdminList.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-quote-action]");
+  if (!button) return;
+  const card = button.closest("[data-quote]");
+  const status = button.dataset.quoteAction;
+  if (status === "declined" && !confirm("Decline this quote request? The buyer is told by email.")) return;
+  const body = status === "declined"
+    ? { status, reply_note: card.querySelector("[data-quote-note]").value }
+    : {
+      prices: [...card.querySelectorAll("[data-quote-price]")].map((input) => Number(input.value)),
+      valid_days: Number(card.querySelector("[data-quote-days]").value) || 14,
+      reply_note: card.querySelector("[data-quote-note]").value,
+    };
+  button.disabled = true;
+  try {
+    await authApi(`/business/quotes/${encodeURIComponent(card.dataset.quote)}`, { method: "PUT", body });
+    showMessage(quoteAdminMessage, status === "declined" ? "Quote declined." : "Prices sent to the buyer.");
+    loadAdminQuotes();
+  } catch (error) {
+    showMessage(quoteAdminMessage, error.message || "Could not save the quote.", true);
+    button.disabled = false;
+  }
+});
 
 // ── Dropshipping partners (super admin) ────────────────────────────────────────
 // Stores reselling the catalog through the partner API (dropship_core.py): review, discount, tax exemption, wallet.
@@ -2852,6 +3041,9 @@ function initTabs() {
       document.getElementById(`admin-${tab.dataset.adminSection}-section`).classList.add("active");
     });
   });
+  // Links in emails (e.g. a quote request) open their section: admin.html#business.
+  const linked = document.querySelector(`.admin-tab[data-admin-section="${CSS.escape(window.location.hash.slice(1))}"]:not([hidden])`);
+  if (linked) window.setTimeout(() => linked.click(), 0);
 }
 
 // ── Image uploads ──────────────────────────────────────────────────────────────
@@ -3252,7 +3444,9 @@ async function initAdminPage() {
   if (session.role === "superadmin") {
     loadCalendar();
     loadCoupons();
+    loadRewardRates();
     loadBusinessApplications();
+    loadAdminQuotes();
     loadPartners();
     loadLyrtripSettings();
     document.getElementById("attributes-intro").textContent =

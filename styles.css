@@ -1094,6 +1094,68 @@ a.buy-bar-button {
   color: #555555;
 }
 
+.description-body {
+  position: relative;
+  color: #333333;
+  line-height: 1.6;
+}
+
+.description-body p + p {
+  margin-top: 0.6rem;
+}
+
+.description-body h3 {
+  margin: 1.2rem 0 0.45rem;
+  font-size: 1rem;
+}
+
+.description-body h3:first-child {
+  margin-top: 0;
+}
+
+.description-body ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.description-body li + li {
+  margin-top: 0.25rem;
+}
+
+/* Long descriptions: the first lines, fading out, until "Show full description". */
+.description-body.is-collapsed {
+  max-height: 14rem;
+  overflow: hidden;
+}
+
+.description-body.is-collapsed::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 5rem;
+  background: linear-gradient(rgba(255, 255, 255, 0), var(--surface, #ffffff));
+  pointer-events: none;
+}
+
+.description-toggle {
+  margin-top: 0.6rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent, #2563eb);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.description-toggle:hover {
+  text-decoration: underline;
+}
+
+.description-toggle[hidden] {
+  display: none;
+}
+
 /* Admin Pages */
 .page-header {
   display: flex;
@@ -3905,6 +3967,7 @@ input[type="checkbox"] {
 }
 
 .status-payment-authorized,
+.status-payment-invoiced,
 .status-shipping-processing {
   background: #e0f2fe;
   color: #075985;
@@ -8469,4 +8532,275 @@ iframe.skiptranslate,
   .delivery-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ── Business checkout: quotes and invoices (cart, account page, invoice) ── */
+.business-checkout[hidden],
+.quote-request[hidden] {
+  display: none;
+}
+
+.business-checkout {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.business-quote-note {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: #075985;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.quote-request summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.quote-request label {
+  display: block;
+  margin: 0.6rem 0 0.3rem;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.quote-request textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font: inherit;
+}
+
+.my-quote {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.my-quote + .my-quote {
+  margin-top: 0.7rem;
+}
+
+.my-quote-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+}
+
+.my-quote ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.my-quote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.my-order-invoice {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+}
+
+.my-order-invoice.is-overdue {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.status-quote-requested { background: #fef3c7; color: #92400e; }
+.status-quote-quoted { background: #dcfce7; color: #166534; }
+.status-quote-ordered { background: #e0f2fe; color: #075985; }
+.status-quote-declined,
+.status-quote-expired,
+.status-quote-withdrawn { background: #f1f5f9; color: var(--ink-soft); }
+
+.certificate-field[hidden] {
+  display: none;
+}
+
+/* ── Invoice page ── */
+.invoice-page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 1.25rem 16px 3rem;
+}
+
+.invoice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.invoice-sheet {
+  padding: 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.invoice-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.invoice-head h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.invoice-number {
+  margin: 0.2rem 0 0.5rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-status {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-pill);
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.invoice-status.is-paid { background: #dcfce7; color: #166534; }
+.invoice-status.is-overdue { background: #fee2e2; color: #b91c1c; }
+
+.invoice-from {
+  display: grid;
+  gap: 0.15rem;
+  text-align: right;
+  color: var(--ink-soft);
+}
+
+.invoice-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin: 0 0 1.5rem;
+}
+
+.invoice-meta dt,
+.invoice-totals dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.invoice-meta dd {
+  margin: 0.2rem 0 0;
+}
+
+.invoice-table-wrap {
+  overflow-x: auto;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-table th,
+.invoice-table td {
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  vertical-align: top;
+}
+
+.invoice-table th:first-child,
+.invoice-table td:first-child {
+  text-align: left;
+}
+
+.invoice-table small {
+  color: var(--muted);
+}
+
+.invoice-totals {
+  display: grid;
+  gap: 0.35rem;
+  width: min(100%, 320px);
+  margin: 1.2rem 0 0 auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-totals div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.invoice-totals dd {
+  margin: 0;
+}
+
+.invoice-due {
+  padding-top: 0.5rem;
+  border-top: 2px solid var(--ink);
+  font-weight: 700;
+}
+
+.invoice-terms {
+  margin: 1.5rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .invoice-sheet {
+    padding: 1.1rem;
+  }
+
+  .invoice-from {
+    text-align: left;
+  }
+}
+
+@media print {
+  .invoice-chrome,
+  .lyrbot-launcher {
+    display: none !important;
+  }
+
+  .invoice-page {
+    padding: 0;
+  }
+
+  .invoice-sheet {
+    border: 0;
+    padding: 0;
+  }
+}
+
+.quote-admin-header {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
 }
