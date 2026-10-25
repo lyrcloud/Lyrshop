@@ -8422,9 +8422,9 @@ iframe.skiptranslate,
   }
 }
 
-/* Checkout page: delivery address under the shipping rates */
+/* Checkout page: delivery address between the ZIP code and the shipping rates */
 .delivery-address {
-  margin: 1.25rem 0 0;
+  margin: 1.25rem 0;
   padding: 1rem 0 0;
   border: 0;
   border-top: 1px solid var(--line);
