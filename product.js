@@ -1273,8 +1273,9 @@ function affiliateLink(product, className, label) {
   link.className = className;
   link.href = product.affiliate.url;
   link.target = "_blank";
-  // "sponsored" tells search engines it's a paid link, as Google requires for affiliate links.
-  link.rel = "sponsored nofollow noopener";
+  // "sponsored" tells search engines it's a paid link, as Google requires for affiliate links; direct links to a
+  // brand's own store (network "direct") aren't paid.
+  link.rel = product.affiliate.network === "direct" ? "nofollow noopener" : "sponsored nofollow noopener";
   link.textContent = label;
   return link;
 }
@@ -1299,7 +1300,9 @@ function renderAffiliate(product) {
       <strong>Price</strong>
       <span>${checked ? `Checked ${escapeHtml(checked)}. ` : ""}The price on ${escapeHtml(merchant)}'s site at checkout is final.</span>
     </div>
-    <p class="affiliate-disclosure">Lyrshop may earn a commission when you buy through this link, at no extra cost to you.</p>`;
+    <p class="affiliate-disclosure">${product.affiliate.network === "direct"
+      ? `This button opens the product on ${escapeHtml(merchant)}'s official site.`
+      : "Lyrshop may earn a commission when you buy through this link, at no extra cost to you."}</p>`;
 }
 
 function bindBuyBar(product) {
