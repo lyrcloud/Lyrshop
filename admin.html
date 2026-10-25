@@ -120,6 +120,11 @@
           <input type="text" id="product-city" maxlength="60" placeholder="e.g. Mumbai" />
           <small class="field-hint">Shoppers in the same city see it at the very top.</small>
         </label>
+        <label>
+          Ships from
+          <select id="product-warehouse"><option value="">The warehouse or store nearest the item (automatic)</option></select>
+          <small class="field-hint">Shipping is quoted from here through Lyrtrip, or by local post and EMS where Lyrtrip has no courier.</small>
+        </label>
         <label class="regional-pricing-field wide-field">
           <input type="checkbox" id="product-regional-pricing" />
           <span>
@@ -639,6 +644,12 @@
           </div>
         </fieldset>
         <fieldset>
+          <legend>More warehouses and stores</legend>
+          <p class="cj-hint">Each item ships from the warehouse its listing names, else the one in the item's city, else one in its country; items abroad with no warehouse there ship from the seller's city. A cart with items in several places is quoted one parcel per place. Contact name, phone and email left blank use the main address's.</p>
+          <div id="lyrtrip-warehouses"></div>
+          <button type="button" class="button button-secondary" id="lyrtrip-warehouse-add">Add a warehouse or store</button>
+        </fieldset>
+        <fieldset>
           <legend>Default box (orders can change it before buying a label)</legend>
           <div class="cj-address-fields">
             <label>Length (cm)<input type="number" id="lyrtrip-box-length_cm" min="1" max="200" step="0.5" /></label>
@@ -858,7 +869,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261025-1"></script>
+  <script src="admin.js?v=20261025-2"></script>
   <script src="footer.js?v=20261024-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

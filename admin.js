@@ -20,6 +20,7 @@ const saleEventInput = document.getElementById("product-sale-event");
 const countryInput = document.getElementById("product-country");
 const cityInput = document.getElementById("product-city");
 const regionalPricingInput = document.getElementById("product-regional-pricing");
+const warehouseInput = document.getElementById("product-warehouse");
 const statusInput = document.getElementById("product-status");
 const productFilterSearch = document.getElementById("product-filter-search");
 const productFilterStatus = document.getElementById("product-filter-status");
@@ -341,6 +342,7 @@ function startEditProduct(product) {
   // Listings from before item locations were all listed from the US.
   countryInput.value = product.location?.country || "US";
   cityInput.value = product.location?.city || "";
+  setWarehouseValue(product.warehouse || "");
   regionalPricingInput.checked = Boolean(product.regional_pricing);
   syncDiscountFromPrices();
   // Opening a draft defaults to publishing it; the photo check in submitProduct still applies.
@@ -816,6 +818,7 @@ async function submitProduct(event) {
     media: productMedia,
     wholesale_tiers: collectWholesaleTiers(),
     location: { country: countryInput.value, city: cityInput.value.trim() },
+    warehouse: warehouseInput.value,
     regional_pricing: regionalPricingInput.checked,
     options: collectProductOptions(),
     measurements: collectMeasurements(),
@@ -1901,11 +1904,12 @@ const LYRTRIP_LABEL_STATUS = {
   label_failed: "Label failed",
 };
 let lyrtripRates = [];
+let lyrtripShipFrom = "";
 
-function lyrtripLabelBlock(label) {
+function lyrtripLabelBlock(label, from) {
   if (!label) return "";
   const docs = (label.documents || []).map((doc) => `<a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener">${escapeHtml(doc.category || "document")}</a>`).join(" · ");
-  return `<p><strong>Lyrtrip label</strong> · ${escapeHtml(LYRTRIP_LABEL_STATUS[label.status] || label.status || "")}
+  return `<p><strong>Lyrtrip label</strong>${from ? ` (from ${escapeHtml(from)})` : ""} · ${escapeHtml(LYRTRIP_LABEL_STATUS[label.status] || label.status || "")}
     ${label.courier ? ` · ${escapeHtml(label.courier)}` : ""}${label.price != null ? ` · ${formatMoney(label.price)}` : ""}
     ${label.delivery_state ? ` · ${escapeHtml(String(label.delivery_state).replaceAll("_", " "))}` : ""}</p>
     ${docs ? `<p>${docs}</p>` : ""}${label.error ? `<p class="is-error">${escapeHtml(label.error)}</p>` : ""}`;
@@ -1922,9 +1926,11 @@ function lyrtripCourierBlock(courier) {
 
 function renderOrderLyrtrip(order) {
   lyrtripRates = [];
+  lyrtripShipFrom = "";
   const label = order.lyrtrip_label;
   const courier = order.lyrtrip_courier;
-  const status = `${lyrtripLabelBlock(label)}${lyrtripCourierBlock(courier)}`;
+  const extraLabels = Object.entries(order.lyrtrip_labels || {}).map(([from, extra]) => lyrtripLabelBlock(extra, from)).join("");
+  const status = `${lyrtripLabelBlock(label, label?.ship_from)}${extraLabels}${lyrtripCourierBlock(courier)}`;
   const sync = label || courier ? `<button type="button" class="button button-secondary" data-lyrtrip-action="sync">Refresh tracking</button>` : "";
   if (order.cj_order_id || (order.kind || "order") !== "order") {
     orderLyrtripPanel.innerHTML = status;
@@ -1938,23 +1944,24 @@ function renderOrderLyrtrip(order) {
     orderLyrtripPanel.innerHTML = `${status}<p class="cj-hint">Lyrtrip shipping needs the buyer's address, which Stripe Checkout saves on paid orders.</p>${sync}`;
     return;
   }
-  const hasLabel = label?.status === "confirmed" || label?.status === "needs_review";
   const hasCourier = ["active", "delivered", "processing"].includes(courier?.status);
+  // The label form stays after a label: orders with items in several warehouses get one per parcel (the server refuses a
+  // second label for a parcel, and the parcel picker marks labelled ones).
   orderLyrtripPanel.innerHTML = `${status}
     <fieldset class="cj-send">
       <legend>Ship with Lyrtrip</legend>
-      ${hasLabel ? "" : `
       <div class="cj-address-fields">
         <label>Weight (kg)<input type="number" id="lyrtrip-weight" min="0.01" max="70" step="0.01" placeholder="from the listings" /></label>
         <label>Length (cm)<input type="number" id="lyrtrip-length" min="1" max="200" step="0.5" placeholder="default box" /></label>
         <label>Width (cm)<input type="number" id="lyrtrip-width" min="1" max="200" step="0.5" /></label>
         <label>Height (cm)<input type="number" id="lyrtrip-height" min="1" max="200" step="0.5" /></label>
       </div>
+      <div id="lyrtrip-groups"></div>
       <button type="button" class="button button-secondary" data-lyrtrip-action="rates">Get label rates</button>
       <label>Courier <select id="lyrtrip-rate" disabled><option value="">Get rates first</option></select></label>
-      <button type="button" class="button button-primary" data-lyrtrip-action="label" disabled>Buy label</button>`}
+      <button type="button" class="button button-primary" data-lyrtrip-action="label" disabled>Buy label</button>
       ${hasCourier ? "" : `
-      <p class="cj-hint">Or, for a buyer nearby, a same-day courier from the ship-from address:</p>
+      <p class="cj-hint">Or, for a buyer nearby, a same-day courier from the parcel's ship-from address:</p>
       <label>Drop-off notes<input type="text" id="lyrtrip-dropoff-notes" maxlength="280" placeholder="Leave with the doorman" /></label>
       <button type="button" class="button button-secondary" data-lyrtrip-action="courier-quote">Quote a courier</button>
       <button type="button" class="button button-primary" data-lyrtrip-action="courier-book" disabled>Book courier</button>
@@ -1980,8 +1987,9 @@ async function handleOrderLyrtripClick(event) {
   button.disabled = true;
   try {
     if (action === "rates") {
-      const reply = await authApi(`${base}/rates`, { method: "POST", body: { parcel: readLyrtripParcel() } });
+      const reply = await authApi(`${base}/rates`, { method: "POST", body: { parcel: readLyrtripParcel(), ship_from: lyrtripShipFrom } });
       lyrtripRates = reply.rates || [];
+      renderLyrtripGroups(reply);
       const select = document.getElementById("lyrtrip-rate");
       select.innerHTML = lyrtripRates.length
         ? lyrtripRates.map((rate) => `<option value="${escapeHtml(rate.id)}">${escapeHtml(rate.courier)} · ${formatMoney(rate.price)} · ${rate.minDays ?? "?"}-${rate.maxDays ?? "?"} days</option>`).join("")
@@ -1994,7 +2002,7 @@ async function handleOrderLyrtripClick(event) {
       return;
     }
     if (action === "courier-quote") {
-      const { quote, error } = await authApi(`${base}/courier/quote`, { method: "POST", body: { dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value } });
+      const { quote, error } = await authApi(`${base}/courier/quote`, { method: "POST", body: { dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value, ship_from: lyrtripShipFrom } });
       document.getElementById("lyrtrip-courier-quote").textContent = quote
         ? `${quote.currency} ${Number(quote.price).toFixed(2)} · pickup in about ${quote.pickupMinutes ?? "?"} min · delivered in about ${quote.totalMinutes ?? "?"} min`
         : error || "No courier can do this trip.";
@@ -2007,11 +2015,11 @@ async function handleOrderLyrtripClick(event) {
     if (action === "label") {
       const rate = lyrtripRates.find((item) => item.id === document.getElementById("lyrtrip-rate").value);
       if (!rate || !confirm(`Buy a ${rate.courier} label for ${formatMoney(rate.price)}? It's billed to Lyrshop's Lyrtrip account.`)) return;
-      body = { rate_id: rate.id, max_price: rate.price, parcel: readLyrtripParcel() };
+      body = { rate_id: rate.id, max_price: rate.price, parcel: readLyrtripParcel(), ship_from: lyrtripShipFrom };
     }
     if (action === "courier-book") {
       if (!confirm(`Book a same-day courier for up to $${button.dataset.maxPrice}? It's billed to Lyrshop's Lyrtrip account.`)) return;
-      body = { max_price: Number(button.dataset.maxPrice), dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value };
+      body = { max_price: Number(button.dataset.maxPrice), dropoff_notes: document.getElementById("lyrtrip-dropoff-notes").value, ship_from: lyrtripShipFrom };
     }
     const path = { label: `${base}/label`, "courier-book": `${base}/courier/book`, sync: `${base}/sync` }[action];
     const { order: updated } = await authApi(path, { method: "POST", body });
@@ -2032,7 +2040,28 @@ async function handleOrderLyrtripClick(event) {
   }
 }
 
+// After the first rates call: which parcel (ship-from place) the form is for, and the local post / EMS estimates when
+// no Lyrtrip courier takes it.
+function renderLyrtripGroups(reply) {
+  const box = document.getElementById("lyrtrip-groups");
+  if (!box) return;
+  lyrtripShipFrom = reply.ship_from || "";
+  const groups = reply.groups || [];
+  const picker = groups.length > 1
+    ? `<label>Parcel <select id="lyrtrip-ship-from">${groups.map((group) => `<option value="${escapeHtml(group.id)}"${group.id === lyrtripShipFrom ? " selected" : ""}>From ${escapeHtml(group.label)}: ${escapeHtml(group.items.join(", "))}${group.lyrtrip_label?.status === "confirmed" ? " (labelled)" : ""}</option>`).join("")}</select></label>`
+    : groups.length ? `<p class="cj-hint">Ships from ${escapeHtml(groups[0].label)}.</p>` : "";
+  const local = (reply.local_post || []).length
+    ? `<p class="cj-hint">No Lyrtrip courier for this parcel. Local post estimates: ${reply.local_post.map((rate) => `${escapeHtml(rate.service)} ${formatMoney(rate.amount)} (${escapeHtml(rate.estimate)})`).join(" · ")}. Ship it at the post office and add the tracking number above.</p>`
+    : "";
+  box.innerHTML = picker + local;
+}
+
 orderLyrtripPanel.addEventListener("click", handleOrderLyrtripClick);
+orderLyrtripPanel.addEventListener("change", (event) => {
+  if (event.target.id !== "lyrtrip-ship-from") return;
+  lyrtripShipFrom = event.target.value;
+  orderLyrtripPanel.querySelector("[data-lyrtrip-action='rates']")?.click();
+});
 
 // ── Shipping (Lyrtrip) settings and statement, super admin ──
 
@@ -2041,7 +2070,61 @@ const lyrtripMessage = document.getElementById("lyrtrip-message");
 const LYRTRIP_ORIGIN_FIELDS = ["name", "company", "phone", "email", "line1", "line2", "city", "state", "postal_code", "country"];
 const LYRTRIP_BOX_SIDES = ["length_cm", "width_cm", "height_cm"];
 
+const LYRTRIP_WAREHOUSE_FIELDS = [
+  ["label", "Name", "text", 60], ["line1", "Street", "text", 35], ["line2", "Apt, suite", "text", 35], ["city", "City", "text", 35],
+  ["state", "State / province", "text", 35], ["postal_code", "Postal code", "text", 12], ["name", "Contact name", "text", 50],
+  ["phone", "Phone", "tel", 30], ["email", "Email", "email", 80], ["pickup_notes", "Courier pickup notes", "text", 280],
+];
+
+function warehouseRow(warehouse = {}) {
+  const row = document.createElement("div");
+  row.className = "cj-address-fields lyrtrip-warehouse";
+  row.dataset.id = warehouse.id || "";
+  row.innerHTML = `${LYRTRIP_WAREHOUSE_FIELDS.map(([field, label, type, max]) => `<label>${label}<input type="${type}" data-field="${field}" maxlength="${max}" value="${escapeHtml(warehouse[field] || "")}" /></label>`).join("")}
+    <label>Country<select data-field="country">${LyrLocale.countryOptions().map(({ code, name }) => `<option value="${code}"${code === (warehouse.country || "US") ? " selected" : ""}>${escapeHtml(name)}</option>`).join("")}</select></label>
+    <button type="button" class="button button-secondary" data-warehouse-remove>Remove</button>`;
+  return row;
+}
+
+function renderWarehouses(warehouses) {
+  const list = document.getElementById("lyrtrip-warehouses");
+  list.replaceChildren(...(warehouses || []).map(warehouseRow));
+}
+
+function collectWarehouses() {
+  return [...document.querySelectorAll("#lyrtrip-warehouses .lyrtrip-warehouse")].map((row) => ({
+    id: row.dataset.id,
+    ...Object.fromEntries([...row.querySelectorAll("[data-field]")].map((input) => [input.dataset.field, input.value])),
+  }));
+}
+
+function setWarehouseValue(value) {
+  if (value && ![...warehouseInput.options].some((option) => option.value === value)) {
+    warehouseInput.add(new Option(value, value));
+  }
+  warehouseInput.value = value;
+}
+
+function fillWarehouseOptions(settings) {
+  const current = warehouseInput.value;
+  const places = [{ id: "main", label: "Main warehouse", ...settings.origin }, ...(settings.warehouses || [])];
+  warehouseInput.replaceChildren(warehouseInput.options[0],
+    ...places.map((place) => new Option(`${place.label} (${[place.city, place.country].filter(Boolean).join(", ")})`, place.id)));
+  setWarehouseValue(current);
+}
+
+// Admins pick a listing's warehouse; the list comes from the Lyrtrip settings.
+async function loadWarehouseOptions() {
+  try {
+    fillWarehouseOptions((await authApi("/lyrtrip/settings")).settings);
+  } catch {
+    // Without the settings the listing ships from the warehouse nearest the item.
+  }
+}
+
 function renderLyrtripSettings({ settings, connected }) {
+  renderWarehouses(settings.warehouses);
+  fillWarehouseOptions(settings);
   LYRTRIP_ORIGIN_FIELDS.forEach((field) => { document.getElementById(`lyrtrip-origin-${field}`).value = settings.origin[field] || ""; });
   LYRTRIP_BOX_SIDES.forEach((side) => { document.getElementById(`lyrtrip-box-${side}`).value = settings.box[side]; });
   document.getElementById("lyrtrip-pickup-notes").value = settings.pickup_notes || "";
@@ -2072,6 +2155,7 @@ async function saveLyrtripSettings(event) {
         origin: Object.fromEntries(LYRTRIP_ORIGIN_FIELDS.map((field) => [field, document.getElementById(`lyrtrip-origin-${field}`).value])),
         box: Object.fromEntries(LYRTRIP_BOX_SIDES.map((side) => [side, Number(document.getElementById(`lyrtrip-box-${side}`).value)])),
         pickup_notes: document.getElementById("lyrtrip-pickup-notes").value,
+        warehouses: collectWarehouses(),
         live_rates: document.getElementById("lyrtrip-live-rates").checked,
         margin_pct: Number(document.getElementById("lyrtrip-margin").value) || 0,
       },
@@ -2102,6 +2186,12 @@ async function loadLyrtripStatement() {
 }
 
 lyrtripSettingsForm.addEventListener("submit", saveLyrtripSettings);
+document.getElementById("lyrtrip-warehouse-add").addEventListener("click", () => {
+  document.getElementById("lyrtrip-warehouses").append(warehouseRow());
+});
+document.getElementById("lyrtrip-warehouses").addEventListener("click", (event) => {
+  if (event.target.closest("[data-warehouse-remove]")) event.target.closest(".lyrtrip-warehouse").remove();
+});
 document.getElementById("lyrtrip-statement-load").addEventListener("click", loadLyrtripStatement);
 
 // ── Category management ────────────────────────────────────────────────────────
@@ -3158,6 +3248,7 @@ async function initAdminPage() {
 
   initTabs();
   loadAttributes();
+  loadWarehouseOptions();
   if (session.role === "superadmin") {
     loadCalendar();
     loadCoupons();
