@@ -190,6 +190,10 @@ const HEADING_LINE = /^(\S.{0,48}?)\s*[:：]$/;
 // Sections that are lists of things rather than prose, and headings with nothing useful under them.
 const LIST_SECTIONS = /pack(ing|age)|in the box|includ|contents|feature|accessor/i;
 const SKIPPED_HEADINGS = /^(product )?(image|picture|photo)s?$/i;
+// "1. ", "2, ", "3) ", "- ", "• " in front of a line: supplier lists number their specs and features.
+const LINE_MARKER = /^(?:\d{1,2}\s*[.,)、]\s*|[-•*·]\s*)/;
+// "Note: …", "Warning: …" are advice for the reader, not specifications.
+const NOT_SPECS = /^(notes?|tips?|warning|attention|caution|remarks?|please note|reminder|how to use)$/i;
 // Descriptions longer than this are folded to their first lines until the shopper opens them.
 const DESCRIPTION_FOLD_CHARS = 600;
 
@@ -204,9 +208,9 @@ function parseDescription(text) {
       sections.push({ heading: heading[1], lines: [] });
       continue;
     }
-    const spec = line.match(SPEC_LINE);
+    const spec = line.replace(LINE_MARKER, "").match(SPEC_LINE);
     // Short "Name: value" pairs are specifications; a sentence with a colon in it stays prose.
-    if (spec && spec[1].split(/\s+/).length <= 5 && specs.length < MAX_SPECIFICS
+    if (spec && spec[1].split(/\s+/).length <= 5 && !NOT_SPECS.test(spec[1]) && specs.length < MAX_SPECIFICS
         && !specs.some(([label]) => label.toLowerCase() === spec[1].toLowerCase())) {
       specs.push([spec[1], spec[2]]);
       continue;
@@ -220,9 +224,11 @@ function renderDescription({ specs, sections }) {
   const body = document.getElementById("detail-description");
   const toggle = document.getElementById("description-toggle");
   body.innerHTML = sections.map(({ heading, lines }) => {
-    const asList = LIST_SECTIONS.test(heading) || (lines.length > 2 && lines.every((line) => line.length < 90));
+    const marked = lines.filter((line) => LINE_MARKER.test(line)).length;
+    const asList = LIST_SECTIONS.test(heading) || (lines.length > 2 && lines.every((line) => line.length < 90))
+      || (lines.length > 1 && marked >= lines.length * 0.6);
     const content = asList
-      ? `<ul>${lines.map((line) => `<li>${escapeHtml(line.replace(/^[-•*·]\s*/, ""))}</li>`).join("")}</ul>`
+      ? `<ul>${lines.map((line) => `<li>${escapeHtml(line.replace(LINE_MARKER, ""))}</li>`).join("")}</ul>`
       : lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("");
     return `${heading ? `<h3>${escapeHtml(/in the box|pack/i.test(heading) ? "What's in the box" : heading)}</h3>` : ""}${content}`;
   }).join("") || (specs.length ? `<p>See the item specifics above.</p>` : "<p>The seller hasn't added a description.</p>");
