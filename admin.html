@@ -470,17 +470,15 @@
     <section class="admin-panel admin-section superadmin-only" id="admin-calendar-section" hidden>
       <div class="panel-header">
         <h2>E-commerce sales calendar</h2>
-        <p>Special shopping days run themselves: before each one, listings are discounted automatically (1% to 45%, depending on each item) and the home page banner and slides switch to the event.</p>
+        <p>Special shopping days run themselves: before each one, listings are discounted automatically (10% to 45% in 5% steps, depending on each item) and the home page banner and slides switch to the event.</p>
       </div>
       <div id="calendar-summary" class="calendar-summary" role="status"></div>
       <details class="calendar-rules">
         <summary>How automatic discounts work</summary>
         <ul>
-          <li>Every listing gets its own discount, from <strong>1% up to the event's maximum</strong> (at most 45%), depending on its circumstances:</li>
-          <li><strong>Timing:</strong> early deals start at 45% of the maximum when the window opens and grow to 85% by the day before; the event days get the full amount.</li>
-          <li><strong>Sales:</strong> the best seller of the last 30 days gets the most, other selling items a little less by rank. Items that haven't sold yet get more the longer they've been listed (half for new arrivals, the full amount after 120 days).</li>
-          <li><strong>Price:</strong> cheap items get smaller cuts and big-ticket items deeper ones.</li>
-          <li><strong>Cost:</strong> supplier (CJ) items never drop below cost plus 15%. Auctions and brand (affiliate) listings are never discounted.</li>
+          <li>Every listing gets its own discount in <strong>5% steps from 10%</strong>: up to 5% below the event's maximum during early deals (10%–40% for a 45% event) and up to the full maximum on the event days.</li>
+          <li>Listings are ranked by their circumstances and spread evenly over the steps: best sellers of the last 30 days and items that have sat unsold the longest get the deepest steps, and big-ticket items deeper ones than cheap items.</li>
+          <li><strong>Cost:</strong> supplier (CJ) items never drop below cost plus 15% (they move down a step if needed). Auctions and brand (affiliate) listings are never discounted.</li>
           <li>Discounts are taken off the seller's was price when there is one, and a seller's own deeper sale is kept. Stored prices never change, so prices go back by themselves when the event ends.</li>
           <li>When two events overlap, the one that ends first is shown. Dates follow UTC days.</li>
         </ul>
