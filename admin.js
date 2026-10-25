@@ -345,11 +345,12 @@ async function loadCurrentProducts(session) {
 }
 
 function renderBrandOptions(products) {
-  const brands = [...new Set(products.map((product) => (product.brand || "").trim()).filter(Boolean))].sort();
+  const brands = [...new Set([...products.map((product) => (product.brand || "").trim()), ...directoryBrandNames].filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
   brandOptions.innerHTML = brands.map((brand) => `<option value="${escapeHtml(brand)}"></option>`).join("");
 }
 
-// ── Condition and selling format (eBay-style) ────────────────────────────────
+// ── Condition and selling format ─────────────────────────────────────────────
 const CONDITION_HINTS = {
   new: "Brand-new, unused, unopened, in its original packaging.",
   open_box: "New and unused; the packaging may be opened or missing.",
@@ -951,8 +952,11 @@ async function submitProduct(event) {
     });
 
     if (isApiSuccess(res)) {
+      const saved = (await res.clone().json().catch(() => ({}))).product || {};
       cancelProductEdit();
-      showMessage(message, editId ? "Product updated." : "Product listed successfully.");
+      showMessage(message, saved.brand_review
+        ? `Saved as a draft: ${saved.brand} is a protected brand, so Lyrshop staff review it before it goes live.`
+        : (editId ? "Product updated." : "Product listed successfully."));
       loadCurrentProducts(session);
       return;
     }
@@ -3168,6 +3172,254 @@ document.getElementById("partner-settings-form").addEventListener("submit", asyn
 partnerFilter.addEventListener("change", renderPartners);
 partnerList.addEventListener("click", reviewPartner);
 
+// ── Brands (directory and brand review) ──────────────────────────────────────
+// GET /brands/admin lists every brand (hidden ones too); the super admin edits them, and staff approve or reject
+// drafts held because a seller listed a protected brand it isn't authorized for (GET/POST /brands/review).
+
+const BRAND_ADMIN_PAGE = 80;
+const brandAdmin = {
+  list: document.getElementById("brand-admin-list"),
+  count: document.getElementById("brand-admin-count"),
+  more: document.getElementById("brand-admin-more"),
+  search: document.getElementById("brand-admin-search"),
+  kind: document.getElementById("brand-admin-kind"),
+  status: document.getElementById("brand-admin-status"),
+  message: document.getElementById("brand-admin-message"),
+  form: document.getElementById("brand-form"),
+  review: document.getElementById("brand-review-list"),
+  reviewCount: document.getElementById("brand-review-count"),
+  brands: [],
+  sectors: [],
+  shown: BRAND_ADMIN_PAGE,
+  canEdit: false,
+  editing: null,
+};
+let directoryBrandNames = [];
+
+function brandAdminLogo(brand) {
+  const initials = brand.name.replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const src = brand.logo_url || (brand.website ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(brand.website.split("/")[0])}&sz=64` : "");
+  return `<span class="brand-logo"><span class="brand-monogram">${escapeHtml(initials || "?")}</span>${src ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="this.remove()" />` : ""}</span>`;
+}
+
+let brandAdminRequest = 0;
+async function loadBrandAdmin() {
+  const request = ++brandAdminRequest;
+  const params = new URLSearchParams();
+  if (brandAdmin.search.value.trim()) params.set("q", brandAdmin.search.value.trim());
+  if (brandAdmin.kind.value) params.set("kind", brandAdmin.kind.value);
+  if (brandAdmin.status.value) params.set("status", brandAdmin.status.value);
+  try {
+    const data = await authApi(`/brands/admin?${params}`);
+    if (request !== brandAdminRequest) return;
+    brandAdmin.brands = data.brands || [];
+    brandAdmin.sectors = data.sectors || [];
+    brandAdmin.canEdit = Boolean(data.can_edit);
+    brandAdmin.shown = BRAND_ADMIN_PAGE;
+    if (!params.toString()) directoryBrandNames = brandAdmin.brands.filter((b) => b.status === "active").map((b) => b.name);
+    renderBrandAdmin();
+    showBrandReviewCount(data.review_count);
+  } catch (error) {
+    showMessage(brandAdmin.message, error.message || "Could not load the brand directory.", true);
+  }
+}
+
+function showBrandReviewCount(count) {
+  brandAdmin.reviewCount.textContent = count || "";
+  brandAdmin.reviewCount.hidden = !count;
+}
+
+function renderBrandAdmin() {
+  const total = brandAdmin.brands.length;
+  brandAdmin.count.textContent = `${total} ${total === 1 ? "brand" : "brands"}${brandAdmin.canEdit ? "" : " (only the super admin can change them)"}`;
+  brandAdmin.list.innerHTML = brandAdmin.brands.slice(0, brandAdmin.shown).map((brand) => {
+    const where = brand.worldwide ? "Worldwide" : `${brand.markets.length} ${brand.markets.length === 1 ? "country" : "countries"}`;
+    const flags = [
+      brand.kinds.map((k) => (k === "retailer" ? "Store" : "Brand")).join(" & "),
+      brand.tier,
+      brand.sectors.map((s) => s.label).join(", "),
+      brand.origin && `from ${brand.origin}`,
+      where,
+      brand.listings && `${brand.listings} listings`,
+    ].filter(Boolean).join(" · ");
+    return `
+      <div class="brand-admin-row${brand.status === "hidden" ? " brand-admin-hidden" : ""}">
+        ${brandAdminLogo(brand)}
+        <div class="brand-admin-main">
+          <strong>${escapeHtml(brand.name)}</strong>
+          <small>${escapeHtml(flags)}</small>
+          <span class="brand-tags">
+            ${brand.status === "hidden" ? '<span class="brand-tag">Hidden</span>' : ""}
+            ${brand.protected ? `<span class="brand-tag brand-tag-protected">Protected${brand.authorized_sellers.length ? ` · ${brand.authorized_sellers.length} authorized` : ""}</span>` : ""}
+            ${brand.featured ? '<span class="brand-tag brand-tag-count">Featured</span>' : ""}
+            ${brand.edited ? '<span class="brand-tag">Changed</span>' : ""}
+            ${brand.builtin ? "" : '<span class="brand-tag">Added by you</span>'}
+          </span>
+        </div>
+        <a class="button button-secondary" href="brands.html?b=${encodeURIComponent(brand.slug)}" target="_blank" rel="noopener">View</a>
+        ${brandAdmin.canEdit ? `<button type="button" class="button button-secondary" data-brand-edit="${escapeHtml(brand.slug)}">Edit</button>` : ""}
+      </div>`;
+  }).join("") || '<p class="cj-hint">No brands match.</p>';
+  brandAdmin.more.hidden = brandAdmin.shown >= total;
+}
+
+function renderBrandSectorPicks(selected) {
+  document.getElementById("brand-sectors").innerHTML = brandAdmin.sectors.map((s) => `
+    <label><input type="checkbox" value="${escapeHtml(s.key)}" ${selected.includes(s.key) ? "checked" : ""} /> ${escapeHtml(s.label)}</label>`).join("");
+}
+
+function openBrandForm(brand) {
+  brandAdmin.editing = brand;
+  const value = (id, v) => { document.getElementById(id).value = v ?? ""; };
+  document.getElementById("brand-form-title").textContent = brand ? `Edit ${brand.name}` : "Add a brand";
+  value("brand-name", brand?.name);
+  document.getElementById("brand-kind-brand").checked = !brand || brand.kinds.includes("brand");
+  document.getElementById("brand-kind-retailer").checked = Boolean(brand?.kinds.includes("retailer"));
+  value("brand-tier", brand?.tier || "mainstream");
+  value("brand-status", brand?.status || "active");
+  value("brand-origin", brand?.origin);
+  value("brand-website", brand?.website);
+  value("brand-markets", brand ? brand.markets.join(" ") : "*");
+  value("brand-aliases", brand?.aliases.join(", "));
+  value("brand-description", brand?.edited || !brand?.builtin ? brand?.description : "");
+  value("brand-logo-url", brand?.logo_url);
+  value("brand-sellers", brand?.authorized_sellers.join("\n"));
+  document.getElementById("brand-featured").checked = Boolean(brand?.featured);
+  document.getElementById("brand-protected").checked = Boolean(brand?.protected);
+  renderBrandSectorPicks(brand ? brand.sectors.map((s) => s.key) : []);
+  const remove = document.getElementById("brand-delete");
+  remove.hidden = !brand || (brand.builtin && !brand.edited);
+  remove.textContent = brand?.builtin ? "Reset to catalog" : "Delete";
+  brandAdmin.form.hidden = false;
+  brandAdmin.form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function brandFormBody() {
+  const text = (id) => document.getElementById(id).value.trim();
+  return {
+    name: text("brand-name"),
+    kinds: ["brand", "retailer"].filter((k) => document.getElementById(`brand-kind-${k}`).checked),
+    tier: text("brand-tier"),
+    status: text("brand-status"),
+    origin: text("brand-origin").toUpperCase(),
+    website: text("brand-website"),
+    markets: text("brand-markets") || "*",
+    aliases: text("brand-aliases"),
+    sectors: [...document.querySelectorAll("#brand-sectors input:checked")].map((input) => input.value),
+    description: text("brand-description"),
+    logo_url: text("brand-logo-url"),
+    featured: document.getElementById("brand-featured").checked,
+    protected: document.getElementById("brand-protected").checked,
+    authorized_sellers: text("brand-sellers"),
+  };
+}
+
+brandAdmin.form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const editing = brandAdmin.editing;
+  try {
+    const data = editing
+      ? await authApi(`/brands/item/${encodeURIComponent(editing.slug)}`, { method: "PUT", body: brandFormBody() })
+      : await authApi("/brands/item", { method: "POST", body: brandFormBody() });
+    showMessage(brandAdmin.message, `${data.brand.name} saved.`);
+    brandAdmin.form.hidden = true;
+    loadBrandAdmin();
+  } catch (error) {
+    showMessage(brandAdmin.message, error.message || "Could not save the brand.", true);
+  }
+});
+
+document.getElementById("brand-delete").addEventListener("click", async () => {
+  const brand = brandAdmin.editing;
+  if (!brand) return;
+  const question = brand.builtin ? `Undo your changes to ${brand.name} and go back to the built-in version?` : `Delete ${brand.name} from the directory?`;
+  if (!confirm(question)) return;
+  try {
+    await authApi(`/brands/item/${encodeURIComponent(brand.slug)}`, { method: "DELETE" });
+    showMessage(brandAdmin.message, brand.builtin ? `${brand.name} is back to its catalog version.` : `${brand.name} deleted.`);
+    brandAdmin.form.hidden = true;
+    loadBrandAdmin();
+  } catch (error) {
+    showMessage(brandAdmin.message, error.message || "Could not delete the brand.", true);
+  }
+});
+
+document.getElementById("brand-cancel").addEventListener("click", () => { brandAdmin.form.hidden = true; });
+document.getElementById("brand-add").addEventListener("click", () => openBrandForm(null));
+document.getElementById("brand-logo-file").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    showMessage(brandAdmin.message, "Uploading logo…");
+    document.getElementById("brand-logo-url").value = await uploadImage(file, file.name);
+    showMessage(brandAdmin.message, "Logo uploaded. Save the brand to keep it.");
+  } catch (error) {
+    showMessage(brandAdmin.message, error.message || "Could not upload the logo.", true);
+  }
+  event.target.value = "";
+});
+brandAdmin.list.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-brand-edit]");
+  if (button) openBrandForm(brandAdmin.brands.find((b) => b.slug === button.dataset.brandEdit));
+});
+brandAdmin.more.addEventListener("click", () => {
+  brandAdmin.shown += BRAND_ADMIN_PAGE;
+  renderBrandAdmin();
+});
+brandAdmin.search.addEventListener("input", debounceBrandAdmin);
+brandAdmin.kind.addEventListener("change", loadBrandAdmin);
+brandAdmin.status.addEventListener("change", loadBrandAdmin);
+
+let brandAdminTimer = null;
+function debounceBrandAdmin() {
+  window.clearTimeout(brandAdminTimer);
+  brandAdminTimer = window.setTimeout(loadBrandAdmin, 250);
+}
+
+async function loadBrandReview() {
+  try {
+    const data = await authApi("/brands/review");
+    const listings = data.listings || [];
+    showBrandReviewCount(listings.length);
+    brandAdmin.review.innerHTML = listings.length ? listings.map((row) => `
+      <div class="brand-review-row" data-review-id="${escapeHtml(row.id)}">
+        <img src="${escapeHtml(row.image_url || "logo.svg")}" alt="" />
+        <div class="brand-admin-main">
+          <strong>${escapeHtml(row.name)}</strong>
+          <small>${escapeHtml(row.brand_name)} · ${escapeHtml(row.seller_name || row.seller_email || "")} · $${Number(row.price || 0).toFixed(2)}</small>
+        </div>
+        <a class="button button-secondary" href="product.html?id=${encodeURIComponent(row.id)}" target="_blank" rel="noopener">Preview</a>
+        <button type="button" class="button button-primary" data-review="approve">Approve</button>
+        <button type="button" class="button button-secondary" data-review="authorize" title="Approve and let this seller list ${escapeHtml(row.brand_name)} from now on">Approve &amp; authorize seller</button>
+        <button type="button" class="button danger-button" data-review="reject">Reject</button>
+      </div>`).join("") : '<p class="cj-hint">Nothing waiting for review.</p>';
+  } catch (error) {
+    brandAdmin.review.innerHTML = `<p class="cj-hint">${escapeHtml(error.message || "Could not load the review queue.")}</p>`;
+  }
+}
+
+brandAdmin.review.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-review]");
+  if (!button) return;
+  const row = button.closest("[data-review-id]");
+  const choice = button.dataset.review;
+  let note = "";
+  if (choice === "reject") {
+    note = prompt("Why isn't it approved? The seller sees this note on the draft.", "We couldn't confirm this item is genuine.");
+    if (note === null) return;
+  }
+  try {
+    await authApi(`/brands/review/${encodeURIComponent(row.dataset.reviewId)}`, {
+      method: "POST",
+      body: { action: choice === "reject" ? "reject" : "approve", authorize: choice === "authorize", note },
+    });
+    showMessage(brandAdmin.message, choice === "reject" ? "Listing rejected; it stays a draft." : "Listing approved and published.");
+    loadBrandReview();
+  } catch (error) {
+    showMessage(brandAdmin.message, error.message || "Could not update the listing.", true);
+  }
+});
+
 // ── Tabs ───────────────────────────────────────────────────────────────────────
 
 function initTabs() {
@@ -3583,6 +3835,10 @@ async function initAdminPage() {
   initTabs();
   loadAttributes();
   loadWarehouseOptions();
+  if (isAdmin) {
+    loadBrandAdmin().then(() => renderBrandOptions(adminProducts || []));
+    loadBrandReview();
+  }
   if (session.role === "superadmin") {
     loadCalendar();
     loadCoupons();

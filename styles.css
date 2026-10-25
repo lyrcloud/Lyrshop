@@ -367,6 +367,15 @@ textarea {
   display: block;
 }
 
+.shortcut-icon {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #fde8e8, #eef4ff);
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
 .category-shortcut strong {
   max-width: 100%;
   font-size: 0.95rem;
@@ -9184,5 +9193,537 @@ iframe.skiptranslate,
   .bid-row .button {
     padding-left: 1rem;
     padding-right: 1rem;
+  }
+}
+
+/* ── Brands & Stores (brands.html) and the admin Brands tab ───────────────── */
+.brands-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 16px 3rem;
+}
+
+.brands-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.brands-hero h1 {
+  margin: 0 0 0.3rem;
+}
+
+.brands-hero p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.brands-country {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.brands-country select,
+.brands-toolbar input[type="search"] {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 0.75rem;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.brands-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.brands-tab {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  padding: 0.6rem 0.9rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.brands-tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--brand);
+}
+
+.brands-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0.9rem;
+}
+
+.brands-toolbar input[type="search"] {
+  flex: 1 1 260px;
+  max-width: 520px;
+}
+
+.brands-local {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.brands-local input {
+  width: auto;
+  margin: 0;
+}
+
+.brands-sectors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.brands-letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-bottom: 0.8rem;
+}
+
+.brands-letters button {
+  min-width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.brands-letters button.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
+.brands-letters button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.brands-count {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.brands-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.brand-tile {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.brand-tile:hover {
+  border-color: #d1d5db;
+  box-shadow: var(--shadow-md);
+}
+
+.brand-tile-text {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.brand-tile-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-tile-sector {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.brand-logo {
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.brand-logo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 6px;
+  background: #ffffff;
+}
+
+.brand-monogram {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: hsl(var(--brand-hue, 0) 55% 92%);
+  color: hsl(var(--brand-hue, 0) 45% 30%);
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.brand-logo-large {
+  width: 104px;
+  height: 104px;
+  border-radius: 20px;
+}
+
+.brand-logo-large .brand-monogram {
+  font-size: 2rem;
+}
+
+.brand-logo-small {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+}
+
+.brand-logo-small .brand-monogram {
+  font-size: 0.65rem;
+}
+
+.brand-logo-small img {
+  padding: 2px;
+}
+
+.brand-tags,
+.brand-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.brand-tag {
+  display: inline-block;
+  padding: 0.12rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.brand-tag-local {
+  background: #ecfdf3;
+  box-shadow: inset 0 0 0 1px #bbf7d0;
+  color: var(--success);
+}
+
+.brand-tag-count {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px #c7d7fe;
+  color: var(--accent);
+}
+
+.brand-tag-protected {
+  background: #fff7ed;
+  box-shadow: inset 0 0 0 1px #fed7aa;
+  color: #9a3412;
+}
+
+.brands-more {
+  display: block;
+  margin: 1.25rem auto 0;
+}
+
+.brands-crumbs {
+  margin-bottom: 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.brands-crumbs a {
+  color: var(--accent);
+}
+
+.brand-card-large {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  margin-bottom: 1.25rem;
+}
+
+.brand-summary {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.brand-summary h1 {
+  margin: 0 0 0.5rem;
+}
+
+.brand-summary p {
+  color: var(--ink-soft);
+  max-width: 70ch;
+}
+
+.brand-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin: 0 0 1rem;
+}
+
+.brand-facts dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.brand-facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.brand-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.brand-availability {
+  margin-bottom: 1.5rem;
+}
+
+.brand-availability h2,
+.brand-detail h2,
+#brand-listings-title,
+#brand-related-wrap h2 {
+  font-size: 1.2rem;
+  margin: 1.25rem 0 0.6rem;
+}
+
+.brand-listings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.9rem;
+}
+
+.brand-product {
+  display: block;
+  cursor: pointer;
+}
+
+.brand-product-image {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: #f6f7f9;
+  overflow: hidden;
+}
+
+.brand-product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.5rem;
+}
+
+.brand-product-name {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.brand-product-price {
+  margin: 0;
+  font-weight: 700;
+}
+
+.brand-was {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.brand-product-meta {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.brands-empty {
+  color: var(--ink-soft);
+}
+
+.brands-empty a {
+  color: var(--accent);
+}
+
+.brand-related {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.brand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.75rem 0.3rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: 0.88rem;
+}
+
+.brand-chip:hover {
+  border-color: #d1d5db;
+}
+
+/* Admin Brands tab */
+.brand-admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.brand-admin-filters input,
+.brand-admin-filters select {
+  flex: 1 1 200px;
+  width: auto;
+  margin: 0;
+}
+
+.brand-admin-filters .button {
+  flex: 0 0 auto;
+}
+
+.brand-admin-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand-admin-row .brand-logo {
+  width: 40px;
+  height: 40px;
+}
+
+.brand-admin-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.brand-admin-main strong {
+  display: block;
+}
+
+.brand-admin-main small {
+  color: var(--muted);
+}
+
+.brand-admin-hidden {
+  opacity: 0.55;
+}
+
+.brand-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.brand-form-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.brand-sector-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  max-height: 180px;
+  overflow: auto;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.brand-sector-picks label {
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
+.brand-review-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand-review-row img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f6f7f9;
+}
+
+@media (max-width: 640px) {
+  .brands-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-listings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .brand-review-row,
+  .brand-admin-row {
+    flex-wrap: wrap;
   }
 }

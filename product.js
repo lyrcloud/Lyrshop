@@ -170,7 +170,7 @@ function renderSpecifics(product, specs = []) {
   const specifics = [
     ["Condition", escapeHtml(conditionLabel(product)) + (product.condition_note ? `<br><small>${escapeHtml(product.condition_note)}</small>` : "")],
     ["Brand", product.brand
-      ? `<a href="index.html?view=brands&brand=${encodeURIComponent(product.brand)}#product-list">${escapeHtml(product.brand)}</a>`
+      ? `<a href="brands.html?b=${encodeURIComponent(product.brand)}">${escapeHtml(product.brand)}</a>`
       : escapeHtml(describedBrand || "Unbranded")],
     ["Category", escapeHtml([product.category, product.subcategory].filter(Boolean).join(" › "))],
     ["Model", escapeHtml(model || "Does not apply")],

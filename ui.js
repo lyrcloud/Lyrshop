@@ -492,7 +492,7 @@ function initSearchBox({ form, getProducts, getCategories, onChange, onSubmit, i
     const rows = [
       ...products.map((p) => ({ kind: "Product", label: p.name, meta: formatPrice(p.price),
         href: `product.html?id=${encodeURIComponent(p.id)}`, image: p.image_url })),
-      ...brands.map((b) => ({ kind: "Brand", label: b, href: `index.html?view=brands&brand=${encodeURIComponent(b)}#product-list` })),
+      ...brands.map((b) => ({ kind: "Brand", label: b, href: `brands.html?b=${encodeURIComponent(b)}` })),
       ...categories.map((c) => ({ kind: "Category", label: c.label, href: `index.html?category=${encodeURIComponent(c.name)}#product-list` })),
     ];
     list.innerHTML = rows.length

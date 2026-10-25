@@ -95,7 +95,7 @@ function normalizeCategories(categories) {
     return {
       ...category,
       label: category.label || category.name,
-      image_url: category.image_url || fallback.image_url || defaultStorefrontCategories[0].image_url,
+      image_url: category.image_url || fallback.image_url || "",
       subcategories: Array.isArray(category.subcategories)
         ? category.subcategories.filter(Boolean)
         : (fallback.subcategories || []),
@@ -164,7 +164,7 @@ function renderStorefrontCategories() {
   if (showcase) {
     showcase.innerHTML = categories.filter((category) => category.featured !== false).map((category) => `
       <a href="#product-list" class="category-shortcut" data-shortcut-category="${escapeHtml(category.name)}">
-        <span class="shortcut-image"><img src="${escapeHtml(category.image_url || defaultStorefrontCategories[0].image_url)}" alt="" /></span>
+        <span class="shortcut-image">${shortcutPicture(category)}</span>
         <strong>${escapeHtml(category.label)}</strong>
       </a>
     `).join("");
@@ -173,6 +173,26 @@ function renderStorefrontCategories() {
 
 
   renderCategoryMenu(categories);
+}
+
+// Categories without a stock photo show one of their own listings, or their icon until the catalog has one.
+function categoryPhoto(name) {
+  const product = allProducts.find((p) => p.category === name && p.image_url && p.image_url !== PLACEHOLDER_IMAGE_URL);
+  return product ? product.image_url : "";
+}
+
+function shortcutPicture(category) {
+  const photo = category.image_url || categoryPhoto(category.name);
+  if (photo) return `<img src="${escapeHtml(photo)}" alt="" />`;
+  const icon = category.icon || defaultStorefrontCategories.find((item) => item.name === category.name)?.icon || category.label.slice(0, 1);
+  return `<span class="shortcut-icon" data-photo-for="${escapeHtml(category.name)}" aria-hidden="true">${escapeHtml(icon)}</span>`;
+}
+
+function fillCategoryPhotos() {
+  document.querySelectorAll(".shortcut-icon[data-photo-for]").forEach((icon) => {
+    const photo = categoryPhoto(icon.dataset.photoFor);
+    if (photo) icon.outerHTML = `<img src="${escapeHtml(photo)}" alt="" />`;
+  });
 }
 
 function getFilteredProducts() {
@@ -365,18 +385,18 @@ function syncListingUrl() {
 const HERO_IMAGE = (id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&h=520&q=70`;
 const HERO_AUTOPLAY_MS = 6000;
 const HERO_PROMOS = [
-  { eyebrow: "Welcome to Lyrshop", title: "Everyday picks and rare scores", text: "Browse 20 categories from Lyrshop sellers.",
+  { eyebrow: "Welcome to Lyrshop", title: "Everyday picks and rare scores", text: `Browse ${defaultStorefrontCategories.length} categories and 790+ brands and stores.`,
     cta: "Shop now", href: "#product-list", image: "1550009158-9ebf69173e03", tone: "#f7d7c4" },
-  { eyebrow: "Motors", title: "Gear up your ride", text: "Parts, accessories, tires and garage tools.",
-    cta: "Shop Motors", href: "index.html?category=Motors#product-list", image: "1492144534655-ae79c964c9d7", tone: "#dfe6f0" },
-  { eyebrow: "Electronics", title: "Tech for every day", text: "Laptops, phones, cameras and smart home.",
-    cta: "Shop Electronics", href: "index.html?category=Electronics#product-list", image: "1517336714731-489689fd1ca8", tone: "#e6e1f7" },
-  { eyebrow: "Clothing & Accessories", title: "Style that fits", text: "Clothing, handbags and collectible sneakers.",
+  { eyebrow: "Auto & Moto", title: "Gear up your ride", text: "Parts, lighting, tires and garage tools.",
+    cta: "Shop Auto & Moto", href: "index.html?category=Motors#product-list", image: "1492144534655-ae79c964c9d7", tone: "#dfe6f0" },
+  { eyebrow: "Tech & Gadgets", title: "Tech for every day", text: "Cameras, drones, smart home and clever gadgets.",
+    cta: "Shop Tech & Gadgets", href: "index.html?category=Electronics#product-list", image: "1517336714731-489689fd1ca8", tone: "#e6e1f7" },
+  { eyebrow: "Fashion & Apparel", title: "Style that fits", text: "Clothing for every day, every season and every culture.",
     cta: "Shop fashion", href: "index.html?category=Lifestyle#product-list", image: "1483985988355-763728e1935b", tone: "#f3e3e8" },
-  { eyebrow: "Home & Garden", title: "Refresh your space", text: "Furniture, kitchen, bedding and garden.",
-    cta: "Shop Home & Garden", href: "index.html?category=Home#product-list", image: "1505693416388-ac5ce068fe85", tone: "#ece6dc" },
-  { eyebrow: "All Brands", title: "Shop by brand", text: "Find your favorite makers, A to Z.",
-    cta: "Browse brands", href: "index.html?view=brands#product-list", image: "1441986300917-64674bd600d8", tone: "#e3efe6" },
+  { eyebrow: "Home & Living", title: "Refresh your space", text: "Furniture, decor, bedding and lighting.",
+    cta: "Shop Home & Living", href: "index.html?category=Home#product-list", image: "1505693416388-ac5ce068fe85", tone: "#ece6dc" },
+  { eyebrow: "Brands & Stores", title: "Shop by brand", text: "From Nike to Toyota, and the stores near you.",
+    cta: "Browse brands", href: "brands.html", image: "1441986300917-64674bd600d8", tone: "#e3efe6" },
 ];
 let heroSlides = [];
 // GET /calendar: the open sales-calendar event (if any) and the next one, which drive the banner and first slides.
@@ -767,6 +787,7 @@ async function loadProducts() {
     productsLoaded = true;
   } finally {
     refreshListing();
+    fillCategoryPhotos();
     // Rebuild once products arrive so real sale events get their own slides.
     if (allProducts.some(isOnSale)) renderHeroSlider();
     renderEventBanner();

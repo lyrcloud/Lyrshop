@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brands & Stores | Lyrshop</title>
+  <meta name="description" content="Shop by brand on Lyrshop: Nike, Adidas, Tiffany & Co., Toyota, Samsung and hundreds more, plus the stores in your country." />
+  <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+  <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
+  <link rel="manifest" href="/site.webmanifest?v=2" />
+  <meta name="theme-color" content="#e53238" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=20261025-3" />
+</head>
+<body>
+  <header class="page-header compact-header">
+    <a href="index.html" aria-label="Lyrshop home">
+      <svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+        <text x="15" y="72" font-family="Georgia, serif" font-size="60" font-weight="bold" font-style="italic" fill="#e53238">lyrshop</text>
+      </svg>
+    </a>
+    <div class="header-actions">
+      <a href="index.html" class="button button-secondary">Shop</a>
+      <a href="cart.html" class="button button-secondary">Cart <span class="count-badge" data-count="cart" hidden></span></a>
+    </div>
+  </header>
+
+  <main class="brands-page">
+    <!-- Directory: every brand and store, nearest first -->
+    <section id="brands-directory">
+      <div class="brands-hero">
+        <div>
+          <h1>Brands &amp; Stores</h1>
+          <p id="brands-intro">International brands and the stores in your country, all in one place.</p>
+        </div>
+        <label class="brands-country">
+          <span>Showing for</span>
+          <select id="brands-country"></select>
+        </label>
+      </div>
+
+      <div class="brands-tabs" role="tablist" aria-label="Brand type">
+        <button type="button" class="brands-tab active" data-kind="" role="tab" aria-selected="true">All</button>
+        <button type="button" class="brands-tab" data-kind="brand" role="tab" aria-selected="false">Brands</button>
+        <button type="button" class="brands-tab" data-kind="retailer" role="tab" aria-selected="false">Stores &amp; retailers</button>
+      </div>
+
+      <div class="brands-toolbar">
+        <input type="search" id="brands-search" placeholder="Search brands, like Nike, Toyota or Tesco" autocomplete="off" aria-label="Search brands" />
+        <label class="brands-local"><input type="checkbox" id="brands-local" /> Only in my country</label>
+      </div>
+      <div id="brands-sectors" class="brands-sectors" aria-label="Sectors"></div>
+      <nav id="brands-letters" class="brands-letters" aria-label="Jump to letter"></nav>
+
+      <p id="brands-count" class="brands-count" aria-live="polite"></p>
+      <div id="brands-grid" class="brands-grid"></div>
+      <button type="button" id="brands-more" class="button button-secondary brands-more" hidden>Show more</button>
+    </section>
+
+    <!-- One brand: who they are, where they trade, and their listings on Lyrshop -->
+    <section id="brand-detail" hidden>
+      <nav class="brands-crumbs"><a href="brands.html">Brands &amp; Stores</a> <span aria-hidden="true">›</span> <span id="brand-crumb"></span></nav>
+      <div class="brand-card-large">
+        <div class="brand-logo brand-logo-large" id="brand-logo"></div>
+        <div class="brand-summary">
+          <h1 id="brand-name"></h1>
+          <div id="brand-pills" class="brand-pills"></div>
+          <p id="brand-description"></p>
+          <dl id="brand-facts" class="brand-facts"></dl>
+          <div class="brand-actions">
+            <a id="brand-website" class="button button-secondary" target="_blank" rel="nofollow noopener" hidden></a>
+            <a id="brand-shop-all" class="button button-primary" hidden>See all listings</a>
+          </div>
+        </div>
+      </div>
+      <section class="brand-availability" id="brand-availability"></section>
+      <h2 id="brand-listings-title">On Lyrshop</h2>
+      <div id="brand-listings" class="product-grid brand-listings"></div>
+      <section id="brand-related-wrap" hidden>
+        <h2>Similar brands</h2>
+        <div id="brand-related" class="brand-related"></div>
+      </section>
+    </section>
+  </main>
+
+  <footer data-site-footer>
+    <p>&copy; 2026 Lyrshop. Powered by Lyrcloud.</p>
+  </footer>
+
+  <script src="auth.js?v=20261023-1"></script>
+  <script src="locale.js?v=20261018-1"></script>
+  <script src="ui.js?v=20261025-2"></script>
+  <script src="brands.js?v=20261025-1"></script>
+  <script src="footer.js?v=20261025-1"></script>
+  <script src="lyrbot.js?v=20261018-1"></script>
+</body>
+</html>

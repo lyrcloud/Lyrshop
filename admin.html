@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261025-2" />
+  <link rel="stylesheet" href="styles.css?v=20261025-3" />
 </head>
 <body>
   <header class="page-header">
@@ -34,6 +34,7 @@
       <button class="admin-tab admin-only" type="button" data-admin-section="orders">Orders</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="users">Users</button>
       <button class="admin-tab admin-only" type="button" data-admin-section="categories">Categories</button>
+      <button class="admin-tab admin-only" type="button" data-admin-section="brands">Brands <span class="count-badge" id="brand-review-count" hidden></span></button>
       <button class="admin-tab admin-only" type="button" data-admin-section="suppliers">CJ Dropshipping</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="calendar" hidden>Sales calendar</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="coupons" hidden>Coupons</button>
@@ -785,6 +786,88 @@
       <div id="partner-list" class="business-list"></div>
     </section>
 
+    <section class="admin-panel admin-section admin-only" id="admin-brands-section">
+      <div class="panel-header">
+        <h2>Brands &amp; retailers</h2>
+        <p>The directory shoppers see on <a href="brands.html" target="_blank" rel="noopener">Brands &amp; Stores</a>: international brands by sector and retailers by the countries they trade in, nearest first for each shopper. Listings link to a brand by their brand name or any of its aliases. Protected brands can only be listed by staff and the brand's authorized sellers; anyone else's listing waits below as a draft.</p>
+      </div>
+
+      <h3>Brand review</h3>
+      <div id="brand-review-list" class="brand-review-list"><p class="cj-hint">Nothing waiting for review.</p></div>
+
+      <h3>Directory</h3>
+      <div class="brand-admin-filters">
+        <input type="search" id="brand-admin-search" placeholder="Search brands" aria-label="Search brands" />
+        <select id="brand-admin-kind" aria-label="Type">
+          <option value="">Brands and stores</option>
+          <option value="brand">Brands</option>
+          <option value="retailer">Stores &amp; retailers</option>
+        </select>
+        <select id="brand-admin-status" aria-label="Show">
+          <option value="">All</option>
+          <option value="active">Active</option>
+          <option value="hidden">Hidden</option>
+          <option value="protected">Protected</option>
+          <option value="edited">Changed by you</option>
+        </select>
+        <button type="button" id="brand-add" class="button button-primary superadmin-only" hidden>Add a brand</button>
+      </div>
+
+      <form id="brand-form" class="admin-crud-form" hidden novalidate>
+        <h3 id="brand-form-title">Add a brand</h3>
+        <div class="brand-form-grid">
+          <label>Name<input type="text" id="brand-name" maxlength="80" required /></label>
+          <label>Type
+            <span class="brand-sector-picks">
+              <label><input type="checkbox" id="brand-kind-brand" value="brand" /> Brand</label>
+              <label><input type="checkbox" id="brand-kind-retailer" value="retailer" /> Store / retailer</label>
+            </span>
+          </label>
+          <label>Tier
+            <select id="brand-tier">
+              <option value="luxury">Luxury</option>
+              <option value="premium">Premium</option>
+              <option value="mainstream">Everyday (mainstream)</option>
+              <option value="value">Value</option>
+            </select>
+          </label>
+          <label>Status
+            <select id="brand-status">
+              <option value="active">Active</option>
+              <option value="hidden">Hidden</option>
+            </select>
+          </label>
+          <label>From (country code)<input type="text" id="brand-origin" maxlength="2" placeholder="JP" /></label>
+          <label>Website<input type="text" id="brand-website" maxlength="200" placeholder="toyota.com" /></label>
+          <label class="wide">Countries it sells in<input type="text" id="brand-markets" placeholder="* for worldwide, or US GB KE NG" /></label>
+          <label class="wide">Also known as (comma separated)<input type="text" id="brand-aliases" placeholder="Lexus, TOYOTA MOTOR" /></label>
+          <div class="wide">
+            <span>Sectors</span>
+            <div id="brand-sectors" class="brand-sector-picks"></div>
+          </div>
+          <label class="wide">Description<textarea id="brand-description" rows="3" maxlength="1200" placeholder="Left blank, the page says what kind of brand it is."></textarea></label>
+          <label class="wide">Logo
+            <span class="brand-admin-filters">
+              <input type="url" id="brand-logo-url" placeholder="https:// (blank uses the website icon)" />
+              <input type="file" id="brand-logo-file" accept="image/png,image/jpeg,image/webp" aria-label="Upload a logo" />
+            </span>
+          </label>
+          <label><span><input type="checkbox" id="brand-featured" /> Featured (shown first)</span></label>
+          <label><span><input type="checkbox" id="brand-protected" /> Protected (authorized sellers only)</span></label>
+          <label class="wide">Authorized sellers (emails, one per line)<textarea id="brand-sellers" rows="3" placeholder="store@example.com"></textarea></label>
+        </div>
+        <div class="admin-form-actions">
+          <button type="submit" class="button button-primary">Save brand</button>
+          <button type="button" id="brand-cancel" class="button button-secondary">Cancel</button>
+          <button type="button" id="brand-delete" class="button danger-button" hidden>Delete</button>
+        </div>
+      </form>
+      <div id="brand-admin-message" class="admin-message"></div>
+      <p id="brand-admin-count" class="cj-hint"></p>
+      <div id="brand-admin-list"></div>
+      <button type="button" id="brand-admin-more" class="button button-secondary brands-more" hidden>Show more</button>
+    </section>
+
     <section class="admin-panel admin-section admin-only" id="admin-suppliers-section">
       <div class="panel-header">
         <h2>CJ Dropshipping</h2>
@@ -960,9 +1043,9 @@
 
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
-  <script src="categories.js?v=20261011-2"></script>
-  <script src="admin.js?v=20261025-5"></script>
-  <script src="footer.js?v=20261024-1"></script>
+  <script src="categories.js?v=20261025-1"></script>
+  <script src="admin.js?v=20261025-6"></script>
+  <script src="footer.js?v=20261025-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>
 </html>

@@ -1,11 +1,12 @@
-// Site-wide footer, laid out like eBay's: link columns, then a copyright line. Fills every <footer data-site-footer>.
+// Site-wide footer: link columns, then a copyright line. Fills every <footer data-site-footer>.
 const FOOTER_COLUMNS = [
   {
     title: "Buy",
     links: [
       ["Registration", "auth.html"],
       ["Today's deals", "index.html?view=deals#product-list"],
-      ["All brands", "index.html?view=brands#product-list"],
+      ["Brands A to Z", "brands.html"],
+      ["Stores near you", "brands.html?kind=retailer&local=1"],
       ["Watchlist", "index.html?view=watchlist#product-list"],
       ["Cart", "cart.html"],
       ["Gift cards", "giftcards.html"],
