@@ -4,6 +4,7 @@ const BRANDS_PAGE_SIZE = 60;
 const BRAND_COUNTRY_KEY = "lyrshopBrandsCountry";
 const BRAND_TIER_LABELS = { luxury: "Luxury", premium: "Premium", mainstream: "Everyday", value: "Value" };
 const BRAND_MARKETS_SHOWN = 24;
+const BRANDS_PER_GROUP = 8;
 
 const brandParams = new URLSearchParams(window.location.search);
 const brandState = {
@@ -15,6 +16,7 @@ const brandState = {
   country: "",
   shown: BRANDS_PAGE_SIZE,
   brands: [],
+  sectors: [],
 };
 
 const brandEls = {
@@ -113,6 +115,7 @@ async function loadDirectory() {
     if (request !== directoryRequest) return;
     brandState.brands = data.brands || [];
     brandState.shown = BRANDS_PAGE_SIZE;
+    brandState.sectors = data.facets?.sectors || [];
     renderFacets(data.facets || {});
     renderDirectory();
   } catch (error) {
@@ -135,13 +138,43 @@ function renderFacets(facets) {
   ].join("");
 }
 
+// Without a sector, letter or search the directory is shown category by category (a brand in two sectors shows in both).
+function directoryGroups() {
+  const groups = brandState.sectors.map((sector) => ({ key: sector.key, label: sector.label, brands: [] }));
+  const byKey = new Map(groups.map((group) => [group.key, group]));
+  const other = { key: "", label: "Other brands & stores", brands: [] };
+  brandState.brands.forEach((brand) => {
+    const homes = brand.sectors.map((sector) => byKey.get(sector.key)).filter(Boolean);
+    (homes.length ? homes : [other]).forEach((group) => group.brands.push(brand));
+  });
+  return [...groups, other].filter((group) => group.brands.length);
+}
+
 function renderDirectory() {
   const total = brandState.brands.length;
   const place = brandState.country ? LyrLocale.countryName(brandState.country) : "";
   const localCount = brandState.brands.filter((b) => b.local).length;
-  brandEls.count.textContent = total
-    ? `${total} ${total === 1 ? "result" : "results"}${place ? ` · ${localCount} available in ${place}` : ""}`
+  const grouped = !brandState.sector && !brandState.letter && !brandState.q;
+  const groups = grouped ? directoryGroups() : [];
+  const categories = grouped ? ` in ${groups.length} ${groups.length === 1 ? "category" : "categories"}` : "";
+  brandEls.count.innerHTML = total
+    ? `<strong>${total.toLocaleString()}</strong> ${total === 1 ? "brand" : "brands"}${categories}${place ? ` · <strong>${localCount.toLocaleString()}</strong> available in ${brandEscape(place)}` : ""}`
     : "No brands match. Try another search or sector.";
+  if (grouped) {
+    brandEls.grid.className = "brands-groups";
+    brandEls.grid.innerHTML = groups.map((group) => `
+      <section class="brands-group">
+        <div class="brands-group-head">
+          <h2>${brandEscape(group.label)} <span class="brands-group-count">${group.brands.length.toLocaleString()}</span></h2>
+          ${group.key && group.brands.length > BRANDS_PER_GROUP
+            ? `<button type="button" class="brands-group-all" data-sector="${brandEscape(group.key)}">See all ${group.brands.length.toLocaleString()} ›</button>` : ""}
+        </div>
+        <div class="brands-grid">${group.brands.slice(0, group.key ? BRANDS_PER_GROUP : brandState.shown).map(brandCard).join("")}</div>
+      </section>`).join("");
+    brandEls.more.hidden = true;
+    return;
+  }
+  brandEls.grid.className = "brands-grid";
   brandEls.grid.innerHTML = brandState.brands.slice(0, brandState.shown).map(brandCard).join("");
   brandEls.more.hidden = brandState.shown >= total;
   brandEls.more.textContent = `Show more (${total - brandState.shown} left)`;
@@ -198,6 +231,14 @@ function initDirectory() {
     brandState.letter = "";
     loadDirectory();
   });
+  brandEls.grid.addEventListener("click", (event) => {
+    const all = event.target.closest(".brands-group-all");
+    if (!all) return;
+    brandState.sector = all.dataset.sector;
+    brandState.letter = "";
+    loadDirectory();
+    brandEls.sectors.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   brandEls.letters.addEventListener("click", (event) => {
     const button = event.target.closest("[data-letter]");
     if (!button || button.disabled) return;
@@ -247,13 +288,30 @@ function marketsList(brand, country) {
   return `<p>${lead} Trades in ${names.length} ${names.length === 1 ? "country" : "countries"}:</p><div class="brand-tags">${chips}${more}</div>`;
 }
 
+// Category names are stored on listings; the storefront shows Lyrshop's labels for them (categories.js).
+function brandCategoryLabel(name) {
+  let categories = [];
+  try {
+    categories = JSON.parse(localStorage.getItem("lyrshopCategories") || "[]");
+  } catch {
+    // Unreadable or blocked storage falls back to the built-in names.
+  }
+  const all = [...(Array.isArray(categories) ? categories : []), ...(typeof LYRSHOP_DEFAULT_CATEGORIES === "undefined" ? [] : LYRSHOP_DEFAULT_CATEGORIES)];
+  return all.find((category) => category?.name === name)?.label || name;
+}
+
+let brandCategory = brandParams.get("category") || "";
+
 async function loadBrand(ref) {
   brandEls.directory.hidden = true;
   brandEls.detail.hidden = false;
   const country = storedBrandCountry() || LyrLocale.country() || "";
   document.getElementById("brand-name").textContent = ref;
+  const params = new URLSearchParams();
+  if (country) params.set("country", country);
+  if (brandCategory) params.set("category", brandCategory);
   try {
-    const data = await authApi(`/brands/item/${encodeURIComponent(ref)}${country ? `?country=${country}` : ""}`);
+    const data = await authApi(`/brands/item/${encodeURIComponent(ref)}${params.toString() ? `?${params}` : ""}`);
     renderBrand(data, country);
   } catch (error) {
     document.getElementById("brand-description").textContent = error.status === 404 || error.status === 403
@@ -290,14 +348,15 @@ function renderBrand(data, country) {
   document.getElementById("brand-availability").innerHTML = brand.markets.length
     ? `<h2>Where to find ${brandEscape(brand.name)}</h2>${marketsList(brand, country)}` : "";
   document.getElementById("brand-listings-title").textContent = data.listing_total
-    ? `${brand.name} on Lyrshop (${data.listing_total})` : `${brand.name} on Lyrshop`;
+    ? `${brand.name} on Lyrshop (${data.listing_total.toLocaleString()})` : `${brand.name} on Lyrshop`;
+  renderBrandCategories(data);
   document.getElementById("brand-listings").innerHTML = data.listings.length
-    ? data.listings.map(listingCard).join("")
+    ? brandListingsHtml(data)
     : `<p class="brands-empty">No ${brandEscape(brand.name)} listings yet. ${brand.protected
       ? "This brand is sold only by authorized sellers; email support@lyrshop.com to become one."
       : `Have one to sell? <a href="admin.html">List it on Lyrshop</a>.`}</p>`;
   const shopAll = document.getElementById("brand-shop-all");
-  if (data.listing_total > data.listings.length) {
+  if ((data.category_total ?? data.listing_total) > data.listings.length) {
     shopAll.href = `index.html?search=${encodeURIComponent(brand.name)}#product-list`;
     shopAll.hidden = false;
   }
@@ -306,6 +365,50 @@ function renderBrand(data, country) {
   document.getElementById("brand-related").innerHTML = related.map((r) => `
     <a class="brand-chip" href="brands.html?b=${encodeURIComponent(r.slug)}"><span class="brand-logo brand-logo-small">${brandLogo(r)}</span>${brandEscape(r.name)}</a>`).join("");
 }
+
+// Chips with the brand's listing count in every category; picking one reloads only that category's listings.
+function renderBrandCategories(data) {
+  const wrap = document.getElementById("brand-categories");
+  const categories = data.categories || [];
+  wrap.hidden = categories.length < 2;
+  wrap.innerHTML = [
+    `<button type="button" class="filter-chip${data.category ? "" : " active"}" data-category="">All <span>${data.listing_total.toLocaleString()}</span></button>`,
+    ...categories.map((c) => `<button type="button" class="filter-chip${data.category === c.name ? " active" : ""}" data-category="${brandEscape(c.name)}">${brandEscape(brandCategoryLabel(c.name))} <span>${c.count.toLocaleString()}</span></button>`),
+  ].join("");
+}
+
+// All categories: one section per category, biggest first; a picked category: its listings in one grid.
+function brandListingsHtml(data) {
+  const categories = data.categories || [];
+  if (data.category || categories.length < 2) return `<div class="product-grid brand-listings">${data.listings.map(listingCard).join("")}</div>`;
+  const sections = categories.map((c) => ({ ...c, listings: data.listings.filter((p) => p.category === c.name) }));
+  const loose = data.listings.filter((p) => !categories.some((c) => c.name === p.category));
+  if (loose.length) sections.push({ name: "", count: loose.length, listings: loose });
+  return sections.filter((section) => section.listings.length).map((section) => `
+    <section class="brand-category-group">
+      <div class="brands-group-head">
+        <h3>${brandEscape(section.name ? brandCategoryLabel(section.name) : "Other")} <span class="brands-group-count">${section.count.toLocaleString()}</span></h3>
+        ${section.name && section.count > section.listings.length
+          ? `<button type="button" class="brands-group-all" data-category="${brandEscape(section.name)}">See all ${section.count.toLocaleString()} ›</button>` : ""}
+      </div>
+      <div class="product-grid brand-listings">${section.listings.map(listingCard).join("")}</div>
+    </section>`).join("");
+}
+
+function pickBrandCategory(event) {
+  const target = event.target.closest("[data-category]");
+  if (!target) return;
+  brandCategory = target.dataset.category;
+  const url = new URLSearchParams(window.location.search);
+  if (brandCategory) url.set("category", brandCategory);
+  else url.delete("category");
+  history.replaceState(null, "", `brands.html?${url}`);
+  document.getElementById("brand-categories").scrollIntoView({ behavior: "smooth", block: "start" });
+  loadBrand(brandParams.get("b"));
+}
+
+document.getElementById("brand-categories").addEventListener("click", pickBrandCategory);
+document.getElementById("brand-listings").addEventListener("click", pickBrandCategory);
 
 const brandRef = brandParams.get("b");
 if (brandRef) loadBrand(brandRef);

@@ -137,6 +137,7 @@ function readJson(key, fallback) {
 
 // Accounts live on the server; admins load them through the /auth/users API (see auth.js authApi).
 let adminUsers = [];
+let adminUsersLoaded = false;
 
 function readSession() {
   return getCurrentUser();
@@ -242,6 +243,7 @@ function canEditProduct(product, session) {
 
 const ADMIN_PRODUCT_PAGE_SIZE = 48;
 let adminProducts = [];
+let adminProductsLoaded = false;
 let adminProductLimit = ADMIN_PRODUCT_PAGE_SIZE;
 
 // Regional admins see only the listings they manage; everyone else sees what the server sent.
@@ -269,6 +271,7 @@ function renderProducts(session) {
   const draftCount = managed.filter((product) => product.status === "draft").length;
   const visible = getVisibleAdminProducts();
   productFilterCount.textContent = `${visible.length} of ${managed.length} listings · ${draftCount} drafts`;
+  renderAdminTotals();
 
   if (!visible.length) {
     currentProducts.innerHTML = managed.length
@@ -335,6 +338,7 @@ async function loadCurrentProducts(session) {
     const res = await fetch(url, { headers: sessionHeaders() });
     const json = await res.json();
     adminProducts = json.products || [];
+    adminProductsLoaded = true;
     renderProductFilterCategories();
     renderProducts(session);
     renderBrandOptions(adminProducts);
@@ -1069,6 +1073,7 @@ function canManageUser(user) {
 async function loadUsers() {
   try {
     adminUsers = (await authApi("/auth/users")).users || [];
+    adminUsersLoaded = true;
     renderUsers();
   } catch (error) {
     userTableBody.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
@@ -1080,6 +1085,7 @@ async function loadUsers() {
 }
 
 function renderUsers() {
+  renderAdminTotals();
 
   if (!adminUsers.length) {
     userTableBody.innerHTML = `<tr><td colspan="6">No users yet. Create one here or sign up from the auth page.</td></tr>`;
@@ -1201,6 +1207,7 @@ async function handleUserTableClick(event) {
 // ── Order management ───────────────────────────────────────────────────────────
 
 let adminOrders = [];
+let adminOrdersLoaded = false;
 
 function formatMoney(value) {
   return `$${(Number(value) || 0).toFixed(2)}`;
@@ -1239,6 +1246,7 @@ function getVisibleOrders() {
 function renderOrders() {
   const visible = getVisibleOrders();
   orderFilterCount.textContent = `${visible.length} of ${adminOrders.length} orders`;
+  renderAdminTotals();
 
   if (!visible.length) {
     orderTableBody.innerHTML = `<tr><td colspan="8">${adminOrders.length ? "No orders match these filters." : "No orders yet."}</td></tr>`;
@@ -1274,6 +1282,7 @@ function renderOrders() {
 async function loadOrders() {
   try {
     adminOrders = (await authApi("/orders")).orders || [];
+    adminOrdersLoaded = true;
     renderOrders();
   } catch (error) {
     orderTableBody.innerHTML = `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
@@ -3197,6 +3206,8 @@ const brandAdmin = {
   shown: BRAND_ADMIN_PAGE,
   canEdit: false,
   editing: null,
+  total: null,
+  active: 0,
 };
 let directoryBrandNames = [];
 
@@ -3220,7 +3231,12 @@ async function loadBrandAdmin() {
     brandAdmin.sectors = data.sectors || [];
     brandAdmin.canEdit = Boolean(data.can_edit);
     brandAdmin.shown = BRAND_ADMIN_PAGE;
-    if (!params.toString()) directoryBrandNames = brandAdmin.brands.filter((b) => b.status === "active").map((b) => b.name);
+    if (!params.toString()) {
+      directoryBrandNames = brandAdmin.brands.filter((b) => b.status === "active").map((b) => b.name);
+      brandAdmin.total = brandAdmin.brands.length;
+      brandAdmin.active = directoryBrandNames.length;
+      renderAdminTotals();
+    }
     renderBrandAdmin();
     showBrandReviewCount(data.review_count);
   } catch (error) {
@@ -3425,6 +3441,31 @@ brandAdmin.review.addEventListener("click", async (event) => {
 });
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
+
+// ── Totals ─────────────────────────────────────────────────────────────────────
+// The cards above the tabs and the numbers on the tabs, refreshed whenever products, brands, orders or users render.
+
+function setTotal(key, total, detail) {
+  const known = total !== null && total !== undefined;
+  document.getElementById(`total-${key}`).textContent = known ? total.toLocaleString() : "…";
+  document.getElementById(`total-${key}-detail`).textContent = known ? detail : "";
+  const tab = document.getElementById(`tab-total-${key}`);
+  if (tab) tab.textContent = known ? total.toLocaleString() : "";
+}
+
+function renderAdminTotals() {
+  const products = managedProducts();
+  const drafts = products.filter((product) => product.status === "draft").length;
+  setTotal("products", adminProductsLoaded ? products.length : null, `${(products.length - drafts).toLocaleString()} live · ${drafts.toLocaleString()} drafts`);
+  if (!isStaffRole(readSession()?.role)) return;
+  setTotal("brands", brandAdmin.total, `${brandAdmin.active.toLocaleString()} shown in the directory`);
+  const paid = adminOrders.filter((order) => order.payment_status === "paid");
+  const toShip = paid.filter((order) => getFulfillmentStatus(order) === "unfulfilled").length;
+  const sales = paid.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
+  setTotal("orders", adminOrdersLoaded ? adminOrders.length : null, `${paid.length.toLocaleString()} paid · ${toShip.toLocaleString()} to ship · ${formatMoney(sales)}`);
+  const staff = adminUsers.filter((user) => user.role === "admin" || user.role === "superadmin").length;
+  setTotal("users", adminUsersLoaded ? adminUsers.length : null, `${(adminUsers.length - staff).toLocaleString()} customers · ${staff.toLocaleString()} staff`);
+}
 
 function initTabs() {
   document.querySelectorAll(".admin-tab").forEach((tab) => {
@@ -3822,7 +3863,7 @@ async function initAdminPage() {
     document.getElementById("admin-eyebrow").textContent = "Seller hub";
     document.getElementById("admin-title").textContent = `Welcome, ${session.name}`;
     document.getElementById("admin-subtitle").textContent = "Manage your product listings on Lyrshop.";
-    document.querySelector("[data-admin-section='products']").textContent = "My Products";
+    document.getElementById("total-products-label").textContent = "My products";
   } else {
     document.getElementById("admin-eyebrow").textContent = session.role === "superadmin" ? "Super admin dashboard" : "Admin dashboard";
     document.getElementById("admin-title").textContent = "Manage Lyrshop";

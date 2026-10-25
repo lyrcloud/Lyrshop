@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261025-3" />
+  <link rel="stylesheet" href="styles.css?v=20261025-4" />
 </head>
 <body>
   <header class="page-header">
@@ -28,13 +28,36 @@
   </header>
 
   <main class="admin-page">
+    <!-- Store totals at a glance; each card opens its section. -->
+    <div class="admin-totals" aria-label="Totals">
+      <button type="button" class="admin-total" data-open-section="products">
+        <span class="admin-total-label" id="total-products-label">Products</span>
+        <strong id="total-products">…</strong>
+        <small id="total-products-detail"></small>
+      </button>
+      <button type="button" class="admin-total admin-only" data-open-section="brands">
+        <span class="admin-total-label">Brands</span>
+        <strong id="total-brands">…</strong>
+        <small id="total-brands-detail"></small>
+      </button>
+      <button type="button" class="admin-total admin-only" data-open-section="orders">
+        <span class="admin-total-label">Orders</span>
+        <strong id="total-orders">…</strong>
+        <small id="total-orders-detail"></small>
+      </button>
+      <button type="button" class="admin-total admin-only" data-open-section="users">
+        <span class="admin-total-label">Users</span>
+        <strong id="total-users">…</strong>
+        <small id="total-users-detail"></small>
+      </button>
+    </div>
     <nav class="admin-tabs" aria-label="Sections">
-      <button class="admin-tab active" type="button" data-admin-section="products">My Products</button>
+      <button class="admin-tab active" type="button" data-admin-section="products">My Products <span class="tab-total" id="tab-total-products"></span></button>
       <button class="admin-tab" type="button" data-admin-section="attributes">Attributes</button>
-      <button class="admin-tab admin-only" type="button" data-admin-section="orders">Orders</button>
-      <button class="admin-tab admin-only" type="button" data-admin-section="users">Users</button>
+      <button class="admin-tab admin-only" type="button" data-admin-section="orders">Orders <span class="tab-total" id="tab-total-orders"></span></button>
+      <button class="admin-tab admin-only" type="button" data-admin-section="users">Users <span class="tab-total" id="tab-total-users"></span></button>
       <button class="admin-tab admin-only" type="button" data-admin-section="categories">Categories</button>
-      <button class="admin-tab admin-only" type="button" data-admin-section="brands">Brands <span class="count-badge" id="brand-review-count" hidden></span></button>
+      <button class="admin-tab admin-only" type="button" data-admin-section="brands">Brands <span class="tab-total" id="tab-total-brands"></span> <span class="count-badge" id="brand-review-count" hidden></span></button>
       <button class="admin-tab admin-only" type="button" data-admin-section="suppliers">CJ Dropshipping</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="calendar" hidden>Sales calendar</button>
       <button class="admin-tab superadmin-only" type="button" data-admin-section="coupons" hidden>Coupons</button>
@@ -1048,7 +1071,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="categories.js?v=20261025-1"></script>
-  <script src="admin.js?v=20261025-7"></script>
+  <script src="admin.js?v=20261025-8"></script>
   <script src="footer.js?v=20261025-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>

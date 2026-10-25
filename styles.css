@@ -9727,3 +9727,128 @@ iframe.skiptranslate,
     flex-wrap: wrap;
   }
 }
+
+/* ── Totals: admin cards and tab numbers, brand directory and brand page categories ── */
+
+.admin-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.admin-total {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.admin-total[hidden] {
+  display: none;
+}
+
+.admin-total:hover {
+  border-color: #d1d5db;
+  box-shadow: var(--shadow-md);
+}
+
+.admin-total-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-total strong {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-total small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.admin-tab {
+  white-space: nowrap;
+}
+
+.tab-total {
+  margin-left: 0.25rem;
+  padding: 0 0.4rem;
+  border-radius: var(--radius-pill);
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab-total:empty {
+  display: none;
+}
+
+.brands-groups {
+  display: grid;
+  gap: 1.75rem;
+}
+
+.brands-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.brands-group-head h2,
+.brands-group-head h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.brands-group-count {
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-soft);
+  box-shadow: 0 0 0 1px var(--line);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.brands-group-all {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.brands-group-all:hover {
+  text-decoration: underline;
+}
+
+.brand-listings-wrap {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.brand-category-group .brand-listings {
+  margin-top: 0.25rem;
+}
