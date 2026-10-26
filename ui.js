@@ -579,7 +579,137 @@ function renderUserGreeting() {
   });
 }
 
+const DRAWER_ICONS = {
+  home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+  watch: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  bag: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  offer: '<path d="M4 12l8-8h8v8l-8 8z"/><circle cx="16" cy="8" r="1.4"/>',
+  clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+  sell: '<path d="M4 7h16v13H4z"/><path d="M4 7l2-3h12l2 3"/><path d="M10 11h4"/>',
+  star: '<path d="M12 4l2.4 5 5.6.6-4.2 3.8 1.2 5.6L12 16.2 7 19l1.2-5.6L4 9.6 9.6 9z"/>',
+  gift: '<path d="M4 10h16v10H4z"/><path d="M3 7h18v3H3z"/><path d="M12 7v13"/><path d="M12 7c-2-3-5-3-5-1s3 1 5 1c2 0 5 1 5-1s-3-2-5 1z"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  deals: '<path d="M5 19L19 5"/><circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>',
+  brands: '<path d="M4 6h16v12H4z"/><path d="M8 10h8M8 14h5"/>',
+  grid: '<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/>',
+  card: '<path d="M3 6h18v12H3z"/><path d="M3 10h18"/>',
+  cart: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.6 12h11.2L21 7H6"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><circle cx="12" cy="17" r=".6"/>',
+  out: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
+};
+
+function drawerIcon(name) {
+  return `<svg class="drawer-icon" viewBox="0 0 24 24" aria-hidden="true">${DRAWER_ICONS[name]}</svg>`;
+}
+
+// The signed-in shopper's side menu, like the eBay app's: profile on top, then shopping, account and help links.
+function initAccountDrawer() {
+  const user = typeof getCurrentUser === "function" ? getCurrentUser() : null;
+  const logoLink = document.querySelector("header .logo")?.closest("a");
+  if (!user || !logoLink || document.getElementById("account-drawer")) return;
+
+  const firstName = String(user.name || "there").split(" ")[0];
+  const staff = typeof isStaffRole === "function" && isStaffRole(user.role);
+  const item = (href, icon, label, badge = "") => `<a href="${href}" class="drawer-link">${drawerIcon(icon)}<span>${label}</span>${badge}</a>`;
+  const groups = [
+    [
+      item("index.html", "home", "Home"),
+      item("index.html?view=watchlist#product-list", "watch", "Saved", '<span class="count-badge" data-count="watchlist" hidden></span>'),
+      item("dashboard.html#purchases", "bag", "Purchases"),
+      item("dashboard.html#offers", "offer", "Bids &amp; offers"),
+      item("dashboard.html#recently-viewed", "clock", "Recently viewed"),
+      item("admin.html", "sell", "Selling"),
+    ],
+    [
+      item("index.html?view=deals#product-list", "deals", "Deals"),
+      item("brands.html", "brands", "Brands"),
+      '<button type="button" class="drawer-link" data-drawer-categories>' + drawerIcon("grid") + "<span>Categories</span></button>",
+      item("giftcards.html", "card", "Gift cards"),
+      item("cart.html", "cart", "Cart", '<span class="count-badge" data-count="cart" hidden></span>'),
+    ],
+    [
+      item("dashboard.html#rewards", "star", "Rewards &amp; badges"),
+      item("dashboard.html#gift-cards", "gift", "My gift cards"),
+      item("dashboard.html#affiliate", "link", "Affiliate"),
+      item("dashboard.html#account", "gear", "Settings"),
+      staff ? item("admin.html", "shield", "Admin") : "",
+      item("dashboard.html", "help", "Help &amp; orders"),
+      '<button type="button" class="drawer-link" data-drawer-signout>' + drawerIcon("out") + "<span>Sign out</span></button>",
+    ],
+  ];
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "drawer-toggle";
+  toggle.setAttribute("aria-label", "Open menu");
+  toggle.setAttribute("aria-controls", "account-drawer");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
+  const brand = document.createElement("div");
+  brand.className = "drawer-brand";
+  logoLink.replaceWith(brand);
+  brand.append(toggle, logoLink);
+
+  const scrim = document.createElement("div");
+  scrim.className = "drawer-scrim";
+  scrim.hidden = true;
+  const drawer = document.createElement("aside");
+  drawer.id = "account-drawer";
+  drawer.className = "account-drawer";
+  drawer.setAttribute("aria-label", "My Lyrshop menu");
+  drawer.hidden = true;
+  drawer.innerHTML = `
+    <div class="drawer-profile">
+      ${userAvatar(user, "drawer-avatar")}
+      <div>
+        <strong>Hi, ${uiEscape(firstName)}</strong>
+        <a href="dashboard.html#account">View account</a>
+      </div>
+      <button type="button" class="drawer-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="drawer-nav">${groups.map((links) => `<div class="drawer-group">${links.join("")}</div>`).join("")}</nav>
+  `;
+  document.body.append(scrim, drawer);
+
+  const setOpen = (open) => {
+    toggle.setAttribute("aria-expanded", String(open));
+    document.body.classList.toggle("drawer-open", open);
+    if (open) {
+      scrim.hidden = false;
+      drawer.hidden = false;
+      void drawer.offsetWidth; // Start the slide-in from the closed position.
+      drawer.classList.add("is-open");
+      drawer.querySelector(".drawer-close").focus({ preventScroll: true });
+    } else {
+      drawer.classList.remove("is-open");
+      scrim.hidden = true;
+      window.setTimeout(() => { if (!drawer.classList.contains("is-open")) drawer.hidden = true; }, 250);
+    }
+  };
+  toggle.addEventListener("click", () => setOpen(true));
+  scrim.addEventListener("click", () => setOpen(false));
+  drawer.querySelector(".drawer-close").addEventListener("click", () => { setOpen(false); toggle.focus(); });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && drawer.classList.contains("is-open")) { setOpen(false); toggle.focus(); }
+  });
+  // Same-page links (dashboard sections) only change the hash, so close the menu for them too.
+  drawer.querySelectorAll("a.drawer-link").forEach((link) => link.addEventListener("click", () => setOpen(false)));
+  drawer.querySelector("[data-drawer-categories]").addEventListener("click", () => {
+    setOpen(false);
+    const menuButton = document.getElementById("category-menu-button");
+    if (menuButton) menuButton.click();
+    else window.location.href = "index.html#product-list";
+  });
+  drawer.querySelector("[data-drawer-signout]").addEventListener("click", () => {
+    if (typeof clearCurrentUser === "function") clearCurrentUser();
+    window.location.href = "index.html";
+  });
+}
+
 function initSharedUi() {
+  initAccountDrawer();
   updateHeaderCounts();
   renderUserGreeting();
   initBackToTop();

@@ -9913,3 +9913,187 @@ iframe.skiptranslate,
     left: 0.85rem;
   }
 }
+
+/* Signed-in side menu (eBay app style) */
+.drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.drawer-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.drawer-toggle:hover {
+  background: var(--surface-soft);
+}
+
+.drawer-toggle:focus-visible,
+.drawer-close:focus-visible,
+.drawer-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.drawer-toggle svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(17, 24, 39, 0.45);
+}
+
+.account-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  width: min(320px, 86vw);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+}
+
+.account-drawer.is-open {
+  transform: translateX(0);
+}
+
+body.drawer-open {
+  overflow: hidden;
+}
+
+.drawer-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-profile > div {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.drawer-profile strong {
+  overflow: hidden;
+  font-size: 1.1rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.drawer-profile a {
+  color: var(--accent);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.drawer-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--brand);
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.drawer-close {
+  align-self: flex-start;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.drawer-close:hover {
+  background: var(--surface-soft);
+}
+
+.drawer-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.35rem 0 1rem;
+}
+
+.drawer-group {
+  padding: 0.35rem 0;
+}
+
+.drawer-group + .drawer-group {
+  border-top: 1px solid var(--line);
+}
+
+.drawer-link {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.7rem 1.1rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.98rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.drawer-link:hover {
+  background: var(--surface-soft);
+}
+
+.drawer-link span:not(.count-badge) {
+  flex: 1;
+}
+
+.drawer-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-drawer {
+    transition: none;
+  }
+}
