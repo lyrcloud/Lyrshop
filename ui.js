@@ -598,10 +598,171 @@ const DRAWER_ICONS = {
   shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><circle cx="12" cy="17" r=".6"/>',
   out: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  basket: '<path d="M3 9h18l-2 11H5z"/><path d="M8 9l3-5M16 9l-3-5"/>',
+  chevron: '<path d="M9 6l6 6-6 6"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
 };
 
 function drawerIcon(name) {
   return `<svg class="drawer-icon" viewBox="0 0 24 24" aria-hidden="true">${DRAWER_ICONS[name]}</svg>`;
+}
+
+// Category tree for the header menu: the admin's saved list when there is one, else the defaults from categories.js.
+function headerMenuCategories() {
+  const defaults = typeof LYRSHOP_DEFAULT_CATEGORIES !== "undefined" ? LYRSHOP_DEFAULT_CATEGORIES : [];
+  try {
+    const saved = JSON.parse(localStorage.getItem("lyrshopCategories") || "null");
+    return Array.isArray(saved) ? saved.filter((category) => category?.name) : defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+// Tablets and phones (eBay style): the top bar folds into icon buttons on the right, and a cascading menu drops
+// down from the right edge with the links, the category tree, account links and the language picker.
+function initHeaderMenu() {
+  const row = document.querySelector("header.header .header-top, header.compact-header:not(.invoice-chrome)");
+  const actions = row?.querySelector(".header-actions");
+  if (!actions || document.getElementById("header-menu")) return;
+
+  const user = typeof getCurrentUser === "function" ? getCurrentUser() : null;
+  const staff = user && typeof isStaffRole === "function" && isStaffRole(user.role);
+  const iconLink = (href, icon, label, badge = "") =>
+    `<a href="${href}" class="header-icon" aria-label="${label}" title="${label}">${drawerIcon(icon)}${badge}</a>`;
+  const item = (href, icon, label, badge = "") =>
+    `<a href="${href}" class="header-menu-link">${drawerIcon(icon)}<span>${label}</span>${badge}</a>`;
+  const standardHrefs = new Set(["index.html", "cart.html", "dashboard.html", "admin.html", "brands.html", "giftcards.html", "groceries.html"]);
+
+  // This page's own header buttons (API reference, My gift cards...) that the standard links don't already cover.
+  const pageItems = [...actions.children].map((child, index) => {
+    const label = child.textContent.trim();
+    if (child.matches("a") && !standardHrefs.has(child.getAttribute("href"))) return item(child.getAttribute("href"), "link", uiEscape(label));
+    if (child.matches("button") && label !== "Sign out") return `<button type="button" class="header-menu-link" data-header-proxy="${index}">${drawerIcon("link")}<span>${uiEscape(label)}</span></button>`;
+    return "";
+  }).join("");
+
+  const categories = headerMenuCategories();
+  const categoryHref = (name, subcategory = "") =>
+    `index.html?category=${encodeURIComponent(name)}${subcategory ? `&subcategory=${encodeURIComponent(subcategory)}` : ""}#product-list`;
+  const categoryTree = categories.length ? `
+    <div class="header-menu-group">
+      <button type="button" class="header-menu-link header-menu-branch" aria-expanded="false" data-header-categories>
+        ${drawerIcon("grid")}<span>Shop by category</span>${drawerIcon("chevron")}
+      </button>
+      <ul class="header-menu-sub" hidden>
+        ${categories.map((category) => `
+          <li>
+            <button type="button" class="header-menu-link header-menu-branch" aria-expanded="false">
+              <span>${uiEscape(category.label || category.name)}</span>${drawerIcon("chevron")}
+            </button>
+            <ul class="header-menu-sub" hidden>
+              <li><a href="${categoryHref(category.name)}" class="header-menu-link header-menu-all"><span>See all ${uiEscape(category.label || category.name)}</span></a></li>
+              ${(category.subcategories || []).filter(Boolean).map((subcategory) =>
+                `<li><a href="${categoryHref(category.name, subcategory)}" class="header-menu-link"><span>${uiEscape(subcategory)}</span></a></li>`).join("")}
+            </ul>
+          </li>`).join("")}
+      </ul>
+    </div>` : "";
+
+  const profile = user
+    ? `<div class="header-menu-profile">
+        ${userAvatar(user, "header-menu-avatar")}
+        <div><strong>Hi, ${uiEscape(String(user.name || "there").split(" ")[0])}</strong><a href="dashboard.html#account">View account</a></div>
+      </div>`
+    : `<div class="header-menu-profile header-menu-guest">
+        <a href="auth.html" class="button button-primary">Sign in</a>
+        <a href="auth.html" class="button button-secondary">Register</a>
+      </div>`;
+
+  const icons = document.createElement("div");
+  icons.className = "header-icons";
+  icons.innerHTML = `
+    ${iconLink("index.html?view=watchlist#product-list", "watch", "Watchlist", '<span class="count-badge" data-count="watchlist" hidden></span>')}
+    ${iconLink("cart.html", "cart", "Cart", '<span class="count-badge" data-count="cart" hidden></span>')}
+    ${user
+      ? `<a href="dashboard.html" class="header-icon" aria-label="My Lyrshop" title="My Lyrshop">${userAvatar(user, "header-icon-avatar")}</a>`
+      : iconLink("auth.html", "user", "Sign in")}
+    <div class="header-menu-wrap">
+      <button type="button" class="header-icon header-menu-toggle" aria-label="Menu" aria-expanded="false" aria-controls="header-menu">${drawerIcon("menu")}</button>
+      <nav class="header-menu" id="header-menu" aria-label="Site menu" hidden>
+        ${profile}
+        ${pageItems ? `<div class="header-menu-group">${pageItems}</div>` : ""}
+        ${categoryTree}
+        <div class="header-menu-group">
+          ${item("index.html", "home", "Home")}
+          ${item("index.html?view=deals#product-list", "deals", "Deals")}
+          ${item("brands.html", "brands", "Brands")}
+          ${item("giftcards.html", "card", "Gift cards")}
+          ${item("groceries.html", "basket", "Groceries")}
+          ${item("admin.html", "sell", "Sell")}
+        </div>
+        <div class="header-menu-group">
+          ${item("index.html?view=watchlist#product-list", "watch", "Watchlist", '<span class="count-badge" data-count="watchlist" hidden></span>')}
+          ${item("cart.html", "cart", "Cart", '<span class="count-badge" data-count="cart" hidden></span>')}
+          ${user ? `
+            ${item("dashboard.html#purchases", "bag", "Purchases")}
+            ${item("dashboard.html#offers", "offer", "Bids &amp; offers")}
+            ${item("dashboard.html#rewards", "star", "Rewards &amp; badges")}
+            ${item("dashboard.html#account", "gear", "Settings")}
+            ${staff ? item("admin.html", "shield", "Admin") : ""}` : item("dashboard.html", "user", "My Lyrshop")}
+          ${item("dashboard.html", "help", "Help &amp; orders")}
+          ${user ? `<button type="button" class="header-menu-link" data-header-signout>${drawerIcon("out")}<span>Sign out</span></button>` : ""}
+        </div>
+        <div class="header-menu-locale" data-locale-picker></div>
+      </nav>
+    </div>`;
+  row.append(icons);
+  row.classList.add("has-header-icons");
+
+  const toggle = icons.querySelector(".header-menu-toggle");
+  const menu = icons.querySelector(".header-menu");
+  const setOpen = (open) => {
+    menu.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.innerHTML = drawerIcon(open ? "close" : "menu");
+  };
+  const expand = (branch, open) => {
+    branch.setAttribute("aria-expanded", String(open));
+    branch.nextElementSibling.hidden = !open;
+  };
+  toggle.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setOpen(menu.hidden);
+  });
+  menu.addEventListener("click", (event) => {
+    const branch = event.target.closest(".header-menu-branch");
+    if (branch) {
+      // One open category at a time keeps the menu short on a phone.
+      const open = branch.getAttribute("aria-expanded") !== "true";
+      branch.closest("ul")?.querySelectorAll(":scope > li > .header-menu-branch").forEach((other) => { if (other !== branch) expand(other, false); });
+      expand(branch, open);
+      return;
+    }
+    const proxy = event.target.closest("[data-header-proxy]");
+    if (proxy) actions.children[Number(proxy.dataset.headerProxy)]?.click();
+    if (event.target.closest("[data-header-signout]")) {
+      if (typeof clearCurrentUser === "function") clearCurrentUser();
+      window.location.href = "index.html";
+    }
+    if (event.target.closest("a")) setOpen(false);
+  });
+  document.addEventListener("click", (event) => {
+    if (!menu.hidden && !event.target.closest(".header-menu-wrap")) setOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !menu.hidden) { setOpen(false); toggle.focus(); }
+  });
+
+  // The signed-in side menu's "Categories" opens this menu's category tree when the header is folded.
+  window.openHeaderCategories = () => {
+    if (!toggle.offsetParent) return false;
+    setOpen(true);
+    const branch = menu.querySelector("[data-header-categories]");
+    if (branch) expand(branch, true);
+    return true;
+  };
 }
 
 // The signed-in shopper's side menu, like the eBay app's: profile on top, then shopping, account and help links.
@@ -704,6 +865,7 @@ function initAccountDrawer() {
     // Without this the category panel's outside-click handler would close the panel straight away.
     event.stopPropagation();
     setOpen(false);
+    if (window.openHeaderCategories?.()) return;
     const menuButton = document.getElementById("category-menu-button");
     if (menuButton) {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -775,6 +937,7 @@ function initAccountRail(user, { openMenu, openCategories, signOut }) {
 }
 
 function initSharedUi() {
+  initHeaderMenu();
   initAccountDrawer();
   updateHeaderCounts();
   renderUserGreeting();

@@ -317,15 +317,12 @@ function categoryLabel(name) {
   return readStorefrontCategories().find((category) => category.name === name)?.label || name;
 }
 
-// Result count, removable chips for each active filter, and the sort menu.
+// Removable chips for each active filter, and the sort menu. Shoppers don't see how many items the store has.
 function renderListingToolbar() {
-  const count = document.getElementById("listing-count");
   const active = document.getElementById("active-filters");
   const sortSelect = document.getElementById("sort-select");
-  if (!count || !active || !sortSelect) return;
+  if (!active || !sortSelect) return;
 
-  const total = getFilteredProducts().length;
-  count.textContent = productsLoaded ? `${total} ${total === 1 ? "item" : "items"}` : "Loading items...";
   const chips = [
     searchQuery && { key: "search", label: `"${searchQuery}"` },
     activeCategory !== "All" && { key: "category", label: categoryLabel(activeCategory) },
@@ -464,10 +461,10 @@ function buildHeroSlides() {
   });
   const saleSlides = [...events.entries()]
     .sort(([, a], [, b]) => b.count - a.count)
-    .map(([name, { count, best }]) => ({
+    .map(([name, { best }]) => ({
       eyebrow: "Sale event",
       title: best ? `${name}: up to ${best}% off` : name,
-      text: `${count} marked-down ${count === 1 ? "item" : "items"} from Lyrshop sellers.`,
+      text: "Marked-down items from Lyrshop sellers.",
       cta: "Shop the sale",
       href: `index.html?view=deals${name === "Sale" ? "" : `&event=${encodeURIComponent(name)}`}#product-list`,
       image: "1607082348824-0a96f2a4b9da",

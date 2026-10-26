@@ -1,61 +1,55 @@
-// Site-wide footer: link columns, then a copyright line. Fills every <footer data-site-footer>.
-const FOOTER_COLUMNS = [
+// Site-wide footer, compact like Lyrtrip's: each group's title with its links on one line, then the copyright.
+// Fills every <footer data-site-footer>.
+const FOOTER_GROUPS = [
   {
-    title: "Buy",
+    title: "Shop",
     links: [
-      ["Registration", "auth.html"],
-      ["Today's deals", "index.html?view=deals#product-list"],
-      ["Brands A to Z", "brands.html"],
-      ["Stores near you", "brands.html?kind=retailer&local=1"],
-      ["Watchlist", "index.html?view=watchlist#product-list"],
-      ["Cart", "cart.html"],
+      ["Deals", "index.html?view=deals#product-list"],
+      ["Brands", "brands.html"],
       ["Gift cards", "giftcards.html"],
-      ["Groceries (Aldi, Costco & more)", "groceries.html"],
+      ["Groceries", "groceries.html"],
     ],
   },
   {
     title: "Sell",
     links: [
       ["Start selling", "admin.html"],
-      ["Seller dashboard", "admin.html"],
       ["Dropshipping API", "partners.html"],
     ],
   },
   {
     title: "My Lyrshop",
     links: [
-      ["Summary", "dashboard.html#summary"],
       ["Purchases", "dashboard.html#purchases"],
-      ["Rewards & badges", "dashboard.html#rewards"],
-      ["Affiliate program", "dashboard.html#affiliate"],
-      ["Recently viewed", "dashboard.html#recently-viewed"],
-      ["Account", "dashboard.html#account"],
+      ["Rewards", "dashboard.html#rewards"],
+      ["Affiliate", "dashboard.html#affiliate"],
     ],
   },
   {
-    title: "Help & Contact",
+    title: "Help",
     links: [
       ["Track an order", "dashboard.html#purchases"],
       ["Contact us", "mailto:support@lyrshop.com"],
-      ["Privacy policy", "privacy.html"],
+      ["Privacy", "privacy.html"],
       ["Delete account", "privacy.html#delete-account"],
-      ["Sign in", "auth.html"],
     ],
   },
 ];
 
 function renderSiteFooter(footer) {
-  const columns = FOOTER_COLUMNS.map((column) => `
-    <nav class="footer-column" aria-label="${column.title}">
-      <h2>${column.title}</h2>
-      <ul>${column.links.map(([label, href]) => `<li><a href="${href}">${label}</a></li>`).join("")}</ul>
-    </nav>`).join("");
+  const groups = FOOTER_GROUPS.map((group) => `
+    <div class="footer-group">
+      <span class="footer-group-title">${group.title}</span>
+      ${group.links.map(([label, href]) => `<a href="${href}">${label}</a>`).join("")}
+    </div>`).join("");
   footer.classList.add("site-footer");
   footer.innerHTML = `
-    <div class="footer-columns">${columns}</div>
-    <div class="footer-legal">
-      <p>Copyright &copy; ${new Date().getFullYear()} Lyrshop. All rights reserved. Powered by Lyrcloud.</p>
-      <div data-locale-picker></div>
+    <div class="footer-inner">
+      <nav class="footer-groups" aria-label="Footer">${groups}</nav>
+      <div class="footer-legal">
+        <p>&copy; ${new Date().getFullYear()} Lyrshop. All rights reserved.</p>
+        <div data-locale-picker></div>
+      </div>
     </div>`;
 }
 
