@@ -10274,3 +10274,247 @@ body.drawer-open {
     white-space: nowrap;
   }
 }
+
+/* ══ Slim header (eBay style): thin top bar, one compact row with logo, category button and a smaller search ══ */
+.header {
+  background: #ffffff;
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.05);
+}
+
+.utility-bar {
+  background: #ffffff;
+  border-bottom: 1px solid #f0f1f4;
+  font-size: 0.78rem;
+}
+
+.utility-inner {
+  padding: 0.28rem 1.5rem;
+}
+
+.utility-links {
+  gap: 1rem;
+}
+
+.utility-links a {
+  color: #374151;
+  font-weight: 500;
+}
+
+.utility-links a:hover {
+  color: var(--ink);
+}
+
+.utility-greeting {
+  padding-left: 1rem;
+}
+
+.utility-bar select,
+.utility-bar .locale-select {
+  min-height: 0;
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
+  font-size: 0.78rem;
+}
+
+.header-top {
+  gap: 0.85rem;
+  padding: 0.55rem 1.5rem;
+}
+
+.header-top .logo {
+  height: 40px;
+}
+
+.header .category-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: auto;
+  max-width: 92px;
+  padding: 0.3rem 0.45rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.header .category-menu::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.header .category-menu[aria-expanded="true"]::after {
+  margin-top: 3px;
+  transform: rotate(-135deg);
+}
+
+.header .category-menu:hover,
+.header .category-menu[aria-expanded="true"] {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.header .search-bar {
+  max-width: 860px;
+  min-width: 220px;
+  height: 42px;
+  border: 2px solid var(--ink);
+  box-shadow: none;
+}
+
+.header .search-bar:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.header .search-bar .search-field input {
+  height: 100%;
+  padding: 0 3.6rem 0 1rem;
+  font-size: 0.95rem;
+}
+
+.header .search-bar .search-field.has-voice input {
+  padding-right: 4.8rem;
+}
+
+.header .search-bar .search-category {
+  flex-basis: 150px;
+  height: 26px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 0.84rem;
+}
+
+.header .search-button {
+  align-self: stretch;
+  min-width: 0;
+  margin: 3px;
+  padding: 0 1.5rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.header .search-button:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+.header .search-voice {
+  width: 28px;
+  height: 28px;
+}
+
+.header .header-actions {
+  margin-left: auto;
+}
+
+.header .header-actions .button {
+  min-height: 0;
+  padding: 0.45rem 1rem;
+  font-size: 0.88rem;
+}
+
+.compact-header {
+  padding-top: 0.6rem;
+}
+
+.compact-header .logo {
+  width: 124px;
+}
+
+@media (max-width: 768px) {
+  .header-top {
+    gap: 0.5rem;
+    padding: 0.45rem 0.85rem 0.6rem;
+  }
+
+  .header-top .logo {
+    height: 34px;
+  }
+
+  /* One slim line that scrolls sideways instead of wrapping onto several rows. */
+  .utility-inner {
+    position: relative;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.3rem 0.85rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .utility-inner::-webkit-scrollbar {
+    display: none;
+  }
+
+  .utility-links,
+  .utility-links.utility-right {
+    display: flex;
+    flex-wrap: nowrap;
+    flex: 0 0 auto;
+    gap: 0.9rem;
+  }
+
+  .utility-greeting {
+    padding-left: 0.9rem;
+  }
+
+  .header .search-bar {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+    height: 40px;
+    padding: 0;
+    min-width: 0;
+    border: 2px solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: #ffffff;
+  }
+
+  .header .search-bar .search-field input,
+  .header .search-bar .search-field.has-voice input {
+    border: 0;
+    border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+    padding-right: 2.6rem;
+  }
+
+  .header .search-bar .search-category,
+  .header .search-hint {
+    display: none;
+  }
+
+  .header .search-button {
+    align-self: center;
+    width: auto;
+    height: 30px;
+    min-height: 0;
+    flex: 0 0 auto;
+    margin: 0 3px;
+    padding: 0 0.9rem;
+    border: 0;
+    border-radius: var(--radius-pill);
+    font-size: 0.85rem;
+  }
+
+  .header .header-actions .button {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.82rem;
+  }
+
+  .compact-header .logo {
+    width: 112px;
+  }
+}
