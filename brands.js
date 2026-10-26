@@ -151,23 +151,18 @@ function directoryGroups() {
 }
 
 function renderDirectory() {
-  const total = brandState.brands.length;
-  const place = brandState.country ? LyrLocale.countryName(brandState.country) : "";
-  const localCount = brandState.brands.filter((b) => b.local).length;
   const grouped = !brandState.sector && !brandState.letter && !brandState.q;
   const groups = grouped ? directoryGroups() : [];
-  const categories = grouped ? ` in ${groups.length} ${groups.length === 1 ? "category" : "categories"}` : "";
-  brandEls.count.innerHTML = total
-    ? `<strong>${total.toLocaleString()}</strong> ${total === 1 ? "brand" : "brands"}${categories}${place ? ` · <strong>${localCount.toLocaleString()}</strong> available in ${brandEscape(place)}` : ""}`
-    : "No brands match. Try another search or sector.";
+  // Shoppers don't see how many brands there are; the line only speaks up when nothing matches.
+  brandEls.count.textContent = brandState.brands.length ? "" : "No brands match. Try another search or sector.";
   if (grouped) {
     brandEls.grid.className = "brands-groups";
     brandEls.grid.innerHTML = groups.map((group) => `
       <section class="brands-group">
         <div class="brands-group-head">
-          <h2>${brandEscape(group.label)} <span class="brands-group-count">${group.brands.length.toLocaleString()}</span></h2>
+          <h2>${brandEscape(group.label)}</h2>
           ${group.key && group.brands.length > BRANDS_PER_GROUP
-            ? `<button type="button" class="brands-group-all" data-sector="${brandEscape(group.key)}">See all ${group.brands.length.toLocaleString()} ›</button>` : ""}
+            ? `<button type="button" class="brands-group-all" data-sector="${brandEscape(group.key)}">See all ›</button>` : ""}
         </div>
         <div class="brands-grid">${group.brands.slice(0, group.key ? BRANDS_PER_GROUP : brandState.shown).map(brandCard).join("")}</div>
       </section>`).join("");

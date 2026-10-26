@@ -387,7 +387,7 @@ function syncListingUrl() {
 const HERO_IMAGE = (id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&h=520&q=70`;
 const HERO_AUTOPLAY_MS = 6000;
 const HERO_PROMOS = [
-  { eyebrow: "Welcome to Lyrshop", offer: "🛍️", offerNote: "Shop", title: "Everyday picks and rare scores", text: `Browse ${defaultStorefrontCategories.length} categories and 790+ brands and stores.`,
+  { eyebrow: "Welcome to Lyrshop", offer: "🛍️", offerNote: "Shop", title: "Everyday picks and rare scores", text: "Fashion, tech, home and more from brands and stores worldwide.",
     cta: "Shop now", href: "#product-list", image: "1550009158-9ebf69173e03", tone: "#f7d7c4" },
   { eyebrow: "Auto & Moto", offer: "🚗", offerNote: "Parts", title: "Gear up your ride", text: "Parts, lighting, tires and garage tools.",
     cta: "Shop Auto & Moto", href: "index.html?category=Motors#product-list", image: "1492144534655-ae79c964c9d7", tone: "#dfe6f0" },
@@ -397,7 +397,7 @@ const HERO_PROMOS = [
     cta: "Shop fashion", href: "index.html?category=Lifestyle#product-list", image: "1483985988355-763728e1935b", tone: "#f3e3e8" },
   { eyebrow: "Home & Living", offer: "🛋️", offerNote: "Home", title: "Refresh your space", text: "Furniture, decor, bedding and lighting.",
     cta: "Shop Home & Living", href: "index.html?category=Home#product-list", image: "1505693416388-ac5ce068fe85", tone: "#ece6dc" },
-  { eyebrow: "Brands & Stores", offer: "🏷️", offerNote: "790+", title: "Shop by brand", text: "From Nike to Toyota, and the stores near you.",
+  { eyebrow: "Brands & Stores", offer: "🏷️", offerNote: "Brands", title: "Shop by brand", text: "From Nike to Toyota, and the stores near you.",
     cta: "Browse brands", href: "brands.html", image: "1441986300917-64674bd600d8", tone: "#e3efe6" },
 ];
 let heroSlides = [];
