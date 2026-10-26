@@ -267,9 +267,9 @@ function renderChips(entries, selected, allLabel, dataKey, emptyText) {
   if (!entries.length) return `<p class="listing-empty">${emptyText}</p>`;
   return `
     <button type="button" class="filter-chip ${selected ? "" : "active"}" data-${dataKey}="">${allLabel}</button>
-    ${entries.map(([value, count]) => `
+    ${entries.map(([value]) => `
       <button type="button" class="filter-chip ${value === selected ? "active" : ""}" data-${dataKey}="${escapeHtml(value)}">
-        ${escapeHtml(value)} <span>${count}</span>
+        ${escapeHtml(value)}
       </button>
     `).join("")}
   `;

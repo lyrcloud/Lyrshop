@@ -81,7 +81,7 @@ function brandCard(brand) {
         <span class="brand-tile-sector">${brandEscape(sector)}${brand.kinds.length > 1 ? " · Brand & store" : ""}</span>
         <span class="brand-tags">
           <span class="brand-tag${local}">${brandEscape(availabilityLabel(brand, brandState.country))}</span>
-          ${brand.listings ? `<span class="brand-tag brand-tag-count">${brand.listings} on Lyrshop</span>` : ""}
+          ${brand.listings ? '<span class="brand-tag brand-tag-count">On Lyrshop</span>' : ""}
         </span>
       </span>
     </a>`;
@@ -337,7 +337,7 @@ function renderBrand(data, country) {
   const facts = [];
   if (brand.origin) facts.push(["From", LyrLocale.countryName(brand.origin)]);
   if (brand.aliases.length) facts.push(["Also known as", brand.aliases.slice(0, 6).join(", ")]);
-  facts.push(["On Lyrshop", `${data.listing_total} ${data.listing_total === 1 ? "listing" : "listings"}`]);
+  if (data.listing_total) facts.push(["On Lyrshop", "Yes"]);
   document.getElementById("brand-facts").innerHTML = facts.map(([k, v]) => `<div><dt>${brandEscape(k)}</dt><dd>${brandEscape(v)}</dd></div>`).join("");
   const website = document.getElementById("brand-website");
   if (brand.website) {
@@ -347,8 +347,7 @@ function renderBrand(data, country) {
   }
   document.getElementById("brand-availability").innerHTML = brand.markets.length
     ? `<h2>Where to find ${brandEscape(brand.name)}</h2>${marketsList(brand, country)}` : "";
-  document.getElementById("brand-listings-title").textContent = data.listing_total
-    ? `${brand.name} on Lyrshop (${data.listing_total.toLocaleString()})` : `${brand.name} on Lyrshop`;
+  document.getElementById("brand-listings-title").textContent = `${brand.name} on Lyrshop`;
   renderBrandCategories(data);
   document.getElementById("brand-listings").innerHTML = data.listings.length
     ? brandListingsHtml(data)
@@ -366,14 +365,14 @@ function renderBrand(data, country) {
     <a class="brand-chip" href="brands.html?b=${encodeURIComponent(r.slug)}"><span class="brand-logo brand-logo-small">${brandLogo(r)}</span>${brandEscape(r.name)}</a>`).join("");
 }
 
-// Chips with the brand's listing count in every category; picking one reloads only that category's listings.
+// A chip for every category the brand sells in (shoppers don't see how many listings there are); picking one reloads only that category's listings.
 function renderBrandCategories(data) {
   const wrap = document.getElementById("brand-categories");
   const categories = data.categories || [];
   wrap.hidden = categories.length < 2;
   wrap.innerHTML = [
-    `<button type="button" class="filter-chip${data.category ? "" : " active"}" data-category="">All <span>${data.listing_total.toLocaleString()}</span></button>`,
-    ...categories.map((c) => `<button type="button" class="filter-chip${data.category === c.name ? " active" : ""}" data-category="${brandEscape(c.name)}">${brandEscape(brandCategoryLabel(c.name))} <span>${c.count.toLocaleString()}</span></button>`),
+    `<button type="button" class="filter-chip${data.category ? "" : " active"}" data-category="">All</button>`,
+    ...categories.map((c) => `<button type="button" class="filter-chip${data.category === c.name ? " active" : ""}" data-category="${brandEscape(c.name)}">${brandEscape(brandCategoryLabel(c.name))}</button>`),
   ].join("");
 }
 
@@ -387,9 +386,9 @@ function brandListingsHtml(data) {
   return sections.filter((section) => section.listings.length).map((section) => `
     <section class="brand-category-group">
       <div class="brands-group-head">
-        <h3>${brandEscape(section.name ? brandCategoryLabel(section.name) : "Other")} <span class="brands-group-count">${section.count.toLocaleString()}</span></h3>
+        <h3>${brandEscape(section.name ? brandCategoryLabel(section.name) : "Other")}</h3>
         ${section.name && section.count > section.listings.length
-          ? `<button type="button" class="brands-group-all" data-category="${brandEscape(section.name)}">See all ${section.count.toLocaleString()} ›</button>` : ""}
+          ? `<button type="button" class="brands-group-all" data-category="${brandEscape(section.name)}">See all ›</button>` : ""}
       </div>
       <div class="product-grid brand-listings">${section.listings.map(listingCard).join("")}</div>
     </section>`).join("");
