@@ -696,16 +696,82 @@ function initAccountDrawer() {
   });
   // Same-page links (dashboard sections) only change the hash, so close the menu for them too.
   drawer.querySelectorAll("a.drawer-link").forEach((link) => link.addEventListener("click", () => setOpen(false)));
-  drawer.querySelector("[data-drawer-categories]").addEventListener("click", () => {
-    setOpen(false);
-    const menuButton = document.getElementById("category-menu-button");
-    if (menuButton) menuButton.click();
-    else window.location.href = "index.html#product-list";
-  });
-  drawer.querySelector("[data-drawer-signout]").addEventListener("click", () => {
+  const signOut = () => {
     if (typeof clearCurrentUser === "function") clearCurrentUser();
     window.location.href = "index.html";
+  };
+  const openCategories = (event) => {
+    // Without this the category panel's outside-click handler would close the panel straight away.
+    event.stopPropagation();
+    setOpen(false);
+    const menuButton = document.getElementById("category-menu-button");
+    if (menuButton) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      menuButton.click();
+    }
+    else window.location.href = "index.html#product-list";
+  };
+  drawer.querySelector("[data-drawer-categories]").addEventListener("click", openCategories);
+  drawer.querySelector("[data-drawer-signout]").addEventListener("click", signOut);
+  initAccountRail(user, { openMenu: () => setOpen(true), openCategories, signOut });
+}
+
+// Which rail link matches the page being viewed: the file name, plus ?view= on the home page or the #section on My Lyrshop.
+function railLinkIsCurrent(href) {
+  const target = new URL(href, window.location.href);
+  const page = (path) => path.split("/").pop() || "index.html";
+  if (page(target.pathname) !== page(window.location.pathname)) return false;
+  const view = new URLSearchParams(window.location.search).get("view") || "";
+  if (page(target.pathname) === "index.html") return (target.searchParams.get("view") || "") === view;
+  if (page(target.pathname) === "dashboard.html") {
+    const hash = window.location.hash.slice(1) || "summary";
+    return (target.hash.slice(1) || "summary") === hash;
+  }
+  return true;
+}
+
+// A slim rail fixed to the left edge on wider screens (phones keep the slide-out menu): icons with short labels.
+function initAccountRail(user, { openMenu, openCategories, signOut }) {
+  const link = (href, icon, label, badge = "") =>
+    `<a href="${href}" class="rail-link" title="${label}">${drawerIcon(icon)}<span class="rail-label">${label}</span>${badge}</a>`;
+  const button = (action, icon, label) =>
+    `<button type="button" class="rail-link" data-rail="${action}" title="${label}">${drawerIcon(icon)}<span class="rail-label">${label}</span></button>`;
+  const rail = document.createElement("nav");
+  rail.className = "account-rail";
+  rail.setAttribute("aria-label", "My Lyrshop shortcuts");
+  rail.innerHTML = `
+    <button type="button" class="rail-menu" data-rail="menu" aria-label="Open full menu" aria-controls="account-drawer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <a href="dashboard.html#account" class="rail-profile" title="My account">${userAvatar(user, "rail-avatar")}</a>
+    <div class="rail-links">
+      ${link("index.html", "home", "Home")}
+      ${link("index.html?view=watchlist#product-list", "watch", "Saved", '<span class="count-badge rail-badge" data-count="watchlist" hidden></span>')}
+      ${link("dashboard.html#purchases", "bag", "Orders")}
+      ${link("dashboard.html#offers", "offer", "Offers")}
+      ${link("admin.html", "sell", "Selling")}
+      ${link("index.html?view=deals#product-list", "deals", "Deals")}
+      ${button("categories", "grid", "Browse")}
+      ${link("cart.html", "cart", "Cart", '<span class="count-badge rail-badge" data-count="cart" hidden></span>')}
+    </div>
+    <div class="rail-links rail-bottom">
+      ${link("dashboard.html#account", "gear", "Settings")}
+      ${button("signout", "out", "Sign out")}
+    </div>
+  `;
+  const markCurrent = () => rail.querySelectorAll("a.rail-link").forEach((anchor) => {
+    const current = railLinkIsCurrent(anchor.getAttribute("href"));
+    anchor.classList.toggle("is-current", current);
+    if (current) anchor.setAttribute("aria-current", "page");
+    else anchor.removeAttribute("aria-current");
   });
+  markCurrent();
+  window.addEventListener("hashchange", markCurrent);
+  rail.querySelector('[data-rail="menu"]').addEventListener("click", openMenu);
+  rail.querySelector('[data-rail="categories"]').addEventListener("click", openCategories);
+  rail.querySelector('[data-rail="signout"]').addEventListener("click", signOut);
+  document.body.prepend(rail);
+  document.body.classList.add("has-account-rail");
 }
 
 function initSharedUi() {
