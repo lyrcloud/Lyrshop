@@ -305,10 +305,12 @@ function renderListingControls() {
     subheading.textContent = activeSubcategory || "Everything in this category";
     filters.innerHTML = "";
   } else {
-    heading.textContent = "Today's Deals";
-    subheading.textContent = "Great savings on popular items";
+    heading.textContent = "";
+    subheading.textContent = "";
     filters.innerHTML = "";
   }
+  // The plain home listing has no heading; searches, categories and views keep theirs.
+  heading.closest(".deals-header").hidden = !heading.textContent;
   filters.hidden = !filters.innerHTML;
   renderListingToolbar();
 }
@@ -333,6 +335,9 @@ function renderListingToolbar() {
     activeCondition && { key: "condition", label: CONDITION_FILTER_LABELS[activeCondition] || activeCondition },
     activeFormat && { key: "format", label: FORMAT_FILTER_LABELS[activeFormat] || activeFormat },
   ].filter(Boolean);
+  const signedIn = Boolean(getCurrentUser());
+  document.querySelectorAll(".listing-toolbar .sort-control").forEach((control) => { control.hidden = !signedIn; });
+  active.closest(".listing-toolbar").hidden = !signedIn && !chips.length;
   active.innerHTML = chips.map((chip) => `
     <button type="button" class="active-filter" data-clear="${chip.key}" aria-label="Remove filter ${escapeHtml(chip.label)}">
       ${escapeHtml(chip.label)} <span aria-hidden="true">&times;</span>
@@ -382,17 +387,17 @@ function syncListingUrl() {
 const HERO_IMAGE = (id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&h=520&q=70`;
 const HERO_AUTOPLAY_MS = 6000;
 const HERO_PROMOS = [
-  { eyebrow: "Welcome to Lyrshop", title: "Everyday picks and rare scores", text: `Browse ${defaultStorefrontCategories.length} categories and 790+ brands and stores.`,
+  { eyebrow: "Welcome to Lyrshop", offer: "🛍️", offerNote: "Shop", title: "Everyday picks and rare scores", text: `Browse ${defaultStorefrontCategories.length} categories and 790+ brands and stores.`,
     cta: "Shop now", href: "#product-list", image: "1550009158-9ebf69173e03", tone: "#f7d7c4" },
-  { eyebrow: "Auto & Moto", title: "Gear up your ride", text: "Parts, lighting, tires and garage tools.",
+  { eyebrow: "Auto & Moto", offer: "🚗", offerNote: "Parts", title: "Gear up your ride", text: "Parts, lighting, tires and garage tools.",
     cta: "Shop Auto & Moto", href: "index.html?category=Motors#product-list", image: "1492144534655-ae79c964c9d7", tone: "#dfe6f0" },
-  { eyebrow: "Tech & Gadgets", title: "Tech for every day", text: "Cameras, drones, smart home and clever gadgets.",
+  { eyebrow: "Tech & Gadgets", offer: "📷", offerNote: "Tech", title: "Tech for every day", text: "Cameras, drones, smart home and clever gadgets.",
     cta: "Shop Tech & Gadgets", href: "index.html?category=Electronics#product-list", image: "1517336714731-489689fd1ca8", tone: "#e6e1f7" },
-  { eyebrow: "Fashion & Apparel", title: "Style that fits", text: "Clothing for every day, every season and every culture.",
+  { eyebrow: "Fashion & Apparel", offer: "👗", offerNote: "Style", title: "Style that fits", text: "Clothing for every day, every season and every culture.",
     cta: "Shop fashion", href: "index.html?category=Lifestyle#product-list", image: "1483985988355-763728e1935b", tone: "#f3e3e8" },
-  { eyebrow: "Home & Living", title: "Refresh your space", text: "Furniture, decor, bedding and lighting.",
+  { eyebrow: "Home & Living", offer: "🛋️", offerNote: "Home", title: "Refresh your space", text: "Furniture, decor, bedding and lighting.",
     cta: "Shop Home & Living", href: "index.html?category=Home#product-list", image: "1505693416388-ac5ce068fe85", tone: "#ece6dc" },
-  { eyebrow: "Brands & Stores", title: "Shop by brand", text: "From Nike to Toyota, and the stores near you.",
+  { eyebrow: "Brands & Stores", offer: "🏷️", offerNote: "790+", title: "Shop by brand", text: "From Nike to Toyota, and the stores near you.",
     cta: "Browse brands", href: "brands.html", image: "1441986300917-64674bd600d8", tone: "#e3efe6" },
 ];
 let heroSlides = [];
@@ -423,6 +428,9 @@ function activeEventSlide() {
       ? `${active.message || ""} Trending and new items are marked down today.`.trim()
       : `${active.message || ""} Up to ${active.max_discount}% off on ${formatEventDate(active.date)}.`.trim(),
     cta: "Shop the sale",
+    offer: `${best}%`,
+    offerNote: "off",
+    live: active.phase === "live",
     href: eventDealsHref(active),
     imageUrl: active.image_url || HERO_IMAGE(EVENT_FALLBACK_IMAGE),
     tone: active.tone,
@@ -443,6 +451,8 @@ function upcomingEventSlide() {
     title: next.headline || next.name,
     text: `Deals up to ${next.max_discount}% off on trending and new items start ${formatEventDate(next.opens)}.`,
     cta: "Shop trending now",
+    offer: `${next.max_discount}%`,
+    offerNote: "soon",
     href: "index.html?sort=trending#product-list",
     imageUrl: next.image_url || HERO_IMAGE(EVENT_FALLBACK_IMAGE),
     tone: next.tone,
@@ -466,33 +476,13 @@ function buildHeroSlides() {
       title: best ? `${name}: up to ${best}% off` : name,
       text: "Marked-down items from Lyrshop sellers.",
       cta: "Shop the sale",
+      offer: best ? `${best}%` : "Sale",
+      offerNote: best ? "off" : "",
       href: `index.html?view=deals${name === "Sale" ? "" : `&event=${encodeURIComponent(name)}`}#product-list`,
       image: "1607082348824-0a96f2a4b9da",
       tone: "#fde2e1",
     }));
   return [activeEventSlide(), ...saleSlides, upcomingEventSlide(), ...HERO_PROMOS].filter(Boolean);
-}
-
-// The strip above the slider: the open event with its countdown, or a heads-up for the next one.
-function renderEventBanner() {
-  const banner = document.getElementById("event-banner");
-  if (!banner) return;
-  const active = salesCalendar?.active;
-  const next = upcomingEvent();
-  let text = "";
-  let link = "";
-  if (active) {
-    const best = bestEventDiscount(active) || active.max_discount;
-    text = active.phase === "live"
-      ? `<strong>${escapeHtml(active.name)} is on:</strong> up to ${best}% off trending &amp; new items · ends in ${escapeHtml(timeUntilEndOf(active.closes))}`
-      : `<strong>Early ${escapeHtml(active.name)} deals:</strong> up to ${best}% off now, up to ${active.max_discount}% on ${escapeHtml(formatEventDate(active.date))}`;
-    link = `<a href="${escapeHtml(eventDealsHref(active))}">Shop the sale &rsaquo;</a>`;
-  } else if (next) {
-    text = `<strong>${escapeHtml(next.name)}</strong> deals up to ${next.max_discount}% off start ${escapeHtml(formatEventDate(next.opens))}`;
-  }
-  banner.hidden = !text;
-  banner.style.setProperty("--event-tone", (active || next)?.tone || "#fde2e1");
-  banner.innerHTML = text ? `<span class="event-banner-icon" aria-hidden="true">&#127881;</span><p>${text}</p>${link}` : "";
 }
 
 async function loadSalesCalendar() {
@@ -505,10 +495,7 @@ async function loadSalesCalendar() {
     console.warn("Sales calendar unavailable.", error);
     return;
   }
-  renderEventBanner();
   renderHeroSlider();
-  // Keep the countdown current while the page stays open.
-  window.setInterval(renderEventBanner, 60000);
 }
 
 function goToHeroSlide(index) {
@@ -520,21 +507,40 @@ function goToHeroSlide(index) {
     const current = i === heroIndex;
     slide.setAttribute("aria-hidden", String(!current));
     slide.inert = !current;
+    // Re-adding the class replays the entrance animation each time a slide comes back.
+    slide.classList.remove("is-active");
+    if (current) {
+      void slide.offsetWidth;
+      slide.classList.add("is-active");
+    }
   });
   document.querySelectorAll("#hero-dots button").forEach((dot, i) => {
     dot.setAttribute("aria-selected", String(i === heroIndex));
   });
 }
 
+// The current dot fills up over the autoplay interval; restarting it keeps the bar in step with the timer.
+function restartHeroProgress() {
+  const dot = document.querySelector('#hero-dots button[aria-selected="true"]');
+  if (!dot) return;
+  dot.classList.remove("is-running");
+  void dot.offsetWidth;
+  if (heroTimer) dot.classList.add("is-running");
+}
+
 function stopHeroAutoplay() {
   window.clearInterval(heroTimer);
   heroTimer = null;
+  document.getElementById("hero-slider")?.classList.add("is-paused");
 }
 
 function startHeroAutoplay() {
-  stopHeroAutoplay();
+  window.clearInterval(heroTimer);
+  heroTimer = null;
+  document.getElementById("hero-slider")?.classList.remove("is-paused");
   if (heroSlides.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  heroTimer = window.setInterval(() => goToHeroSlide(heroIndex + 1), HERO_AUTOPLAY_MS);
+  heroTimer = window.setInterval(() => { goToHeroSlide(heroIndex + 1); restartHeroProgress(); }, HERO_AUTOPLAY_MS);
+  restartHeroProgress();
 }
 
 function renderHeroSlider() {
@@ -543,18 +549,22 @@ function renderHeroSlider() {
   if (!track || !dots) return;
   heroSlides = buildHeroSlides();
   track.innerHTML = heroSlides.map((slide, i) => `
-    <article class="market-hero hero-slide" style="--hero-tone: ${slide.tone}" aria-roledescription="slide" aria-label="${i + 1} of ${heroSlides.length}">
+    <article class="market-hero hero-slide" style="--hero-tone: ${slide.tone}" data-href="${escapeHtml(slide.href)}" aria-roledescription="slide" aria-label="${i + 1} of ${heroSlides.length}">
+      <div class="hero-offer ${slide.live ? "is-live" : ""}" aria-hidden="true">
+        <strong>${escapeHtml(slide.offer || "")}</strong>${slide.offerNote ? `<small>${escapeHtml(slide.offerNote)}</small>` : ""}
+      </div>
       <div class="market-hero-copy">
-        <p class="eyebrow">${escapeHtml(slide.eyebrow)}</p>
+        <p class="eyebrow">${slide.live ? '<span class="hero-live-dot"></span>' : ""}${escapeHtml(slide.eyebrow)}</p>
         <h2>${escapeHtml(slide.title)}</h2>
         <p>${escapeHtml(slide.text)}</p>
-        <a href="${escapeHtml(slide.href)}" class="button button-dark">${escapeHtml(slide.cta)}</a>
       </div>
+      <a href="${escapeHtml(slide.href)}" class="button button-dark hero-cta">${escapeHtml(slide.cta)}</a>
       <div class="market-hero-visual" aria-hidden="true">
         <img src="${escapeHtml(slide.imageUrl || HERO_IMAGE(slide.image))}" alt="" ${i === 0 ? "" : 'loading="lazy"'} />
       </div>
     </article>
   `).join("");
+  dots.style.setProperty("--hero-autoplay", `${HERO_AUTOPLAY_MS}ms`);
   dots.innerHTML = heroSlides.map((slide, i) => `
     <button type="button" role="tab" aria-label="Slide ${i + 1}: ${escapeHtml(slide.title)}" data-slide="${i}"></button>
   `).join("");
@@ -564,9 +574,11 @@ function renderHeroSlider() {
 
 function bindHeroSlider() {
   const slider = document.getElementById("hero-slider");
-  if (!slider) return;
-  document.getElementById("hero-prev").addEventListener("click", () => { goToHeroSlide(heroIndex - 1); startHeroAutoplay(); });
-  document.getElementById("hero-next").addEventListener("click", () => { goToHeroSlide(heroIndex + 1); startHeroAutoplay(); });
+  const track = document.getElementById("hero-track");
+  if (!slider || !track) return;
+  const step = (delta) => { goToHeroSlide(heroIndex + delta); startHeroAutoplay(); };
+  document.getElementById("hero-prev").addEventListener("click", () => step(-1));
+  document.getElementById("hero-next").addEventListener("click", () => step(1));
   document.getElementById("hero-dots").addEventListener("click", (event) => {
     const dot = event.target.closest("[data-slide]");
     if (!dot) return;
@@ -577,16 +589,54 @@ function bindHeroSlider() {
   slider.addEventListener("mouseleave", startHeroAutoplay);
   slider.addEventListener("focusin", stopHeroAutoplay);
   slider.addEventListener("focusout", startHeroAutoplay);
+  slider.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") step(-1);
+    if (event.key === "ArrowRight") step(1);
+  });
+  document.addEventListener("visibilitychange", () => (document.hidden ? stopHeroAutoplay() : startHeroAutoplay()));
 
-  let touchStartX = null;
-  slider.addEventListener("touchstart", (event) => { touchStartX = event.touches[0].clientX; }, { passive: true });
-  slider.addEventListener("touchend", (event) => {
-    if (touchStartX === null) return;
-    const deltaX = event.changedTouches[0].clientX - touchStartX;
-    touchStartX = null;
-    if (Math.abs(deltaX) < 40) return;
-    goToHeroSlide(heroIndex + (deltaX < 0 ? 1 : -1));
-    startHeroAutoplay();
+  // Drag or swipe: the strip follows the finger, then snaps to the next slide or back.
+  // The browser's own link and image dragging would cancel the gesture, so it is switched off here.
+  slider.addEventListener("dragstart", (event) => event.preventDefault());
+  let dragStartX = null;
+  let dragX = 0;
+  let dragged = false;
+  slider.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target.closest(".hero-arrow, .hero-dots")) return;
+    dragStartX = event.clientX;
+    dragX = 0;
+    dragged = false;
+  });
+  slider.addEventListener("pointermove", (event) => {
+    if (dragStartX === null) return;
+    dragX = event.clientX - dragStartX;
+    if (!dragged && Math.abs(dragX) > 6) {
+      dragged = true;
+      slider.setPointerCapture(event.pointerId);
+      slider.classList.add("is-dragging");
+      stopHeroAutoplay();
+    }
+    if (dragged) track.style.transform = `translateX(calc(-${heroIndex * 100}% + ${dragX}px))`;
+  });
+  const endDrag = () => {
+    if (dragStartX === null) return;
+    dragStartX = null;
+    slider.classList.remove("is-dragging");
+    if (!dragged) return;
+    if (Math.abs(dragX) > Math.min(80, slider.offsetWidth / 6)) step(dragX < 0 ? 1 : -1);
+    else { goToHeroSlide(heroIndex); startHeroAutoplay(); }
+  };
+  slider.addEventListener("pointerup", endDrag);
+  slider.addEventListener("pointercancel", endDrag);
+  // A tap anywhere on the banner opens its offer; a drag does not.
+  track.addEventListener("click", (event) => {
+    if (dragged) {
+      event.preventDefault();
+      dragged = false;
+      return;
+    }
+    const slide = event.target.closest(".hero-slide");
+    if (slide && !event.target.closest("a")) window.location.href = slide.dataset.href;
   });
 }
 
@@ -787,7 +837,6 @@ async function loadProducts() {
     fillCategoryPhotos();
     // Rebuild once products arrive so real sale events get their own slides.
     if (allProducts.some(isOnSale)) renderHeroSlider();
-    renderEventBanner();
     window.clearTimeout(timeoutId);
   }
 }

@@ -10784,19 +10784,24 @@ body.drawer-open {
     margin-left: auto;
   }
 
-  /* Logo and icons on one line, the search on its own full-width line below. */
+  /* One line: logo, search, then the icons. */
   .header .header-top {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 0.45rem 0.5rem;
-    padding: 0.5rem 1rem 0.65rem;
+    gap: 0.6rem;
+    padding: 0.5rem 1rem;
   }
 
   .header .header-top .search-bar {
-    order: 5;
-    flex: 1 1 100%;
+    order: 0;
+    flex: 1 1 auto;
     max-width: none;
     min-width: 0;
+  }
+
+  .header .header-top .logo-link,
+  .header .header-top .drawer-brand {
+    flex: 0 0 auto;
   }
 
   /* Folded down to two slim lines, so phones can keep it pinned like eBay's. */
@@ -10835,5 +10840,440 @@ body.drawer-open {
 @media (max-width: 340px) {
   .header-icons > .header-icon:first-child {
     display: none;
+  }
+}
+
+/* Phones: the search keeps its room between the logo and the icons (watchlist and account live in the menu). */
+@media (max-width: 600px) {
+  .header .header-top {
+    gap: 0.4rem;
+  }
+
+  .header .header-top .header-icons > .header-icon:not(.header-menu-toggle):not([href="cart.html"]) {
+    display: none;
+  }
+
+  .header .search-bar {
+    height: 38px;
+  }
+
+  .header .search-bar .search-field input,
+  .header .search-bar .search-field.has-voice input {
+    padding-left: 0.75rem;
+    padding-right: 1.8rem;
+    font-size: 0.88rem;
+  }
+
+  .header .search-bar .search-voice {
+    display: none;
+  }
+
+  /* The search button turns into a round magnifier. */
+  .header .search-button {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    font-size: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M16 16l4 4'/%3E%3C/svg%3E");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 17px;
+  }
+}
+
+@media (max-width: 400px) {
+  .header .header-top .logo {
+    height: 26px;
+  }
+}
+
+/* Tablets and phones: the category picker and "/" hint make room for the typed search. */
+@media (max-width: 1024px) {
+  .header .search-bar .search-category,
+  .header .search-hint {
+    display: none;
+  }
+}
+
+.content-grid-full .hero-deals {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* Home: no heading over the plain listing; the filter bar is for signed-in shoppers (app.js renderListingToolbar). */
+.deals-header[hidden],
+.listing-toolbar[hidden],
+.sort-control[hidden] {
+  display: none;
+}
+
+/* ══ Offer strip: the hero slider at half height, with offer badges, entrance animations, drag and a progress bar ══ */
+.hero-slider {
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.hero-slider .hero-track {
+  transition: transform 0.55s cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.hero-slider.is-dragging .hero-track {
+  transition: none;
+}
+
+.hero-slider .hero-slide.market-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.6rem, 2vw, 1.4rem);
+  height: 80px;
+  padding: 0 clamp(0.75rem, 3vw, 3.5rem);
+  overflow: hidden;
+  background:
+    radial-gradient(120% 160% at 0% 0%, rgba(255, 255, 255, 0.55), transparent 55%),
+    var(--hero-tone, #f7d7c4);
+  cursor: pointer;
+}
+
+/* Photo on the right, fading into the slide colour. */
+.hero-slider .hero-slide .market-hero-visual {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 42%;
+  min-height: 0;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 45%);
+  mask-image: linear-gradient(to right, transparent, #000 45%);
+}
+
+.hero-slider .hero-slide .market-hero-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.12);
+  transition: transform 7s ease-out;
+}
+
+.hero-slider .hero-slide.is-active .market-hero-visual img {
+  transform: scale(1);
+}
+
+.hero-offer {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-content: center;
+  flex: 0 0 auto;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e53238, #f5af02);
+  color: #ffffff;
+  text-align: center;
+  line-height: 1;
+  box-shadow: 0 6px 16px rgba(229, 50, 56, 0.35);
+}
+
+.hero-offer strong {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.hero-offer small {
+  margin-top: 0.12rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hero-offer.is-live::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 2px solid #e53238;
+  border-radius: 50%;
+  animation: hero-ring 1.6s ease-out infinite;
+}
+
+.hero-slider .hero-slide .market-hero-copy {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 58%;
+  padding: 0;
+}
+
+.hero-slider .hero-slide .market-hero-copy .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.66rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hero-live-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e53238;
+  animation: hero-blink 1s steps(2, start) infinite;
+}
+
+.hero-slider .hero-slide .market-hero-copy h2 {
+  max-width: none;
+  margin: 0.05rem 0 0;
+  overflow: hidden;
+  font-size: clamp(0.98rem, 1.8vw, 1.3rem);
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hero-slider .hero-slide .market-hero-copy p:not(.eyebrow) {
+  margin: 0.05rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.hero-slider .hero-cta {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  min-height: 0;
+  margin-left: auto;
+  padding: 0.42rem 1rem;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+/* Entrance: badge pops, text rises in a stagger, the button slides in. */
+.hero-slide.is-active .hero-offer {
+  animation: hero-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.hero-slide.is-active .market-hero-copy > * {
+  animation: hero-rise 0.5s ease-out both;
+}
+
+.hero-slide.is-active .market-hero-copy > :nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.hero-slide.is-active .market-hero-copy > :nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+.hero-slide.is-active .hero-cta {
+  animation: hero-slide-in 0.5s 0.2s ease-out both;
+}
+
+.hero-slide:hover .hero-offer {
+  transform: rotate(-8deg) scale(1.06);
+  transition: transform 0.2s ease;
+}
+
+@keyframes hero-pop {
+  from { opacity: 0; transform: scale(0.4) rotate(-20deg); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes hero-slide-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes hero-ring {
+  from { opacity: 0.8; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.35); }
+}
+
+@keyframes hero-blink {
+  to { visibility: hidden; }
+}
+
+/* Arrows appear on hover; the dots are progress bars that fill while a slide is showing. */
+.hero-slider .hero-arrow {
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  font-size: 1.25rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.hero-slider:hover .hero-arrow,
+.hero-slider .hero-arrow:focus-visible {
+  opacity: 1;
+}
+
+.hero-slider .hero-arrow-prev {
+  left: 0.3rem;
+}
+
+.hero-slider .hero-arrow-next {
+  right: 0.3rem;
+}
+
+.hero-slider .hero-dots {
+  z-index: 2;
+  bottom: 6px;
+  left: 50%;
+  gap: 4px;
+  transform: translateX(-50%);
+}
+
+.hero-slider .hero-dots button,
+.hero-slider .hero-dots button[aria-selected="true"] {
+  position: relative;
+  width: 16px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(17, 17, 17, 0.2);
+}
+
+.hero-slider .hero-dots button[aria-selected="true"] {
+  width: 26px;
+}
+
+.hero-slider .hero-dots button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #111111;
+  transform-origin: left;
+}
+
+.hero-slider .hero-dots button.is-running::after {
+  animation: hero-progress var(--hero-autoplay, 6s) linear both;
+}
+
+.hero-slider.is-paused .hero-dots button.is-running::after {
+  animation-play-state: paused;
+}
+
+@keyframes hero-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@media (max-width: 768px) {
+  .hero-slider .hero-slide.market-hero {
+    height: 76px;
+  }
+
+  .hero-offer {
+    width: 50px;
+    height: 50px;
+  }
+
+  .hero-offer strong {
+    font-size: 1rem;
+  }
+
+  .hero-slider .hero-slide .market-hero-copy {
+    max-width: none;
+  }
+
+  .hero-slider .hero-slide .market-hero-copy p:not(.eyebrow) {
+    display: none;
+  }
+
+  .hero-slider .hero-slide .market-hero-visual {
+    width: 38%;
+    opacity: 0.55;
+  }
+
+  .hero-slider .hero-arrow {
+    display: none;
+  }
+}
+
+/* Phones: the whole banner is the link, so the button gives its room to the title and a chevron hints at it. */
+@media (max-width: 600px) {
+  .hero-slider .hero-cta {
+    display: none;
+  }
+
+  .hero-slider .hero-slide.market-hero::after {
+    content: "";
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    width: 9px;
+    height: 9px;
+    margin: 0 0.35rem 0 auto;
+    border-top: 2.5px solid var(--ink);
+    border-right: 2.5px solid var(--ink);
+    transform: rotate(45deg);
+  }
+
+  .hero-slider .hero-slide.is-active.market-hero::after {
+    animation: hero-nudge 1.4s ease-in-out 0.6s infinite;
+  }
+}
+
+@keyframes hero-nudge {
+  0%, 100% { transform: translateX(0) rotate(45deg); }
+  50% { transform: translateX(4px) rotate(45deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-slider .hero-track,
+  .hero-slider .hero-slide .market-hero-visual img {
+    transition: none;
+  }
+
+  .hero-slide.is-active .hero-offer,
+  .hero-slide.is-active .market-hero-copy > *,
+  .hero-slide.is-active .hero-cta,
+  .hero-offer.is-live::after,
+  .hero-live-dot {
+    animation: none;
+  }
+}
+
+/* Signed-in filter bar on phones: a tidy 2 x 2 grid instead of four stacked rows. */
+@media (max-width: 600px) {
+  .listing-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 0.6rem;
+    padding: 0.55rem;
+  }
+
+  .listing-toolbar .active-filters {
+    grid-column: 1 / -1;
+  }
+
+  .listing-toolbar .active-filters:empty {
+    display: none;
+  }
+
+  .listing-toolbar .sort-control {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.15rem;
+    margin: 0;
+    font-size: 0.74rem;
+  }
+
+  .listing-toolbar .sort-control select {
+    width: 100%;
+    min-width: 0;
+    font-size: 0.84rem;
   }
 }
