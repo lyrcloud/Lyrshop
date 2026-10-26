@@ -1293,13 +1293,21 @@ async function loadOrders() {
   }
 }
 
+// A listing Lyrshop resells (load_brand_links --resell) names the store staff buy it from; only staff get `supplier`.
+function orderItemSupplier(item) {
+  const supplier = adminProducts.find((product) => product.id === item.id)?.supplier;
+  if (!supplier?.url) return "";
+  return `<br /><small><a href="${escapeHtml(supplier.url)}" target="_blank" rel="noopener">Buy at ${escapeHtml(supplier.merchant || "the store")} ↗</a>
+    · cost ${formatMoney(supplier.cost)} when listed${supplier.sku ? ` · item ${escapeHtml(supplier.sku)}` : ""}</small>`;
+}
+
 function openOrder(order) {
   orderEditId.value = order.id;
   const items = order.items || [];
   orderSummary.innerHTML = `
     <h3>Order ${escapeHtml(shortOrderId(order.id))}</h3>
     <p>${escapeHtml(order.user_email || "Guest")} · placed ${escapeHtml(formatOrderDate(order.created_at))}</p>
-    <ul>${items.map((item) => `<li>${escapeHtml(item.name)}${item.variant ? ` <small>${escapeHtml(item.variant)}</small>` : ""} <span>${formatMoney(item.price)}</span></li>`).join("")}</ul>
+    <ul>${items.map((item) => `<li>${escapeHtml(item.name)}${item.variant ? ` <small>${escapeHtml(item.variant)}</small>` : ""} <span>${formatMoney(item.price)}</span>${orderItemSupplier(item)}</li>`).join("")}</ul>
     <p>
       Subtotal ${formatMoney(order.subtotal ?? order.total)} · Shipping ${formatMoney(order.shipping_total)}
       ${Number(order.tax_total) > 0 ? `· Tax ${formatMoney(order.tax_total)}${order.tax_place ? ` (${escapeHtml(order.tax_place)})` : ""} ` : ""}· <strong>Total ${formatMoney(order.total)}</strong>
