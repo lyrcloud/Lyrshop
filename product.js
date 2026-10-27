@@ -709,7 +709,7 @@ function renderGallery(product) {
       aria-label="Show ${item.type === "video" ? "video" : "photo"} ${index + 1} of ${count}">
       ${item.type === "video"
         ? `<video src="${escapeHtml(item.url)}#t=0.1" muted preload="metadata" aria-hidden="true"></video><span class="gallery-play" aria-hidden="true">&#9654;</span>`
-        : `<img src="${escapeHtml(item.url)}" alt="" loading="lazy" />`}
+        : `<img src="${escapeHtml(item.thumb || item.url)}" alt="" loading="lazy" />`}
     </button>`).join("");
   thumbs.onclick = (event) => {
     const thumb = event.target.closest("[data-media-index]");
