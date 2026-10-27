@@ -50,12 +50,15 @@ if [ -z "$BUCKET_NAME" ] || [ "$BUCKET_NAME" = "None" ]; then
   exit 1
 fi
 
-aws s3 sync . "s3://$BUCKET_NAME" \
-  --region "$REGION" \
-  --delete \
-  --exclude "deploy.sh" \
-  --exclude "uploads/*" \
-  --exclude ".git/*"
+# Every file goes up with how long browsers may keep it (sync alone would skip unchanged files and never give them
+# the header): pages a minute, so a deploy shows at once; scripts, styles and images a day, as pages link them with a
+# ?v= version. CloudFront keeps everything until the invalidation below. The sync then removes deleted files.
+SKIP=(--exclude "deploy.sh" --exclude "uploads/*" --exclude ".git/*")
+aws s3 cp . "s3://$BUCKET_NAME" --recursive --region "$REGION" --only-show-errors \
+  --exclude "*" --include "*.html" "${SKIP[@]}" --cache-control "public, max-age=60, stale-while-revalidate=600"
+aws s3 cp . "s3://$BUCKET_NAME" --recursive --region "$REGION" --only-show-errors \
+  --exclude "*.html" "${SKIP[@]}" --cache-control "public, max-age=86400, stale-while-revalidate=604800"
+aws s3 sync . "s3://$BUCKET_NAME" --region "$REGION" --delete --only-show-errors "${SKIP[@]}"
 
 if [ -n "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
   aws cloudfront create-invalidation \

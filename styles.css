@@ -11487,6 +11487,134 @@ body.drawer-open {
     animation-name: header-sheet-in;
   }
 
+  /* Categories has its own sheet, so the Menu sheet leaves its category tree out. */
+  body.has-bottom-nav .header-menu-categories {
+    display: none;
+  }
+
+  .category-sheet {
+    position: fixed;
+    right: 0.5rem;
+    bottom: calc(var(--bottom-nav-h) + 0.5rem);
+    left: 0.5rem;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - var(--bottom-nav-h) - 5rem);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 18px 44px rgba(17, 24, 39, 0.18);
+    animation: header-sheet-in 0.16s ease-out;
+  }
+
+  .category-sheet[hidden] {
+    display: none;
+  }
+
+  .category-sheet-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .category-sheet-head strong {
+    flex: 1;
+    font-size: 1rem;
+  }
+
+  .category-sheet-back,
+  .category-sheet-close {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: #f3f4f6;
+    color: inherit;
+  }
+
+  .category-sheet-back .drawer-icon {
+    transform: rotate(180deg);
+  }
+
+  .category-sheet-back .drawer-icon,
+  .category-sheet-close .drawer-icon {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+  }
+
+  .category-sheet-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+    padding: 0.8rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .category-sheet-grid[hidden],
+  .category-sheet-subs[hidden] {
+    display: none;
+  }
+
+  .category-sheet-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: 0.74rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  .category-sheet-tile img,
+  .category-sheet-blank {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    object-fit: cover;
+    background: #f3f4f6;
+  }
+
+  .category-sheet-blank {
+    display: grid;
+    place-items: center;
+  }
+
+  .category-sheet-subs {
+    margin: 0;
+    padding: 0.3rem 0;
+    list-style: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .category-sheet-subs a {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .category-sheet-subs a:active {
+    background: #f3f4f6;
+  }
+
+  .category-sheet-subs .category-sheet-all {
+    color: var(--brand);
+    font-weight: 700;
+  }
+
   body.has-bottom-nav .toast-stack,
   body.has-bottom-nav .back-to-top {
     bottom: calc(1rem + var(--bottom-nav-h));

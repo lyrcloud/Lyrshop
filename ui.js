@@ -728,7 +728,7 @@ function initHeaderMenu() {
   const categoryHref = (name, subcategory = "") =>
     `index.html?category=${encodeURIComponent(name)}${subcategory ? `&subcategory=${encodeURIComponent(subcategory)}` : ""}#product-list`;
   const categoryTree = categories.length ? `
-    <div class="header-menu-group">
+    <div class="header-menu-group header-menu-categories">
       <button type="button" class="header-menu-link header-menu-branch" aria-expanded="false" data-header-categories>
         ${drawerIcon("grid")}<span>Shop by category</span>${drawerIcon("chevron")}
       </button>
@@ -838,13 +838,15 @@ function initHeaderMenu() {
 
   // The bottom bar (phones) and the signed-in side menu open this menu, optionally at its category tree.
   window.openHeaderMenu = ({ categories = false } = {}) => {
+    document.getElementById("category-sheet")?.setAttribute("hidden", "");
     setOpen(true);
     const branch = categories && menu.querySelector("[data-header-categories]");
     if (branch) expand(branch, true);
   };
   window.openHeaderCategories = () => {
     if (!toggle.offsetParent && !document.querySelector(".bottom-nav")?.offsetParent) return false;
-    window.openHeaderMenu({ categories: true });
+    if (window.openCategorySheet) window.openCategorySheet();
+    else window.openHeaderMenu({ categories: true });
     return true;
   };
   if (window.location.hash === "#menu") window.openHeaderMenu();
@@ -876,11 +878,86 @@ function initBottomNav() {
     if (!action) return;
     // Without this the menu's outside-click handler would close it straight away.
     event.stopPropagation();
-    if (window.openHeaderMenu) window.openHeaderMenu({ categories: action === "categories" });
+    if (action === "categories") window.openCategorySheet();
+    else if (window.openHeaderMenu) window.openHeaderMenu();
     else window.location.href = "index.html#menu";
   });
   document.body.append(nav);
   document.body.classList.add("has-bottom-nav");
+  initCategorySheet();
+}
+
+// The bottom bar's Categories: its own sheet of department tiles; a tile opens that department's subcategories.
+// The Menu sheet keeps the account and site links, so the two buttons no longer open the same list.
+function initCategorySheet() {
+  const categories = headerMenuCategories();
+  const href = (name, subcategory = "") =>
+    `index.html?category=${encodeURIComponent(name)}${subcategory ? `&subcategory=${encodeURIComponent(subcategory)}` : ""}#product-list`;
+  const sheet = document.createElement("nav");
+  sheet.className = "category-sheet";
+  sheet.id = "category-sheet";
+  sheet.setAttribute("aria-label", "Shop by category");
+  sheet.hidden = true;
+  sheet.innerHTML = `
+    <div class="category-sheet-head">
+      <button type="button" class="category-sheet-back" data-sheet-back hidden aria-label="All categories">${drawerIcon("chevron")}</button>
+      <strong data-sheet-title>Shop by category</strong>
+      <button type="button" class="category-sheet-close" data-sheet-close aria-label="Close">${drawerIcon("close")}</button>
+    </div>
+    <div class="category-sheet-grid" data-sheet-grid>
+      ${categories.map((category, index) => `
+        <button type="button" class="category-sheet-tile" data-sheet-category="${index}">
+          ${category.image_url ? `<img src="${uiEscape(category.image_url)}" alt="" loading="lazy" decoding="async">` : `<span class="category-sheet-blank">${drawerIcon("grid")}</span>`}
+          <span>${uiEscape(category.label || category.name)}</span>
+        </button>`).join("")}
+    </div>
+    <ul class="category-sheet-subs" data-sheet-subs hidden></ul>`;
+  const grid = sheet.querySelector("[data-sheet-grid]");
+  const subs = sheet.querySelector("[data-sheet-subs]");
+  const back = sheet.querySelector("[data-sheet-back]");
+  const title = sheet.querySelector("[data-sheet-title]");
+  const showGrid = () => {
+    grid.hidden = false;
+    subs.hidden = true;
+    back.hidden = true;
+    title.textContent = "Shop by category";
+  };
+  const setOpen = (open) => {
+    sheet.hidden = !open;
+    if (open) showGrid();
+  };
+  sheet.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (event.target.closest("[data-sheet-close]")) return setOpen(false);
+    if (event.target.closest("[data-sheet-back]")) return showGrid();
+    const tile = event.target.closest("[data-sheet-category]");
+    if (tile) {
+      const category = categories[Number(tile.dataset.sheetCategory)];
+      const label = category.label || category.name;
+      subs.innerHTML = `
+        <li><a href="${href(category.name)}" class="category-sheet-all">See all ${uiEscape(label)}</a></li>
+        ${(category.subcategories || []).filter(Boolean).map((subcategory) =>
+          `<li><a href="${href(category.name, subcategory)}">${uiEscape(subcategory)}</a></li>`).join("")}`;
+      title.textContent = label;
+      grid.hidden = true;
+      subs.hidden = false;
+      back.hidden = false;
+      subs.scrollTop = 0;
+      return;
+    }
+    if (event.target.closest("a")) setOpen(false);
+  });
+  document.addEventListener("click", (event) => {
+    if (!sheet.hidden && !event.target.closest(".category-sheet")) setOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !sheet.hidden) setOpen(false);
+  });
+  document.body.append(sheet);
+  window.openCategorySheet = () => {
+    document.getElementById("header-menu")?.setAttribute("hidden", "");
+    setOpen(true);
+  };
 }
 
 // The signed-in shopper's side menu, like the eBay app's: profile on top, then shopping, account and help links.
