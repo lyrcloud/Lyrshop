@@ -444,6 +444,67 @@ function initVoiceSearch(form, input, onFinal) {
   });
 }
 
+// A shopper's photo shrunk to a JPEG of at most PHOTO_SEARCH_SIZE px a side, as {data (base64), media_type}.
+const PHOTO_SEARCH_SIZE = 1024;
+
+async function shrinkPhoto(file) {
+  const image = await createImageBitmap(file);
+  const scale = Math.min(1, PHOTO_SEARCH_SIZE / Math.max(image.width, image.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(image.width * scale);
+  canvas.height = Math.round(image.height * scale);
+  canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  return { data: dataUrl.slice(dataUrl.indexOf(",") + 1), media_type: "image/jpeg" };
+}
+
+// Photo search (like Amazon's camera search): the shopper snaps or picks a photo and gets the search for that item.
+function initPhotoSearch(form, input, onFound) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "search-photo";
+  button.setAttribute("aria-label", "Search with a photo");
+  button.title = "Search with a photo";
+  button.innerHTML = '<svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  const picker = document.createElement("input");
+  picker.type = "file";
+  picker.accept = "image/*";
+  picker.hidden = true;
+  form.insertBefore(button, form.querySelector(".search-button"));
+  form.append(picker);
+  const placeholder = input.placeholder;
+
+  button.addEventListener("click", () => picker.click());
+  picker.addEventListener("change", async () => {
+    const file = picker.files[0];
+    picker.value = "";
+    if (!file) return;
+    button.classList.add("is-busy");
+    button.disabled = true;
+    input.value = "";
+    input.placeholder = "Looking at your photo…";
+    try {
+      const photo = await shrinkPhoto(file);
+      const reply = await fetch(`${UI_API_BASE_URL}/search/photo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: photo.data, media_type: photo.media_type }),
+      });
+      const data = await reply.json().catch(() => ({}));
+      if (!reply.ok || !data.query) throw new Error(data.message || "We couldn't read that photo. Try another one.");
+      input.value = data.query;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      onFound(data.query);
+    } catch (error) {
+      showToast(error.message || "Photo search isn't available right now.", { tone: "error" });
+    } finally {
+      button.classList.remove("is-busy");
+      button.disabled = false;
+      input.placeholder = placeholder;
+    }
+  });
+}
+
 function initSearchBox({ form, getProducts, getCategories, onChange, onSubmit, initialQuery = "", initialCategory = "" }) {
   const input = form.querySelector("input");
   const clear = form.querySelector(".search-clear");
@@ -553,6 +614,10 @@ function initSearchBox({ form, getProducts, getCategories, onChange, onSubmit, i
   initVoiceSearch(form, input, () => {
     close();
     onSubmit(input.value.trim(), select.value);
+  });
+  initPhotoSearch(form, input, (query) => {
+    close();
+    onSubmit(query, select.value);
   });
 
   return {
@@ -755,14 +820,51 @@ function initHeaderMenu() {
     if (event.key === "Escape" && !menu.hidden) { setOpen(false); toggle.focus(); }
   });
 
-  // The signed-in side menu's "Categories" opens this menu's category tree when the header is folded.
-  window.openHeaderCategories = () => {
-    if (!toggle.offsetParent) return false;
+  // The bottom bar (phones) and the signed-in side menu open this menu, optionally at its category tree.
+  window.openHeaderMenu = ({ categories = false } = {}) => {
     setOpen(true);
-    const branch = menu.querySelector("[data-header-categories]");
+    const branch = categories && menu.querySelector("[data-header-categories]");
     if (branch) expand(branch, true);
+  };
+  window.openHeaderCategories = () => {
+    if (!toggle.offsetParent && !document.querySelector(".bottom-nav")?.offsetParent) return false;
+    window.openHeaderMenu({ categories: true });
     return true;
   };
+  if (window.location.hash === "#menu") window.openHeaderMenu();
+}
+
+// Phones (like the Amazon app): a fixed bar of icons at the bottom of every page, with the search kept at the top.
+function initBottomNav() {
+  if (document.querySelector(".bottom-nav, .invoice-chrome")) return;
+  const user = typeof getCurrentUser === "function" ? getCurrentUser() : null;
+  const page = window.location.pathname.split("/").pop() || "index.html";
+  const view = new URLSearchParams(window.location.search).get("view");
+  const link = (href, icon, label, current, extra = "") =>
+    `<a href="${href}" class="bottom-nav-item${current ? " is-current" : ""}"${current ? ' aria-current="page"' : ""}>${extra || drawerIcon(icon)}<span>${label}</span></a>`;
+  const button = (action, icon, label) =>
+    `<button type="button" class="bottom-nav-item" data-bottom-nav="${action}">${drawerIcon(icon)}<span>${label}</span></button>`;
+  const nav = document.createElement("nav");
+  nav.className = "bottom-nav";
+  nav.setAttribute("aria-label", "Shortcuts");
+  nav.innerHTML = `
+    ${link("index.html", "home", "Home", page === "index.html" && !view)}
+    ${button("categories", "grid", "Categories")}
+    ${link("cart.html", "cart", "Cart", page === "cart.html", `<span class="bottom-nav-icon">${drawerIcon("cart")}<span class="count-badge" data-count="cart" hidden></span></span>`)}
+    ${user
+      ? link("dashboard.html", "user", "You", page === "dashboard.html", `<span class="bottom-nav-icon">${userAvatar(user, "bottom-nav-avatar")}</span>`)
+      : link("auth.html", "user", "Sign in", page === "auth.html")}
+    ${button("menu", "menu", "Menu")}`;
+  nav.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-bottom-nav]")?.dataset.bottomNav;
+    if (!action) return;
+    // Without this the menu's outside-click handler would close it straight away.
+    event.stopPropagation();
+    if (window.openHeaderMenu) window.openHeaderMenu({ categories: action === "categories" });
+    else window.location.href = "index.html#menu";
+  });
+  document.body.append(nav);
+  document.body.classList.add("has-bottom-nav");
 }
 
 // The signed-in shopper's side menu, like the eBay app's: profile on top, then shopping, account and help links.
@@ -938,6 +1040,7 @@ function initAccountRail(user, { openMenu, openCategories, signOut }) {
 
 function initSharedUi() {
   initHeaderMenu();
+  initBottomNav();
   initAccountDrawer();
   updateHeaderCounts();
   renderUserGreeting();

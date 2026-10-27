@@ -11277,3 +11277,254 @@ body.drawer-open {
     font-size: 0.84rem;
   }
 }
+
+/* ══ Photo search button (ui.js initPhotoSearch) ══ */
+.search-photo {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  align-self: center;
+  width: 34px;
+  height: 34px;
+  margin-left: 0.15rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background-color 0.18s, color 0.18s;
+}
+
+.search-photo:hover {
+  background: var(--button-soft);
+  color: var(--button-bg);
+}
+
+.search-photo:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.search-photo.is-busy svg {
+  animation: photo-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes photo-pulse {
+  50% { opacity: 0.35; transform: scale(0.9); }
+}
+
+/* ══ Live sourcing status over the results (app.js sourceSearch) ══ */
+.sourcing-status {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.9rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.sourcing-status[hidden] {
+  display: none;
+}
+
+.sourcing-spinner {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: sourcing-spin 0.8s linear infinite;
+}
+
+@keyframes sourcing-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ══ Bottom bar on phones (ui.js initBottomNav), like the Amazon app ══ */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  body.has-bottom-nav {
+    --bottom-nav-h: calc(58px + env(safe-area-inset-bottom));
+    padding-bottom: var(--bottom-nav-h);
+  }
+
+  .bottom-nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 950;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    height: var(--bottom-nav-h);
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 -6px 20px rgba(17, 24, 39, 0.08);
+    backdrop-filter: saturate(180%) blur(10px);
+  }
+
+  .bottom-nav-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-soft);
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .bottom-nav-item > span:last-child {
+    overflow: hidden;
+    max-width: 100%;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .bottom-nav-item .drawer-icon {
+    width: 23px;
+    height: 23px;
+    stroke: currentColor;
+  }
+
+  .bottom-nav-item.is-current {
+    color: var(--brand);
+  }
+
+  /* A bar above the current tab, as in the Amazon app. */
+  .bottom-nav-item.is-current::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 28%;
+    right: 28%;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--brand);
+  }
+
+  .bottom-nav-item:active {
+    background: var(--surface-soft);
+  }
+
+  .bottom-nav-item:focus-visible {
+    outline: none;
+    box-shadow: inset var(--focus-ring);
+  }
+
+  .bottom-nav-icon {
+    position: relative;
+    display: grid;
+    place-items: center;
+  }
+
+  .bottom-nav-icon .count-badge {
+    position: absolute;
+    top: -5px;
+    right: -10px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 0.28rem;
+    font-size: 0.62rem;
+    line-height: 17px;
+  }
+
+  .bottom-nav-avatar {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--brand);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  /* The top keeps just the logo and the search; the icons moved to the bottom bar. */
+  body.has-bottom-nav .header-icons > .header-icon,
+  body.has-bottom-nav .header-menu-toggle {
+    display: none;
+  }
+
+  /* A backdrop filter would make the header the frame for the fixed menu sheet below. */
+  body.has-bottom-nav .header {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  body.has-bottom-nav .header-icons {
+    margin-left: 0;
+  }
+
+  /* The menu rises from the bottom bar as a sheet. */
+  body.has-bottom-nav .header-menu {
+    position: fixed;
+    top: auto;
+    right: 0.5rem;
+    bottom: calc(var(--bottom-nav-h) + 0.5rem);
+    left: 0.5rem;
+    width: auto;
+    max-height: calc(100dvh - var(--bottom-nav-h) - 5rem);
+    animation-name: header-sheet-in;
+  }
+
+  body.has-bottom-nav .toast-stack,
+  body.has-bottom-nav .back-to-top {
+    bottom: calc(1rem + var(--bottom-nav-h));
+  }
+
+  body.has-bottom-nav .lyrbot {
+    bottom: calc(1rem + 44px + 0.75rem + var(--bottom-nav-h));
+  }
+
+  body.has-bottom-nav .buy-bar:not([hidden]) {
+    bottom: var(--bottom-nav-h);
+    padding-bottom: 0.6rem;
+  }
+
+  body.has-bottom-nav.has-buy-bar .back-to-top {
+    bottom: calc(1rem + 68px + var(--bottom-nav-h));
+  }
+
+  body.has-bottom-nav.has-buy-bar .lyrbot {
+    bottom: calc(1rem + 44px + 0.75rem + 68px + var(--bottom-nav-h));
+  }
+
+  /* The header search on phones: the camera sits beside the magnifier. */
+  .header .search-photo {
+    width: 30px;
+    height: 30px;
+    margin: 0;
+  }
+}
+
+@keyframes header-sheet-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-photo.is-busy svg,
+  .sourcing-spinner {
+    animation-duration: 2.4s;
+  }
+}

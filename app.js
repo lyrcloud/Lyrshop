@@ -235,7 +235,9 @@ function getFilteredProducts() {
 
   if (searchQuery.trim()) {
     const terms = getSearchTerms(searchQuery);
-    filtered = filtered.filter((p) => matchesSearch(productSearchFields(p), terms));
+    // What the stores found for this very search counts as a match even when its card text doesn't say the words.
+    const query = searchQuery.trim().toLowerCase();
+    filtered = filtered.filter((p) => p.sourced_for === query || matchesSearch(productSearchFields(p), terms));
   }
 
   const sort = SORTS[activeSort] || SORTS[DEFAULT_SORT];
@@ -794,6 +796,73 @@ function bindProductListActions() {
   });
 }
 
+// A listing from GET /products?view=cards as the page uses it, or null when it has no usable price.
+function shopperProduct(p) {
+  const price = Number(p.price);
+  if (!Number.isFinite(price)) return null;
+
+  return {
+    ...p,
+    ...listingPrices(p),
+    rating: Number(p.rating) || 4,
+    created_at: Number(p.created_at) || 0,
+    // Units sold in the last 30 days, counted by the server.
+    trending: Number(p.trending) || 0,
+    // How near the item is (0 abroad … 4 same city) and how well its price suits the shopper's country.
+    nearby: Number(p.nearby) || 0,
+    price_fit: Number(p.price_fit) || 0,
+    // Picked for the shopper's country from CJ's trending products there.
+    market_pick: p.market_pick ? 1 : 0,
+    image_url: p.image_url || PLACEHOLDER_IMAGE_URL,
+  };
+}
+
+// ── Live sourcing ───────────────────────────────────────────────────────────
+// A search the shopper submits also asks Lyrshop's partner brand stores and CJ Dropshipping (GET /search/source).
+// The server publishes what they find as Lyrshop listings at the supplier's price plus Lyrshop's margin, and the
+// page adds them to the results as each source answers, ready for the cart.
+const LIVE_SOURCES = ["stores", "cj"];
+let liveSourceQuery = "";
+
+async function sourceSearch(query) {
+  query = query.trim();
+  if (query.length < 2 || query.toLowerCase() === liveSourceQuery.toLowerCase()) return;
+  liveSourceQuery = query;
+  renderSourcingStatus(true);
+  await Promise.all(LIVE_SOURCES.map(async (source) => {
+    try {
+      const reply = await fetch(`${API_BASE_URL}/search/source?source=${source}&q=${encodeURIComponent(query)}`);
+      const all = (await reply.json()).ids || [];
+      if (liveSourceQuery !== query) return;
+      // Listings already on the page that the store matched count as results too.
+      const tag = query.toLowerCase();
+      allProducts = allProducts.map((p) => (all.includes(p.id) ? { ...p, sourced_for: tag } : p));
+      const ids = all.filter((id) => !allProducts.some((p) => p.id === id));
+      if (!ids.length) {
+        if (all.length) refreshListing();
+        return;
+      }
+      const cards = await fetch(shopperProductsUrl(API_BASE_URL, undefined, `view=cards&ids=${ids.map(encodeURIComponent).join(",")}`));
+      const found = ((await cards.json()).products || []).map(shopperProduct).filter(Boolean)
+        .map((p) => ({ ...p, sourced_for: tag }));
+      allProducts = [...allProducts.filter((p) => !found.some((other) => other.id === p.id)), ...found];
+      if (liveSourceQuery === query) refreshListing();
+    } catch (error) {
+      console.warn(`Live search (${source}) failed.`, error);
+    }
+  }));
+  if (liveSourceQuery === query) renderSourcingStatus(false);
+}
+
+// A line over the results while the stores are being searched.
+function renderSourcingStatus(searching) {
+  const status = document.getElementById("sourcing-status");
+  if (!status) return;
+  status.hidden = !searching;
+  status.innerHTML = searching
+    ? '<span class="sourcing-spinner" aria-hidden="true"></span> Finding more from brand stores and suppliers…' : "";
+}
+
 async function loadProducts() {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), PRODUCT_REQUEST_TIMEOUT_MS);
@@ -804,29 +873,10 @@ async function loadProducts() {
       throw new Error(`Product request failed with ${response.status}`);
     }
     const json = await response.json();
-    const products = (json.products || [])
-      .map((p) => {
-        const price = Number(p.price);
-        if (!Number.isFinite(price)) return null;
-
-        return {
-          ...p,
-          ...listingPrices(p),
-          rating: Number(p.rating) || 4,
-          created_at: Number(p.created_at) || 0,
-          // Units sold in the last 30 days, counted by the server.
-          trending: Number(p.trending) || 0,
-          // How near the item is (0 abroad … 4 same city) and how well its price suits the shopper's country.
-          nearby: Number(p.nearby) || 0,
-          price_fit: Number(p.price_fit) || 0,
-          // Picked for the shopper's country from CJ's trending products there.
-          market_pick: p.market_pick ? 1 : 0,
-          image_url: p.image_url || PLACEHOLDER_IMAGE_URL,
-        };
-      })
-      .filter(Boolean);
-
-    allProducts = products;
+    // Listings a live search found while the catalog was loading are kept.
+    const found = allProducts.filter((p) => p.sourced_for);
+    const products = (json.products || []).map(shopperProduct).filter(Boolean);
+    allProducts = [...products, ...found.filter((p) => !products.some((other) => other.id === p.id))];
     productsLoaded = true;
   } catch (error) {
     console.warn("Product request failed.", error);
@@ -999,6 +1049,7 @@ function initStorefront() {
     onChange: applySearch,
     onSubmit: (query, category) => {
       applySearch(query, category);
+      sourceSearch(query);
       document.getElementById("product-list").scrollIntoView({ behavior: "smooth", block: "start" });
     },
     initialQuery: searchQuery,
@@ -1007,6 +1058,8 @@ function initStorefront() {
   refreshListing();
   renderAccountState();
   loadProducts();
+  // Arriving with ?search= (from another page's search box) searches the stores too.
+  if (searchQuery) sourceSearch(searchQuery);
 }
 
 if (document.readyState === "loading") {
