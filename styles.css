@@ -11657,3 +11657,118 @@ body.drawer-open {
     animation-duration: 2.4s;
   }
 }
+
+/* Add to Cart on a listing with options: a small picker over the page (a bottom sheet on phones). */
+.quick-options {
+  width: min(420px, calc(100vw - 2rem));
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: #ffffff;
+  color: inherit;
+  box-shadow: 0 24px 60px rgba(17, 24, 39, 0.25);
+}
+
+.quick-options::backdrop {
+  background: rgba(17, 24, 39, 0.45);
+}
+
+.quick-options-panel {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.quick-options-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.quick-options-head img {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f3f4f6;
+}
+
+.quick-options-head div {
+  display: grid;
+  flex: 1;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.quick-options-head strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.quick-options-head span {
+  font-weight: 700;
+}
+
+.quick-options-close {
+  align-self: flex-start;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.quick-options-field {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.quick-options-field select {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+}
+
+.quick-options-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.quick-options-error[hidden] {
+  display: none;
+}
+
+.quick-options-more {
+  justify-self: center;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .quick-options {
+    width: 100%;
+    max-width: none;
+    margin: auto 0 0;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .quick-options-panel {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}

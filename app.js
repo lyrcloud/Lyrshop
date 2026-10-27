@@ -720,8 +720,6 @@ function renderProductCards(products) {
             ? `<a class="button button-primary add-cart-btn" href="${productUrl}">${auctionLive(product) ? "Place bid" : "View auction"}</a>`
             : product.source === "affiliate"
             ? `<a class="button button-primary add-cart-btn" href="${productUrl}">View deal</a>`
-            : product.options?.length
-            ? `<a class="button button-primary add-cart-btn" href="${productUrl}">Choose options</a>`
             : `<button type="button" class="button button-primary add-cart-btn" data-add="${escapeHtml(product.id)}">Add to Cart</button>`}
         </div>
       </article>`;
@@ -739,6 +737,87 @@ function cardSellingLine(product) {
   return product.best_offer?.enabled ? `<p class="product-selling">or Best Offer</p>` : "";
 }
 
+// ── Quick options ──────────────────────────────────────────────────────────────
+// Add to Cart on a listing with options (size, colour, lens power...) asks for them in a small picker instead of
+// sending the shopper to the product page. Cards carry only option names, so the full listing is read first.
+
+let quickOptionsDialog = null;
+
+function quickOptionsElement() {
+  if (quickOptionsDialog) return quickOptionsDialog;
+  quickOptionsDialog = document.createElement("dialog");
+  quickOptionsDialog.className = "quick-options";
+  quickOptionsDialog.setAttribute("aria-label", "Choose options");
+  document.body.append(quickOptionsDialog);
+  quickOptionsDialog.addEventListener("click", (event) => {
+    // A click on the backdrop (the dialog itself, outside its panel) closes it.
+    if (event.target === quickOptionsDialog || event.target.closest("[data-quick-close]")) quickOptionsDialog.close();
+  });
+  return quickOptionsDialog;
+}
+
+async function openQuickOptions(card, button) {
+  const dialog = quickOptionsElement();
+  button.disabled = true;
+  let product = null;
+  try {
+    const response = await fetch(shopperProductsUrl(API_BASE_URL, undefined, `ids=${encodeURIComponent(card.id)}`));
+    product = response.ok ? (await response.json()).products?.find((item) => String(item.id) === String(card.id)) : null;
+  } catch {
+    product = null;
+  } finally {
+    button.disabled = false;
+  }
+  const options = (product?.options || []).filter((option) => option?.name && option.values?.length);
+  if (!product || !options.length) {
+    window.location.href = `product.html?id=${encodeURIComponent(card.id)}`;
+    return;
+  }
+  const unavailable = new Set(product.unavailable_variants || []);
+  const photo = card.image_url || product.image_url || PLACEHOLDER_IMAGE_URL;
+  dialog.innerHTML = `
+    <form method="dialog" class="quick-options-panel">
+      <div class="quick-options-head">
+        <img src="${escapeHtml(photo)}" alt="">
+        <div>
+          <strong>${escapeHtml(product.name)}</strong>
+          <span>${formatPrice(card.price)}</span>
+        </div>
+        <button type="button" class="quick-options-close" data-quick-close aria-label="Close">&times;</button>
+      </div>
+      ${options.map((option, index) => `
+        <label class="quick-options-field">
+          <span>${escapeHtml(option.name)}</span>
+          <select name="option-${index}" required>
+            <option value="">Choose ${escapeHtml(option.name.toLowerCase())}</option>
+            ${option.values.map((value) => `<option>${escapeHtml(value)}</option>`).join("")}
+          </select>
+        </label>`).join("")}
+      <p class="quick-options-error" role="alert" hidden></p>
+      <button type="submit" class="button button-primary">Add to Cart</button>
+      <a class="quick-options-more" href="product.html?id=${encodeURIComponent(product.id)}">See full details</a>
+    </form>`;
+  const form = dialog.querySelector("form");
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const chosen = Object.fromEntries(options.map((option, index) => [option.name, form.elements[`option-${index}`].value]));
+    const variant = options.map((option) => `${option.name}: ${chosen[option.name]}`).join(" · ");
+    const error = dialog.querySelector(".quick-options-error");
+    if (unavailable.has(variant)) {
+      error.textContent = "That option is sold out. Please pick another.";
+      error.hidden = false;
+      return;
+    }
+    cart = readStoredCart();
+    cart.push({ id: product.id, name: product.name, price: card.price, options: chosen, variant });
+    saveCart();
+    dialog.close();
+    showToast(`${product.name} (${variant}) added to your cart`, { actionLabel: "View cart", actionHref: "cart.html" });
+  });
+  dialog.showModal();
+  dialog.querySelector("select")?.focus();
+}
+
 // One delegated handler for every card: add to cart, watchlist hearts, and empty-state reset.
 function bindProductListActions() {
   productList.addEventListener("click", (event) => {
@@ -746,6 +825,11 @@ function bindProductListActions() {
     if (addButton) {
       const product = allProducts.find((item) => String(item.id) === addButton.dataset.add);
       if (!product) return;
+      // A size, colour or lens power has to be picked first: a small picker opens over the page.
+      if (product.options?.length) {
+        openQuickOptions(product, addButton);
+        return;
+      }
       cart = readStoredCart(); // The cart page or another tab may have changed it.
       cart.push({ id: product.id, name: product.name, price: product.price });
       saveCart();
@@ -832,7 +916,8 @@ async function sourceSearch(query) {
   renderSourcingStatus(true);
   await Promise.all(LIVE_SOURCES.map(async (source) => {
     try {
-      const reply = await fetch(`${API_BASE_URL}/search/source?source=${source}&q=${encodeURIComponent(query)}`);
+      const country = encodeURIComponent(LyrLocale.country() || "");
+      const reply = await fetch(`${API_BASE_URL}/search/source?source=${source}&q=${encodeURIComponent(query)}&country=${country}`);
       const all = (await reply.json()).ids || [];
       if (liveSourceQuery !== query) return;
       // Listings already on the page that the store matched count as results too.
