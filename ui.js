@@ -907,7 +907,7 @@ function initCategorySheet() {
     <div class="category-sheet-grid" data-sheet-grid>
       ${categories.map((category, index) => `
         <button type="button" class="category-sheet-tile" data-sheet-category="${index}">
-          ${category.image_url ? `<img src="${uiEscape(category.image_url)}" alt="" loading="lazy" decoding="async">` : `<span class="category-sheet-blank">${drawerIcon("grid")}</span>`}
+          ${category.image_url ? `<img src="${uiEscape(category.image_url)}" alt="" loading="lazy" decoding="async">` : `<span class="category-sheet-blank" data-photo-for="${uiEscape(category.name)}">${uiEscape(category.icon || (category.label || category.name).slice(0, 1))}</span>`}
           <span>${uiEscape(category.label || category.name)}</span>
         </button>`).join("")}
     </div>
@@ -924,7 +924,14 @@ function initCategorySheet() {
   };
   const setOpen = (open) => {
     sheet.hidden = !open;
-    if (open) showGrid();
+    if (!open) return;
+    showGrid();
+    // On the home page, a department without a stock photo shows one of its listings' (app.js's categoryPhoto).
+    if (typeof categoryPhoto !== "function") return;
+    sheet.querySelectorAll(".category-sheet-blank[data-photo-for]").forEach((blank) => {
+      const photo = categoryPhoto(blank.dataset.photoFor);
+      if (photo) blank.outerHTML = `<img src="${uiEscape(photo)}" alt="" loading="lazy" decoding="async">`;
+    });
   };
   sheet.addEventListener("click", (event) => {
     event.stopPropagation();

@@ -11497,7 +11497,7 @@ body.drawer-open {
     right: 0.5rem;
     bottom: calc(var(--bottom-nav-h) + 0.5rem);
     left: 0.5rem;
-    z-index: 300;
+    z-index: 960; /* above the Lyrbot bubble */
     display: flex;
     flex-direction: column;
     max-height: calc(100dvh - var(--bottom-nav-h) - 5rem);
@@ -11589,6 +11589,7 @@ body.drawer-open {
   .category-sheet-blank {
     display: grid;
     place-items: center;
+    font-size: 2rem;
   }
 
   .category-sheet-subs {
