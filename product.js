@@ -30,6 +30,7 @@ function saveCart(cart) {
 function normalizeProduct(product) {
   const price = Number(product.price);
   if (!Number.isFinite(price)) return null;
+  rememberPhotoFallbacks(product);
   return {
     ...product,
     ...listingPrices(product),

@@ -10,6 +10,22 @@ function shopperProductsUrl(apiBase, country, query = "") {
   return `${apiBase}/products?country=${encodeURIComponent(country || LyrLocale.country() || "auto")}${query ? `&${query}` : ""}`;
 }
 
+// Product photos show from their own link first; when one fails to load, Lyrshop's backup copy takes its place
+// (the server's photo_fallbacks: {link: copy}). Pages call rememberPhotoFallbacks for each listing they show.
+const photoFallbacks = new Map();
+
+function rememberPhotoFallbacks(product) {
+  Object.entries(product?.photo_fallbacks || {}).forEach(([link, copy]) => photoFallbacks.set(link, copy));
+}
+
+// Image errors don't bubble, so this listens in the capture phase; every photo on the page is covered.
+document.addEventListener("error", (event) => {
+  const image = event.target;
+  if (!(image instanceof HTMLImageElement)) return;
+  const copy = photoFallbacks.get(image.getAttribute("src"));
+  if (copy && image.getAttribute("src") !== copy) image.src = copy;
+}, true);
+
 // "Mumbai, India" for a product's {country, city}; listings from before item locations were all from the US.
 function itemLocationLabel(product) {
   return [product.location?.city, LyrLocale.countryName(product.location?.country || "US")].filter(Boolean).join(", ");

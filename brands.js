@@ -257,6 +257,7 @@ function initDirectory() {
 // ── One brand ───────────────────────────────────────────────────────────────
 
 function listingCard(product) {
+  rememberPhotoFallbacks(product);
   const prices = listingPrices(product);
   const image = product.image_url || "logo.svg";
   return `

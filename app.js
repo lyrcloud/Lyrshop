@@ -800,6 +800,7 @@ function bindProductListActions() {
 function shopperProduct(p) {
   const price = Number(p.price);
   if (!Number.isFinite(price)) return null;
+  rememberPhotoFallbacks(p);
 
   return {
     ...p,
