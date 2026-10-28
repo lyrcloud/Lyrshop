@@ -11772,3 +11772,43 @@ body.drawer-open {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 }
+
+/* Admin Regions tab */
+.region-card {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.region-store {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem 0.75rem;
+  align-items: end;
+  padding: 0.75rem 0;
+  border-top: 1px solid #f1f5f9;
+}
+
+.region-store .wide-field,
+.region-store-check {
+  grid-column: 1 / -1;
+}
+
+.region-store-actions,
+.region-actions,
+.regions-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.region-actions {
+  margin-top: 0.75rem;
+}
+
+.regions-add {
+  align-items: end;
+  margin: 1rem 0;
+}

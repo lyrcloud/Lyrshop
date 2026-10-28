@@ -1736,6 +1736,201 @@ async function runAffiliateImport() {
   }
 }
 
+// ── Regions: local stores per country, their pricing and each country's business ──
+
+const regionsList = document.getElementById("regions-list");
+const regionsReport = document.getElementById("regions-report");
+const regionsAddCountry = document.getElementById("regions-add-country");
+const regionsMessage = document.getElementById("regions-message");
+let regionsState = null;
+let regionsDraft = {};
+let regionsPoll = null;
+
+function initRegionsPanel() {
+  document.getElementById("regions-form").addEventListener("submit", saveRegions);
+  document.getElementById("regions-add").addEventListener("click", addRegion);
+  regionsList.addEventListener("input", updateRegionField);
+  regionsList.addEventListener("change", updateRegionField);
+  regionsList.addEventListener("click", handleRegionClick);
+  loadRegions();
+}
+
+async function loadRegions() {
+  try {
+    const wasRunning = regionsState?.running;
+    regionsState = await authApi("/regions");
+    if (!wasRunning || !regionsState.running) regionsDraft = structuredClone(regionsState.settings.regions || {});
+    renderRegions();
+    if (wasRunning && !regionsState.running) showMessage(regionsMessage, "Stocking finished.");
+  } catch (error) {
+    showMessage(regionsMessage, error.message, true);
+  }
+  clearTimeout(regionsPoll);
+  if (regionsState?.running) regionsPoll = setTimeout(loadRegions, CJ_IMPORT_POLL_MS);
+}
+
+function regionStockedText(run) {
+  if (!run?.at) return "Never";
+  const problems = Object.entries(run.stores || {}).filter(([, row]) => row.problem)
+    .map(([host, row]) => `${host} ${row.problem}`);
+  return `${formatOrderDate(run.at)} · ${run.added} new${run.message ? ` · ${run.message}` : ""}${problems.length ? ` · ${problems.join("; ")}` : ""}`;
+}
+
+function renderRegions() {
+  const { report = [], running } = regionsState;
+  regionsReport.innerHTML = report.length ? report.map((row) => `<tr>
+    <td>${escapeHtml(LyrLocale.countryName(row.country))}</td>
+    <td>${row.enabled ? "On" : "Off"}</td>
+    <td>${row.stores}</td>
+    <td>${row.listings.toLocaleString()}</td>
+    <td>${row.orders.toLocaleString()}</td>
+    <td>${formatMoney(row.sales)}</td>
+    <td>${formatMoney(row.commission)}</td>
+    <td><small>${escapeHtml(regionStockedText(row.last_run))}</small></td>
+  </tr>`).join("") : `<tr><td colspan="8">No regions yet.</td></tr>`;
+  const categories = regionsState.categories || [];
+  const tree = readCategories();
+  regionsList.innerHTML = Object.values(regionsDraft).map((region) => {
+    const country = escapeHtml(region.country);
+    const stores = (region.stores || []).map((store, index) => {
+      const subcategories = tree.find((category) => category.name === store.category)?.subcategories || [];
+      return `<div class="region-store" data-index="${index}">
+        <label>Store address<input type="text" data-store-field="host" value="${escapeHtml(store.host || "")}" placeholder="www.store.com" required /></label>
+        <label>Name<input type="text" data-store-field="name" value="${escapeHtml(store.name || "")}" maxlength="60" /></label>
+        <label>Category<select data-store-field="category">
+          <option value="">Guess from each product</option>
+          ${categories.map((name) => `<option value="${escapeHtml(name)}" ${name === store.category ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}
+        </select></label>
+        <label>Subcategory<select data-store-field="subcategory" ${store.category ? "" : "disabled"}>
+          <option value="">Guess from each product</option>
+          ${subcategories.map((name) => `<option value="${escapeHtml(name)}" ${name === store.subcategory ? "selected" : ""}>${escapeHtml(name)}</option>`).join("")}
+        </select></label>
+        <label class="wide-field">Its own keywords<input type="text" data-store-field="keywords" value="${escapeHtml((store.keywords || []).join(", "))}" placeholder="Searched besides the region's" /></label>
+        <label class="checkbox-row"><input type="checkbox" data-store-field="enabled" ${store.enabled !== false ? "checked" : ""} /> On</label>
+        <label class="checkbox-row"><input type="checkbox" data-store-field="retailer" ${store.retailer ? "checked" : ""} /> Sells other brands</label>
+        <div class="region-store-actions">
+          <button type="button" class="button button-secondary" data-region-action="check-store">Check store</button>
+          <button type="button" class="button danger-button" data-region-action="remove-store">Remove</button>
+        </div>
+        <div class="region-store-check cj-hint"></div>
+      </div>`;
+    }).join("");
+    return `<fieldset class="region-card" data-country="${country}">
+      <legend>${escapeHtml(LyrLocale.countryName(region.country))} (${country})</legend>
+      <div class="cj-address-fields">
+        <label>Store currency<input type="text" data-field="currency" value="${escapeHtml(region.currency || "")}" maxlength="3" required /></label>
+        <label>Lowest commission (%)<input type="number" data-field="markup_min" value="${region.markup_min}" min="0" max="60" step="0.5" /></label>
+        <label>Highest commission (%)<input type="number" data-field="markup_max" value="${region.markup_max}" min="0" max="60" step="0.5" /></label>
+        <label>Minimum profit ($)<input type="number" data-field="min_profit" value="${region.min_profit}" min="0" max="50" step="0.5" /></label>
+        <label>Results per keyword<input type="number" data-field="per_store" value="${region.per_store}" min="1" max="20" step="1" /></label>
+      </div>
+      <label class="wide-field">Keywords stocked<textarea data-field="keywords" rows="2" placeholder="shoes, sandals, panjabi">${escapeHtml((region.keywords || []).join(", "))}</textarea></label>
+      <label class="checkbox-row"><input type="checkbox" data-field="enabled" ${region.enabled ? "checked" : ""} /> Region on (listings shown, stores searched)</label>
+      <label class="checkbox-row"><input type="checkbox" data-field="auto_stock" ${region.auto_stock ? "checked" : ""} /> Stock every day at 05:00 UTC</label>
+      <h4>Stores</h4>
+      ${stores || `<p class="cj-hint">No stores yet.</p>`}
+      <div class="region-actions">
+        <button type="button" class="button button-secondary" data-region-action="add-store">Add a store</button>
+        <button type="button" class="button button-primary" data-region-action="stock" ${running || !regionsState.saved ? "disabled" : ""}>Stock now</button>
+        <button type="button" class="button danger-button" data-region-action="remove">Remove region</button>
+        ${running?.countries?.includes(region.country) ? `<span class="cj-hint">Stocking… this page updates when it's done.</span>` : ""}
+      </div>
+    </fieldset>`;
+  }).join("") || `<p class="cj-hint">No regions. Add a country below.</p>`;
+  regionsAddCountry.innerHTML = LyrLocale.countryOptions().filter(({ code }) => !regionsDraft[code])
+    .map(({ code, name }) => `<option value="${code}">${escapeHtml(name)}</option>`).join("");
+}
+
+function regionOf(element) {
+  return regionsDraft[element.closest(".region-card")?.dataset.country];
+}
+
+function updateRegionField(event) {
+  const input = event.target;
+  const region = regionOf(input);
+  if (!region) return;
+  const value = input.type === "checkbox" ? input.checked : input.value;
+  if (input.dataset.field) {
+    region[input.dataset.field] = input.dataset.field === "keywords" ? value.split(/[\n,]+/).map((w) => w.trim()).filter(Boolean) : value;
+    return;
+  }
+  const field = input.dataset.storeField;
+  if (!field) return;
+  const store = region.stores[Number(input.closest(".region-store").dataset.index)];
+  store[field] = field === "keywords" ? value.split(",").map((w) => w.trim()).filter(Boolean) : value;
+  if (field === "category" && event.type === "change") {
+    store.subcategory = "";
+    renderRegions();
+  }
+}
+
+async function handleRegionClick(event) {
+  const button = event.target.closest("[data-region-action]");
+  const region = button && regionOf(button);
+  if (!region) return;
+  const action = button.dataset.regionAction;
+  if (action === "add-store") {
+    region.stores = [...(region.stores || []), { host: "", name: "", category: "", subcategory: "", retailer: false, enabled: true, keywords: [] }];
+    renderRegions();
+  } else if (action === "remove-store") {
+    region.stores.splice(Number(button.closest(".region-store").dataset.index), 1);
+    renderRegions();
+  } else if (action === "remove") {
+    if (!window.confirm(`Remove ${LyrLocale.countryName(region.country)}? Its listings stop showing once you save.`)) return;
+    delete regionsDraft[region.country];
+    renderRegions();
+  } else if (action === "check-store") {
+    const row = button.closest(".region-store");
+    const store = region.stores[Number(row.dataset.index)];
+    const out = row.querySelector(".region-store-check");
+    out.textContent = "Checking…";
+    try {
+      const reply = await authApi("/regions/check", { method: "POST", body: { host: store.host, keyword: region.keywords?.[0] || "" } });
+      const mismatch = reply.currency && reply.currency !== region.currency ? ` It prices in ${reply.currency}, not ${region.currency}: it won't be stocked.` : "";
+      out.innerHTML = `${reply.ok ? "✓" : "✗"} ${escapeHtml(reply.name || reply.host)}${reply.currency ? ` · ${escapeHtml(reply.currency)}` : ""}${reply.country ? ` · ${escapeHtml(LyrLocale.countryName(reply.country))}` : ""}${reply.products ? ` · ${reply.products.toLocaleString()} products` : ""}. ${escapeHtml(reply.message || "")}${escapeHtml(mismatch)}
+        ${(reply.sample || []).map((item) => `<br /><small>${escapeHtml(item.title)} · ${escapeHtml(String(item.price))}</small>`).join("")}`;
+      if (!store.name && reply.name) store.name = reply.name;
+    } catch (error) {
+      out.textContent = error.message;
+    }
+  } else if (action === "stock") {
+    button.disabled = true;
+    try {
+      const { message } = await authApi("/regions/stock", { method: "POST", body: { countries: [region.country] } });
+      showMessage(regionsMessage, message);
+      regionsState = { ...regionsState, running: { countries: [region.country] } };
+      renderRegions();
+      clearTimeout(regionsPoll);
+      regionsPoll = setTimeout(loadRegions, CJ_IMPORT_POLL_MS);
+    } catch (error) {
+      button.disabled = false;
+      showMessage(regionsMessage, error.message, true);
+    }
+  }
+}
+
+function addRegion() {
+  const country = regionsAddCountry.value;
+  if (!country || regionsDraft[country]) return;
+  regionsDraft[country] = {
+    country, currency: "", enabled: true, auto_stock: false, markup_min: 5, markup_max: 10, min_profit: 0,
+    per_store: 6, keywords: [], stores: [],
+  };
+  renderRegions();
+}
+
+async function saveRegions(event) {
+  event.preventDefault();
+  try {
+    regionsState = await authApi("/regions", { method: "PUT", body: { regions: regionsDraft } });
+    regionsDraft = structuredClone(regionsState.settings.regions || {});
+    renderRegions();
+    showMessage(regionsMessage, "Regions saved.");
+  } catch (error) {
+    showMessage(regionsMessage, error.message, true);
+  }
+}
+
 // ── CJ automatic imports ──
 
 const cjImportForm = document.getElementById("cj-import-settings");
@@ -3900,6 +4095,7 @@ async function initAdminPage() {
     loadAdminQuotes();
     loadPartners();
     loadLyrtripSettings();
+    initRegionsPanel();
     document.getElementById("attributes-intro").textContent =
       "Colors, sizes and other options buyers choose from. As super admin you can edit or delete every attribute.";
   }
