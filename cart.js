@@ -177,6 +177,8 @@ function normalizeShippingRate(rate) {
     carrier: rate.carrier || rate.id.toUpperCase(),
     service: rate.service || rate.carrier || rate.id.toUpperCase(),
     cost: amount,
+    was: Number(rate.was) > amount ? Number(rate.was) : null,
+    offer: rate.offer || "",
     estimate: rate.estimate || "Carrier estimate unavailable",
   };
 }
@@ -190,8 +192,9 @@ function renderShippingRates(selectedKey = getSelectedRadioValue(shippingMethodI
       <span>
         <strong>${escapeHtml(rate.carrier)}</strong>
         <small>${escapeHtml(rate.service)} | ${escapeHtml(rate.estimate)}</small>
+        ${rate.offer ? `<small class="shipping-offer">${escapeHtml(rate.offer)}</small>` : ""}
       </span>
-      <em>${formatPrice(rate.cost)}</em>
+      <em>${rate.was ? `<s>${formatPrice(rate.was)}</s> ` : ""}${rate.cost ? formatPrice(rate.cost) : "Free"}</em>
     </label>
   `).join("");
 
