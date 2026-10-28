@@ -184,6 +184,18 @@ function recordSearchInterest(query) {
   authApi("/market/interests", { method: "POST", body: { search: q } }).catch(() => {});
 }
 
+// Once a browser session, a signed-in visit tells the account where the shopper is (the server reads it from the
+// request) and what they've been looking at, so the picks email suits them.
+const VISIT_REPORTED_KEY = "lyrshopVisitReported";
+function reportVisitInterest() {
+  if (!signedInForInterests()) return;
+  try {
+    if (sessionStorage.getItem(VISIT_REPORTED_KEY)) return;
+    sessionStorage.setItem(VISIT_REPORTED_KEY, "1");
+  } catch (error) { /* storage blocked: send anyway */ }
+  authApi("/market/interests", { method: "POST", body: { viewed: getRecentlyViewed() } }).catch(() => {});
+}
+
 const RECENTLY_VIEWED_KEY = "lyrshopRecentlyViewed";
 const RECENTLY_VIEWED_LIMIT = 24;
 
@@ -1146,6 +1158,7 @@ function initSharedUi() {
   renderUserGreeting();
   initBackToTop();
   initSearchShortcut();
+  reportVisitInterest();
   // Keep counts in sync when the cart or watchlist changes in another tab.
   window.addEventListener("storage", (event) => {
     if (event.key === CART_KEY || event.key === WATCHLIST_KEY) updateHeaderCounts();
