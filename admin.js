@@ -1758,7 +1758,7 @@ function initRegionsPanel() {
 async function loadRegions() {
   try {
     const wasRunning = regionsState?.running;
-    regionsState = await authApi("/regions");
+    regionsState = await authApi("/search/regions");
     if (!wasRunning || !regionsState.running) regionsDraft = structuredClone(regionsState.settings.regions || {});
     renderRegions();
     if (wasRunning && !regionsState.running) showMessage(regionsMessage, "Stocking finished.");
@@ -1885,7 +1885,7 @@ async function handleRegionClick(event) {
     const out = row.querySelector(".region-store-check");
     out.textContent = "Checking…";
     try {
-      const reply = await authApi("/regions/check", { method: "POST", body: { host: store.host, keyword: region.keywords?.[0] || "" } });
+      const reply = await authApi("/search/regions/check", { method: "POST", body: { host: store.host, keyword: region.keywords?.[0] || "" } });
       const mismatch = reply.currency && reply.currency !== region.currency ? ` It prices in ${reply.currency}, not ${region.currency}: it won't be stocked.` : "";
       out.innerHTML = `${reply.ok ? "✓" : "✗"} ${escapeHtml(reply.name || reply.host)}${reply.currency ? ` · ${escapeHtml(reply.currency)}` : ""}${reply.country ? ` · ${escapeHtml(LyrLocale.countryName(reply.country))}` : ""}${reply.products ? ` · ${reply.products.toLocaleString()} products` : ""}. ${escapeHtml(reply.message || "")}${escapeHtml(mismatch)}
         ${(reply.sample || []).map((item) => `<br /><small>${escapeHtml(item.title)} · ${escapeHtml(String(item.price))}</small>`).join("")}`;
@@ -1896,7 +1896,7 @@ async function handleRegionClick(event) {
   } else if (action === "stock") {
     button.disabled = true;
     try {
-      const { message } = await authApi("/regions/stock", { method: "POST", body: { countries: [region.country] } });
+      const { message } = await authApi("/search/regions/stock", { method: "POST", body: { countries: [region.country] } });
       showMessage(regionsMessage, message);
       regionsState = { ...regionsState, running: { countries: [region.country] } };
       renderRegions();
@@ -1922,7 +1922,7 @@ function addRegion() {
 async function saveRegions(event) {
   event.preventDefault();
   try {
-    regionsState = await authApi("/regions", { method: "PUT", body: { regions: regionsDraft } });
+    regionsState = await authApi("/search/regions", { method: "PUT", body: { regions: regionsDraft } });
     regionsDraft = structuredClone(regionsState.settings.regions || {});
     renderRegions();
     showMessage(regionsMessage, "Regions saved.");
