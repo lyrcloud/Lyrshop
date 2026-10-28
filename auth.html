@@ -31,6 +31,12 @@
         <p id="auth-subtitle">Sign in to track orders, see your watchlist and check out faster.</p>
       </div>
 
+      <div id="lyrtrip-connect" class="hidden" style="margin-bottom: 1.25rem">
+        <p id="lyrtrip-connect-copy"></p>
+        <button id="lyrtrip-connect-go" type="button" class="button button-primary full-width">Continue to Lyrtrip</button>
+        <button id="lyrtrip-connect-switch" type="button" class="button full-width google-button" style="margin-top: 0.75rem">Use another Lyrshop account</button>
+      </div>
+
       <div class="auth-tabs" role="tablist" aria-label="Account mode" data-mode="login">
         <span class="auth-tab-indicator" aria-hidden="true"></span>
         <button id="login-tab" class="auth-tab active" type="button" role="tab" aria-selected="true">Login</button>
@@ -79,6 +85,7 @@
       <div class="auth-divider"><span>or</span></div>
 
       <div id="google-auth" class="google-signin-container"></div>
+      <button id="lyrtrip-auth" type="button" class="button full-width google-button" style="margin-top: 0.75rem">&#9992;&#65039; Continue with Lyrtrip</button>
 
       <p id="auth-message" class="form-message" role="status"></p>
       <p class="auth-terms">New accounts are verified with a code sent to your email or mobile.</p>
@@ -110,7 +117,7 @@
   </dialog>
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="auth.js?v=20261023-1"></script>
+  <script src="auth.js?v=20261028-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="footer.js?v=20261026-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>

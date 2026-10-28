@@ -157,6 +157,12 @@
         <p id="currency-note" class="currency-note" hidden></p>
         <button id="checkout-button" class="button button-primary full-width" disabled>Checkout with Stripe</button>
         <p id="checkout-status" class="checkout-status" aria-live="polite"></p>
+        <div id="lyrpay-checkout" hidden>
+          <p class="checkout-muted" id="lyrpay-note"></p>
+          <input type="email" id="lyrpay-email" placeholder="Your email" autocomplete="email" hidden />
+          <button id="lyrpay-button" type="button" class="button full-width google-button">Pay with Lyrpay</button>
+          <p class="checkout-status" id="lyrpay-status" aria-live="polite"></p>
+        </div>
         <p class="deal-note" id="deal-note" hidden></p>
         <div class="business-checkout" id="business-checkout" hidden>
           <p class="business-quote-note" id="business-quote-note" hidden></p>
@@ -179,10 +185,10 @@
     <p>&copy; 2026 Lyrshop. Powered by Lyrcloud.</p>
   </footer>
 
-  <script src="auth.js?v=20261023-1"></script>
+  <script src="auth.js?v=20261028-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="ui.js?v=20261027-3"></script>
-  <script src="cart.js?v=20261025-3"></script>
+  <script src="cart.js?v=20261028-1"></script>
   <script src="lyrbot.js?v=20261018-1"></script>
 </body>
 </html>

@@ -887,7 +887,50 @@ shippingCountrySelect.addEventListener("change", () => {
 });
 
 // Prices re-render when the visitor's currency is detected or changed.
+// Lyrpay, for shoppers whose currency Stripe can't take: one click joins its early access with their account (or
+// email), until Lyrpay checkout is live.
+const STRIPE_CURRENCIES = new Set(("USD AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL "
+  + "BSD BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CVE CZK DJF DKK DOP DZD EGP ETB EUR FJD FKP GBP GEL GIP GMD GNF GTQ GYD "
+  + "HKD HNL HTG HUF IDR ILS INR ISK JMD JOD JPY KES KGS KHR KMF KRW KWD KYD KZT LAK LBP LKR LRD LSL MAD MDL MGA MKD MMK "
+  + "MNT MOP MUR MVR MWK MXN MYR MZN NAD NGN NIO NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD "
+  + "SCR SEK SGD SHP SLE SOS SRD STD SZL THB TJS TND TOP TRY TTD TWD TZS UAH UGX UYU UZS VND VUV WST XAF XCD XOF XPF YER "
+  + "ZAR ZMW").split(" "));
+const lyrpayBox = document.getElementById("lyrpay-checkout");
+const lyrpayEmail = document.getElementById("lyrpay-email");
+const lyrpayStatus = document.getElementById("lyrpay-status");
+
+function renderLyrpay() {
+  const currency = LyrLocale.currency();
+  lyrpayBox.hidden = STRIPE_CURRENCIES.has(currency);
+  if (lyrpayBox.hidden) return;
+  document.getElementById("lyrpay-note").textContent =
+    `Stripe can't take payments in ${currency} yet. Lyrpay, our own payment service, will. Join in one click and we'll tell you when it's ready.`;
+  lyrpayEmail.hidden = Boolean(getCurrentUser());
+}
+
+document.getElementById("lyrpay-button").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  if (!getCurrentUser() && !lyrpayEmail.value.trim()) {
+    lyrpayStatus.textContent = "Enter your email to join Lyrpay.";
+    lyrpayEmail.focus();
+    return;
+  }
+  button.disabled = true;
+  try {
+    const { message } = await postAuthApi("/auth/lyrpay", {
+      currency: LyrLocale.currency(), country: shippingCountrySelect.value, email: lyrpayEmail.value.trim(),
+    });
+    lyrpayStatus.textContent = message;
+  } catch (error) {
+    lyrpayStatus.textContent = error.message;
+    button.disabled = false;
+  }
+});
+
+renderLyrpay();
+
 LyrLocale.onChange(() => {
+  renderLyrpay();
   renderShippingRates();
   renderCart();
 });

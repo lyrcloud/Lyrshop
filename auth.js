@@ -527,3 +527,81 @@ function initAuthPage() {
 }
 
 initAuthPage();
+
+// Sign-in between Lyrshop and Lyrtrip. Each way, the app the person starts in makes a random state, the other app
+// (where they're signed in) hands back a short-lived signed token for that state, and the server checks both.
+const LYRTRIP_SITE = "https://www.lyrtrip.com";
+const LYRTRIP_STATE_KEY = "lyrtripSignInState";
+
+function newHandoffState() {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function initLyrtripSignIn() {
+  const message = document.getElementById("auth-message");
+  const button = document.getElementById("lyrtrip-auth");
+  if (!button) return;
+
+  button.addEventListener("click", () => {
+    const state = newHandoffState();
+    sessionStorage.setItem(LYRTRIP_STATE_KEY, state);
+    window.location.href = `${LYRTRIP_SITE}/connect?app=lyrshop&state=${encodeURIComponent(state)}`;
+  });
+
+  // Back from Lyrtrip: auth.html#lyrtrip=<token>&state=<state>
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  if (hash.get("lyrtrip")) {
+    const expected = sessionStorage.getItem(LYRTRIP_STATE_KEY);
+    sessionStorage.removeItem(LYRTRIP_STATE_KEY);
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    if (!expected || expected !== hash.get("state")) {
+      message.textContent = "That Lyrtrip sign-in didn't start here. Please try again.";
+    } else {
+      message.textContent = "Signing in with Lyrtrip...";
+      postAuthApi("/auth/lyrtrip", { token: hash.get("lyrtrip"), state: expected })
+        .then((result) => {
+          setCurrentUser(result.user, result.token);
+          window.location.href = getAuthReturnTo();
+        })
+        .catch((error) => { message.textContent = error.message; });
+    }
+  }
+
+  // Lyrtrip asking who's signed in: auth.html?connect=lyrtrip&state=<state>
+  const params = new URLSearchParams(window.location.search);
+  const state = params.get("state") || "";
+  if (params.get("connect") !== "lyrtrip" || !/^[A-Za-z0-9_-]{16,128}$/.test(state)) return;
+  // After signing in here, come back to this page to finish.
+  localStorage.setItem("lyrshopAuthReturnTo", `auth.html?connect=lyrtrip&state=${encodeURIComponent(state)}`);
+  button.classList.add("hidden");
+  const user = getCurrentUser();
+  if (!user) {
+    message.textContent = "Sign in to Lyrshop to continue to Lyrtrip.";
+    return;
+  }
+  const panel = document.getElementById("lyrtrip-connect");
+  panel.classList.remove("hidden");
+  document.getElementById("auth-form").classList.add("hidden");
+  document.querySelector(".auth-tabs")?.classList.add("hidden");
+  document.getElementById("lyrtrip-connect-copy").textContent =
+    `Lyrtrip would like to sign you in as ${user.name || getAccountContact(user)} (${getAccountContact(user)}).`;
+  document.getElementById("lyrtrip-connect-go").addEventListener("click", async (event) => {
+    event.currentTarget.disabled = true;
+    message.textContent = "Taking you to Lyrtrip...";
+    try {
+      const { token, url } = await postAuthApi("/auth/handoff", { app: "lyrtrip", state });
+      localStorage.removeItem("lyrshopAuthReturnTo");
+      window.location.href = `${url}#token=${encodeURIComponent(token)}&state=${encodeURIComponent(state)}`;
+    } catch (error) {
+      event.currentTarget.disabled = false;
+      message.textContent = error.message;
+    }
+  });
+  document.getElementById("lyrtrip-connect-switch").addEventListener("click", () => {
+    clearCurrentUser();
+    window.location.reload();
+  });
+}
+
+initLyrtripSignIn();
