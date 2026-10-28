@@ -1818,7 +1818,7 @@ function renderRegions() {
     return `<fieldset class="region-card" data-country="${country}">
       <legend>${escapeHtml(LyrLocale.countryName(region.country))} (${country})</legend>
       <div class="cj-address-fields">
-        <label>Store currency<input type="text" data-field="currency" value="${escapeHtml(region.currency || "")}" maxlength="3" required /></label>
+        <label>Store currency<select data-field="currency" required>${currencyOptions(region.currency)}</select></label>
         <label>Lowest commission (%)<input type="number" data-field="markup_min" value="${region.markup_min}" min="0" max="60" step="0.5" /></label>
         <label>Highest commission (%)<input type="number" data-field="markup_max" value="${region.markup_max}" min="0" max="60" step="0.5" /></label>
         <label>Minimum profit ($)<input type="number" data-field="min_profit" value="${region.min_profit}" min="0" max="50" step="0.5" /></label>
@@ -1839,6 +1839,27 @@ function renderRegions() {
   }).join("") || `<p class="cj-hint">No regions. Add a country below.</p>`;
   regionsAddCountry.innerHTML = LyrLocale.countryOptions().filter(({ code }) => !regionsDraft[code])
     .map(({ code, name }) => `<option value="${code}">${escapeHtml(name)}</option>`).join("");
+}
+
+// Every currency the browser knows (code and English name), with the region's own kept even when it doesn't.
+function currencyOptions(selected) {
+  let codes = ["USD"];
+  try {
+    codes = Intl.supportedValuesOf("currency");
+  } catch {}
+  let names = null;
+  try {
+    names = new Intl.DisplayNames(["en"], { type: "currency" });
+  } catch {}
+  const label = (code) => {
+    try {
+      return names?.of(code) || code;
+    } catch {
+      return code;
+    }
+  };
+  return [...new Set([selected, ...codes].filter(Boolean))].sort()
+    .map((code) => `<option value="${code}" ${code === selected ? "selected" : ""}>${code} · ${escapeHtml(label(code))}</option>`).join("");
 }
 
 function regionOf(element) {
