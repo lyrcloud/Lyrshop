@@ -851,6 +851,7 @@ function initHeaderMenu() {
   // The bottom bar (phones) and the signed-in side menu open this menu, optionally at its category tree.
   window.openHeaderMenu = ({ categories = false } = {}) => {
     document.getElementById("category-sheet")?.setAttribute("hidden", "");
+    document.getElementById("seller-sheet")?.setAttribute("hidden", "");
     setOpen(true);
     const branch = categories && menu.querySelector("[data-header-categories]");
     if (branch) expand(branch, true);
@@ -872,14 +873,15 @@ function initBottomNav() {
   const view = new URLSearchParams(window.location.search).get("view");
   const link = (href, icon, label, current, extra = "") =>
     `<a href="${href}" class="bottom-nav-item${current ? " is-current" : ""}"${current ? ' aria-current="page"' : ""}>${extra || drawerIcon(icon)}<span>${label}</span></a>`;
-  const button = (action, icon, label) =>
-    `<button type="button" class="bottom-nav-item" data-bottom-nav="${action}">${drawerIcon(icon)}<span>${label}</span></button>`;
+  const button = (action, icon, label, current = false) =>
+    `<button type="button" class="bottom-nav-item${current ? " is-current" : ""}" data-bottom-nav="${action}" aria-haspopup="dialog">${drawerIcon(icon)}<span>${label}</span></button>`;
   const nav = document.createElement("nav");
   nav.className = "bottom-nav";
   nav.setAttribute("aria-label", "Shortcuts");
+  // Sell opens the seller sheet; categories stay in Menu, the home page's tiles and the side menu.
   nav.innerHTML = `
     ${link("index.html", "home", "Home", page === "index.html" && !view)}
-    ${button("categories", "grid", "Categories")}
+    ${button("sell", "sell", "Sell", page === "admin.html")}
     ${link("cart.html", "cart", "Cart", page === "cart.html", `<span class="bottom-nav-icon">${drawerIcon("cart")}<span class="count-badge" data-count="cart" hidden></span></span>`)}
     ${user
       ? link("dashboard.html", "user", "You", page === "dashboard.html", `<span class="bottom-nav-icon">${userAvatar(user, "bottom-nav-avatar")}</span>`)
@@ -890,13 +892,66 @@ function initBottomNav() {
     if (!action) return;
     // Without this the menu's outside-click handler would close it straight away.
     event.stopPropagation();
-    if (action === "categories") window.openCategorySheet();
+    if (action === "sell") window.openSellerSheet();
     else if (window.openHeaderMenu) window.openHeaderMenu();
     else window.location.href = "index.html#menu";
   });
   document.body.append(nav);
   document.body.classList.add("has-bottom-nav");
   initCategorySheet();
+  initSellerSheet(user);
+}
+
+// The bottom bar's Sell: everything a seller needs, as a sheet over the page. Seller-hub links work signed out too:
+// admin.html sends the shopper to sign in and back (requireUser).
+function initSellerSheet(user) {
+  const staff = Boolean(user) && typeof isStaffRole === "function" && isStaffRole(user.role);
+  const row = (href, icon, label, note) => `
+    <li><a href="${href}" class="seller-sheet-link">${drawerIcon(icon)}<span><strong>${label}</strong><small>${note}</small></span></a></li>`;
+  const sheet = document.createElement("nav");
+  sheet.className = "seller-sheet";
+  sheet.id = "seller-sheet";
+  sheet.setAttribute("aria-label", "Selling");
+  sheet.hidden = true;
+  sheet.innerHTML = `
+    <div class="category-sheet-head">
+      <strong>Selling</strong>
+      <button type="button" class="category-sheet-close" data-sheet-close aria-label="Close">${drawerIcon("close")}</button>
+    </div>
+    <div class="seller-sheet-body">
+      <a href="admin.html#new" class="button button-primary seller-sheet-cta">+ List an item</a>
+      <p class="seller-sheet-hint">${user ? "Add photos and AI fills in the details." : "Sign in to start selling. It's free to list."}</p>
+      <ul class="seller-sheet-list">
+        ${row("admin.html#listings", "sell", "My listings", "Edit, delete or find by product ID")}
+        ${row("admin.html#drafts", "clock", "Drafts", "Finish and publish saved listings")}
+        ${row("dashboard.html#offers", "offer", "Offers &amp; bids", "Answer buyers' offers on your items")}
+        ${row("admin.html#attributes", "grid", "Item options", "Colors, sizes and other choices")}
+        ${row("dashboard.html#affiliate", "link", "Affiliate program", "Earn by sharing Lyrshop links")}
+        ${row("partners.html", "brands", "Partner stores", "Sell our catalog in your own store")}
+        ${staff ? row("admin.html#orders", "bag", "Orders", "Customer orders to fulfil") : ""}
+        ${staff ? row("admin.html", "gear", "Admin tools", "Users, brands, coupons and more") : ""}
+      </ul>
+    </div>`;
+  const setOpen = (open) => {
+    sheet.hidden = !open;
+    if (open) sheet.querySelector(".seller-sheet-cta")?.focus({ preventScroll: true });
+  };
+  sheet.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (event.target.closest("[data-sheet-close]") || event.target.closest("a")) setOpen(false);
+  });
+  document.addEventListener("click", (event) => {
+    if (!sheet.hidden && !event.target.closest(".seller-sheet")) setOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !sheet.hidden) setOpen(false);
+  });
+  document.body.append(sheet);
+  window.openSellerSheet = () => {
+    document.getElementById("header-menu")?.setAttribute("hidden", "");
+    document.getElementById("category-sheet")?.setAttribute("hidden", "");
+    setOpen(sheet.hidden);
+  };
 }
 
 // The bottom bar's Categories: its own sheet of department tiles; a tile opens that department's subcategories.
@@ -975,6 +1030,7 @@ function initCategorySheet() {
   document.body.append(sheet);
   window.openCategorySheet = () => {
     document.getElementById("header-menu")?.setAttribute("hidden", "");
+    document.getElementById("seller-sheet")?.setAttribute("hidden", "");
     setOpen(true);
   };
 }

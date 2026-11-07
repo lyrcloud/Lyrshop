@@ -3794,6 +3794,31 @@ function initTabs() {
   // Links in emails (e.g. a quote request) open their section: admin.html#business.
   const linked = document.querySelector(`.admin-tab[data-admin-section="${CSS.escape(window.location.hash.slice(1))}"]:not([hidden])`);
   if (linked) window.setTimeout(() => linked.click(), 0);
+  openSellerSpot();
+  // The phone seller sheet can link here again from this page, which only changes the hash.
+  window.addEventListener("hashchange", () => {
+    const tab = document.querySelector(`.admin-tab[data-admin-section="${CSS.escape(window.location.hash.slice(1))}"]:not([hidden])`);
+    if (tab) tab.click();
+    else openSellerSpot();
+  });
+}
+
+// The phone seller sheet's links: #new is the listing form, #listings the seller's listings, #drafts those not yet
+// published.
+function openSellerSpot() {
+  const spot = window.location.hash.slice(1);
+  if (!["new", "listings", "drafts"].includes(spot)) return;
+  document.querySelector('.admin-tab[data-admin-section="products"]')?.click();
+  if (spot === "new" && !productCancel.hidden) cancelProductEdit();
+  if (spot === "drafts" || (spot === "listings" && productFilterStatus.value === "draft")) {
+    productFilterStatus.value = spot === "drafts" ? "draft" : "";
+    if (adminProductsLoaded) productFilterStatus.dispatchEvent(new Event("change"));
+  }
+  const target = spot === "new" ? document.getElementById("product-form-title") : document.querySelector(".admin-products");
+  window.setTimeout(() => {
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (spot === "new") nameInput.focus({ preventScroll: true });
+  }, 50);
 }
 
 // ── Image uploads ──────────────────────────────────────────────────────────────
