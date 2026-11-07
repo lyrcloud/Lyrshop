@@ -336,7 +336,7 @@ productBulkDelete.addEventListener("click", async () => {
   }
   await Promise.all(Array.from({ length: 6 }, worker));
   showMessage(message, failed.length
-    ? `Deleted ${ids.length - failed.length} of ${ids.length}. ${failed.length} couldn't be deleted and are still selected.`
+    ? `Deleted ${ids.length - failed.length} of ${ids.length}. ${failed.length} couldn't be deleted and ${failed.length === 1 ? "is" : "are"} still selected.`
     : `Deleted ${ids.length} product${ids.length === 1 ? "" : "s"}.`, failed.length > 0);
   loadCurrentProducts(readSession());
 });
