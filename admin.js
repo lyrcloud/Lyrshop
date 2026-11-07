@@ -256,14 +256,99 @@ function getVisibleAdminProducts() {
   const query = productFilterSearch.value.trim().toLowerCase();
   const status = productFilterStatus.value;
   const category = productFilterCategory.value;
-  return managedProducts().filter((product) => {
+  const matches = managedProducts().filter((product) => {
     if (status && (product.status || "published") !== status) return false;
     if (category && product.category !== category) return false;
     if (!query) return true;
+    // Product IDs (and the supplier's SKU or CJ product ID) match from their start, so a pasted or partial ID finds it.
+    if ([product.id, product.supplier?.sku, product.cj?.pid].some((id) => id && String(id).toLowerCase().startsWith(query))) return true;
     return [product.name, product.brand, product.subcategory, product.description]
       .some((field) => String(field || "").toLowerCase().includes(query));
   });
+  // An exact ID goes first.
+  return query ? matches.sort((a, b) => Number(String(b.id).toLowerCase() === query) - Number(String(a.id).toLowerCase() === query)) : matches;
 }
+
+// ── Bulk select and delete ───────────────────────────────────────────────────
+const selectedProductIds = new Set();
+const productBulkBar = document.getElementById("product-bulk-bar");
+const productSelectAll = document.getElementById("product-select-all");
+const productSelectedCount = document.getElementById("product-selected-count");
+const productBulkDelete = document.getElementById("product-bulk-delete");
+const productBulkClear = document.getElementById("product-bulk-clear");
+
+function renderBulkBar(visible) {
+  const editableIds = visible.filter((product) => canEditProduct(product, readSession())).map((product) => product.id);
+  productBulkBar.hidden = !adminProductsLoaded || !managedProducts().length;
+  const allSelected = editableIds.length > 0 && editableIds.every((id) => selectedProductIds.has(id));
+  productSelectAll.checked = allSelected;
+  productSelectAll.indeterminate = !allSelected && editableIds.some((id) => selectedProductIds.has(id));
+  document.getElementById("product-select-all-label").textContent = `Select all ${editableIds.length} matching`;
+  productSelectedCount.textContent = `${selectedProductIds.size} selected`;
+  productBulkDelete.disabled = selectedProductIds.size === 0;
+  productBulkDelete.textContent = selectedProductIds.size ? `Delete ${selectedProductIds.size} selected` : "Delete selected";
+  productBulkClear.hidden = selectedProductIds.size === 0;
+}
+
+productSelectAll.addEventListener("change", () => {
+  const session = readSession();
+  getVisibleAdminProducts().filter((product) => canEditProduct(product, session))
+    .forEach((product) => (productSelectAll.checked ? selectedProductIds.add(product.id) : selectedProductIds.delete(product.id)));
+  renderProducts(session);
+});
+
+productBulkClear.addEventListener("click", () => {
+  selectedProductIds.clear();
+  renderProducts(readSession());
+});
+
+currentProducts.addEventListener("change", (event) => {
+  const box = event.target.closest("[data-select-product]");
+  if (!box) return;
+  if (box.checked) selectedProductIds.add(box.dataset.selectProduct);
+  else selectedProductIds.delete(box.dataset.selectProduct);
+  box.closest(".card")?.classList.toggle("is-selected", box.checked);
+  renderBulkBar(getVisibleAdminProducts());
+});
+
+productBulkDelete.addEventListener("click", async () => {
+  const ids = [...selectedProductIds].filter((id) => adminProducts.some((product) => product.id === id));
+  if (!ids.length) return;
+  if (!confirm(`Delete ${ids.length} product${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+  productBulkDelete.disabled = true;
+  let done = 0;
+  const failed = [];
+  const queue = [...ids];
+  // A few at a time so the API isn't flooded; progress shows as they go.
+  async function worker() {
+    while (queue.length) {
+      const id = queue.shift();
+      try {
+        const res = await fetch(`${API_BASE_URL}/products/${encodeURIComponent(id)}`, { method: "DELETE", headers: sessionHeaders() });
+        if (isApiSuccess(res)) selectedProductIds.delete(id);
+        else failed.push(id);
+      } catch {
+        failed.push(id);
+      }
+      done += 1;
+      showMessage(message, `Deleting… ${done} of ${ids.length}`);
+    }
+  }
+  await Promise.all(Array.from({ length: 6 }, worker));
+  showMessage(message, failed.length
+    ? `Deleted ${ids.length - failed.length} of ${ids.length}. ${failed.length} couldn't be deleted and are still selected.`
+    : `Deleted ${ids.length} product${ids.length === 1 ? "" : "s"}.`, failed.length > 0);
+  loadCurrentProducts(readSession());
+});
+
+currentProducts.addEventListener("click", (event) => {
+  const copy = event.target.closest("[data-copy-id]");
+  if (!copy) return;
+  navigator.clipboard?.writeText(copy.dataset.copyId).then(() => {
+    copy.textContent = "Copied";
+    window.setTimeout(() => { copy.textContent = "Copy"; }, 1200);
+  }).catch(() => {});
+});
 
 function renderProducts(session) {
   currentProducts.innerHTML = "";
@@ -272,6 +357,7 @@ function renderProducts(session) {
   const visible = getVisibleAdminProducts();
   productFilterCount.textContent = `${visible.length} of ${managed.length} listings · ${draftCount} drafts`;
   renderAdminTotals();
+  renderBulkBar(visible);
 
   if (!visible.length) {
     currentProducts.innerHTML = managed.length
@@ -286,11 +372,14 @@ function renderProducts(session) {
     const imageUrl = product.image_url || "logo.svg";
     const editable = canEditProduct(product, session);
     const isDraft = product.status === "draft";
-    card.className = isDraft ? "card draft-card" : "card";
+    const selected = selectedProductIds.has(product.id);
+    card.className = `${isDraft ? "card draft-card" : "card"}${selected ? " is-selected" : ""}`;
     card.innerHTML = `
+      ${editable ? `<label class="product-select"><input type="checkbox" data-select-product="${escapeHtml(product.id)}" ${selected ? "checked" : ""} aria-label="Select ${escapeHtml(product.name)}" /></label>` : ""}
       <img class="product-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name)}" loading="lazy" />
       <div class="card-body">
         <div>
+          <p class="product-id-line"><code>${escapeHtml(product.id)}</code> <button type="button" class="link-button" data-copy-id="${escapeHtml(product.id)}">Copy</button></p>
           ${isDraft ? `<span class="draft-badge">Draft · hidden from store</span>` : ""}
           ${sellingBadge(product)}
           ${product.brand ? `<small class="product-brand">${escapeHtml(product.brand)}</small>` : ""}
@@ -339,6 +428,8 @@ async function loadCurrentProducts(session) {
     const json = await res.json();
     adminProducts = json.products || [];
     adminProductsLoaded = true;
+    const known = new Set(adminProducts.map((product) => product.id));
+    [...selectedProductIds].forEach((id) => { if (!known.has(id)) selectedProductIds.delete(id); });
     renderProductFilterCategories();
     renderProducts(session);
     renderBrandOptions(adminProducts);

@@ -970,3 +970,6 @@ renderCart();
 loadProductDetails();
 if (shippingCountry() !== "US" && cart.length) quoteShippingRates();
 loadDeal();
+
+// The 11.11 coupon note shows while SINGLES11 is valid (through November 12, 2026).
+if (new Date() < new Date("2026-11-13T00:00:00Z")) document.getElementById("singles-day-note")?.removeAttribute("hidden");

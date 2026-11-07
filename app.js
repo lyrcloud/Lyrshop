@@ -642,9 +642,10 @@ function bindHeroSlider() {
   });
 }
 
-function refreshListing() {
+// keepCount re-renders with as many cards as were already showing (fresh data arriving), so the page doesn't jump.
+function refreshListing(keepCount = false) {
   renderListingControls();
-  renderProductCards(getFilteredProducts());
+  renderProductCards(getFilteredProducts(), keepCount);
   syncListingUrl();
 }
 
@@ -678,52 +679,93 @@ function renderEmptyState() {
     </div>`;
 }
 
-function renderProductCards(products) {
+// Cards are added a page at a time as the shopper scrolls: building all ~5,000 at once froze phones for seconds.
+const CARD_PAGE_SIZE = 48;
+let listedProducts = [];
+let cardsShown = 0;
+const cardSentinel = document.createElement("div");
+cardSentinel.className = "card-sentinel";
+cardSentinel.setAttribute("aria-hidden", "true");
+productList.after(cardSentinel);
+
+function showMoreCards() {
+  if (cardsShown >= listedProducts.length) return;
+  const next = listedProducts.slice(cardsShown, cardsShown + CARD_PAGE_SIZE);
+  productList.insertAdjacentHTML("beforeend", next.map((product, offset) => productCardHtml(product, cardsShown + offset)).join(""));
+  cardsShown += next.length;
+  topUpCards();
+}
+
+// The observer only fires when the sentinel comes into view, so keep adding while it is still near the screen.
+function topUpCards() {
+  if (cardsShown >= listedProducts.length) return;
+  window.requestAnimationFrame(() => {
+    if (cardSentinel.getBoundingClientRect().top < window.innerHeight + 1200) showMoreCards();
+  });
+}
+
+if ("IntersectionObserver" in window) {
+  new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) showMoreCards();
+  }, { rootMargin: "1200px 0px" }).observe(cardSentinel);
+}
+
+function renderProductCards(products, keepCount = false) {
   productList.removeAttribute("aria-busy");
   if (!productsLoaded) {
     renderSkeletonCards();
     return;
   }
   if (products.length === 0) {
+    listedProducts = [];
+    cardsShown = 0;
     renderEmptyState();
     return;
   }
 
-  productList.innerHTML = products.map((product, index) => {
-    const discount = getDiscountPercent(product.original_price, product.price);
-    const productUrl = `product.html?id=${encodeURIComponent(product.id)}`;
-    const watched = isWatched(product.id);
-    return `
-      <article class="product-card" data-product-id="${escapeHtml(product.id)}" style="--i: ${Math.min(index, 12)}">
-        <a class="card-image product-card-link" href="${productUrl}" aria-label="View ${escapeHtml(product.name)}" data-photos="${escapeHtml(JSON.stringify(cardPhotos(product)))}">
-          <img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy" />
-          ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ""}
-        </a>
-        <button type="button" class="watch-toggle${watched ? " is-watched" : ""}" data-watch="${escapeHtml(product.id)}"
-          aria-pressed="${watched}" aria-label="${watched ? "Remove from" : "Add to"} watchlist: ${escapeHtml(product.name)}">${watched ? "&#9829;" : "&#9825;"}</button>
-        <div class="card-content">
-          ${product.brand ? `<p class="product-brand">${escapeHtml(product.brand)}</p>` : ""}
-          <h3 class="product-name"><a href="${productUrl}">${escapeHtml(product.name)}</a></h3>
-          <p class="product-desc">${escapeHtml(product.description)}</p>
-          ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
-          ${product.wholesale_tiers?.length ? `<span class="bulk-badge" title="Wholesale prices for approved business accounts">Bulk pricing</span>` : ""}
-          ${product.regional_factor ? `<span class="regional-badge" title="The seller lowered this price for shoppers in your country">Fair price for your country</span>` : ""}
-          <p class="product-location${product.nearby >= 3 ? " is-local" : ""}" title="${escapeHtml(product.nearby_label || "Item location")}">&#128205; ${escapeHtml(itemLocationLabel(product))}</p>
-          <div class="product-rating">${ratingStars(product.rating || 4)}</div>
-          ${product.condition && product.condition !== "new" ? `<p class="product-condition">${escapeHtml(conditionLabel(product))}</p>` : ""}
-          <div class="product-pricing">
-            <span class="current-price">${formatPrice(product.price)}</span>
-            ${isOnSale(product) ? `<span class="original-price">${formatPrice(product.original_price)}</span>` : ""}
-          </div>
-          ${cardSellingLine(product)}
-          ${isAuctionListing(product)
-            ? `<a class="button button-primary add-cart-btn" href="${productUrl}">${auctionLive(product) ? "Place bid" : "View auction"}</a>`
-            : product.source === "affiliate"
-            ? `<a class="button button-primary add-cart-btn" href="${productUrl}">View deal</a>`
-            : `<button type="button" class="button button-primary add-cart-btn" data-add="${escapeHtml(product.id)}">Add to Cart</button>`}
+  const count = "IntersectionObserver" in window
+    ? Math.min(products.length, Math.max(CARD_PAGE_SIZE, keepCount ? cardsShown : 0))
+    : products.length;
+  listedProducts = products;
+  cardsShown = count;
+  productList.innerHTML = products.slice(0, count).map(productCardHtml).join("");
+  topUpCards();
+}
+
+function productCardHtml(product, index) {
+  const discount = getDiscountPercent(product.original_price, product.price);
+  const productUrl = `product.html?id=${encodeURIComponent(product.id)}`;
+  const watched = isWatched(product.id);
+  return `
+    <article class="product-card" data-product-id="${escapeHtml(product.id)}" style="--i: ${Math.min(index, 12)}">
+      <a class="card-image product-card-link" href="${productUrl}" aria-label="View ${escapeHtml(product.name)}" data-photos="${escapeHtml(JSON.stringify(cardPhotos(product)))}">
+        <img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" loading="lazy" />
+        ${discount > 0 ? `<span class="discount-badge">-${discount}%</span>` : ""}
+      </a>
+      <button type="button" class="watch-toggle${watched ? " is-watched" : ""}" data-watch="${escapeHtml(product.id)}"
+        aria-pressed="${watched}" aria-label="${watched ? "Remove from" : "Add to"} watchlist: ${escapeHtml(product.name)}">${watched ? "&#9829;" : "&#9825;"}</button>
+      <div class="card-content">
+        ${product.brand ? `<p class="product-brand">${escapeHtml(product.brand)}</p>` : ""}
+        <h3 class="product-name"><a href="${productUrl}">${escapeHtml(product.name)}</a></h3>
+        <p class="product-desc">${escapeHtml(product.description)}</p>
+        ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
+        ${product.wholesale_tiers?.length ? `<span class="bulk-badge" title="Wholesale prices for approved business accounts">Bulk pricing</span>` : ""}
+        ${product.regional_factor ? `<span class="regional-badge" title="The seller lowered this price for shoppers in your country">Fair price for your country</span>` : ""}
+        <p class="product-location${product.nearby >= 3 ? " is-local" : ""}" title="${escapeHtml(product.nearby_label || "Item location")}">&#128205; ${escapeHtml(itemLocationLabel(product))}</p>
+        <div class="product-rating">${ratingStars(product.rating || 4)}</div>
+        ${product.condition && product.condition !== "new" ? `<p class="product-condition">${escapeHtml(conditionLabel(product))}</p>` : ""}
+        <div class="product-pricing">
+          <span class="current-price">${formatPrice(product.price)}</span>
+          ${isOnSale(product) ? `<span class="original-price">${formatPrice(product.original_price)}</span>` : ""}
         </div>
-      </article>`;
-  }).join("");
+        ${cardSellingLine(product)}
+        ${isAuctionListing(product)
+          ? `<a class="button button-primary add-cart-btn" href="${productUrl}">${auctionLive(product) ? "Place bid" : "View auction"}</a>`
+          : product.source === "affiliate"
+          ? `<a class="button button-primary add-cart-btn" href="${productUrl}">View deal</a>`
+          : `<button type="button" class="button button-primary add-cart-btn" data-add="${escapeHtml(product.id)}">Add to Cart</button>`}
+      </div>
+    </article>`;
 }
 
 // eBay's line under the price: "3 bids · 2d 4h left" for auctions, "or Best Offer" for fixed prices.
@@ -949,30 +991,65 @@ function renderSourcingStatus(searching) {
     ? '<span class="sourcing-spinner" aria-hidden="true"></span> Finding more from brand stores and suppliers…' : "";
 }
 
+// The last catalog this browser downloaded is kept in the Cache API, so a return visit shows listings at once while
+// the fresh catalog loads behind it (about 1 MB). Copies older than a day aren't shown; prices are checked again at
+// checkout either way.
+const CATALOG_CACHE = "lyrshop-catalog-v1";
+const CATALOG_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+async function readCachedCatalog(url) {
+  try {
+    const hit = await (await caches.open(CATALOG_CACHE)).match(url);
+    const saved = Number(hit?.headers.get("x-saved-at") || 0);
+    if (!hit || Date.now() - saved > CATALOG_CACHE_MAX_AGE_MS) return null;
+    return await hit.json();
+  } catch {
+    return null;
+  }
+}
+
+async function saveCachedCatalog(url, text) {
+  try {
+    const cache = await caches.open(CATALOG_CACHE);
+    await cache.put(url, new Response(text, { headers: { "content-type": "application/json", "x-saved-at": String(Date.now()) } }));
+  } catch {
+    // Private windows and full storage just go without the copy.
+  }
+}
+
+function showCatalog(json) {
+  // Listings a live search found while the catalog was loading are kept.
+  const found = allProducts.filter((p) => p.sourced_for);
+  const products = (json.products || []).map(shopperProduct).filter(Boolean);
+  const ids = new Set(products.map((product) => product.id));
+  allProducts = [...products, ...found.filter((p) => !ids.has(p.id))];
+  productsLoaded = true;
+  refreshListing(true);
+  fillCategoryPhotos();
+  // Rebuild once products arrive so real sale events get their own slides.
+  if (allProducts.some(isOnSale)) renderHeroSlider();
+}
+
 async function loadProducts() {
+  const url = shopperProductsUrl(API_BASE_URL, undefined, "view=cards");
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), PRODUCT_REQUEST_TIMEOUT_MS);
+  const network = fetch(url, { signal: controller.signal });
+  const cached = await readCachedCatalog(url);
+  if (cached?.products?.length && !productsLoaded) showCatalog(cached);
 
   try {
-    const response = await fetch(shopperProductsUrl(API_BASE_URL, undefined, "view=cards"), { signal: controller.signal });
+    const response = await network;
     if (!response.ok) {
       throw new Error(`Product request failed with ${response.status}`);
     }
-    const json = await response.json();
-    // Listings a live search found while the catalog was loading are kept.
-    const found = allProducts.filter((p) => p.sourced_for);
-    const products = (json.products || []).map(shopperProduct).filter(Boolean);
-    allProducts = [...products, ...found.filter((p) => !products.some((other) => other.id === p.id))];
-    productsLoaded = true;
+    const text = await response.text();
+    showCatalog(JSON.parse(text));
+    saveCachedCatalog(url, text);
   } catch (error) {
     console.warn("Product request failed.", error);
-    allProducts = [];
-    productsLoaded = true;
+    if (!cached?.products?.length) showCatalog({ products: [] });
   } finally {
-    refreshListing();
-    fillCategoryPhotos();
-    // Rebuild once products arrive so real sale events get their own slides.
-    if (allProducts.some(isOnSale)) renderHeroSlider();
     window.clearTimeout(timeoutId);
   }
 }
