@@ -6096,8 +6096,20 @@ body.zoom-open {
   font-weight: 600;
 }
 
+.lyrbot-lyrchat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-pill);
+  background: #ede9fe;
+  color: #5b3fd6;
+  font-weight: 700;
+}
+
 .lyrbot-whatsapp:hover,
-.lyrbot-email:hover {
+.lyrbot-email:hover,
+.lyrbot-lyrchat:hover {
   text-decoration: underline;
 }
 
