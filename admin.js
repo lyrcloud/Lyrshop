@@ -386,6 +386,7 @@ function renderProducts(session) {
           <h3>${escapeHtml(product.name)}</h3>
           <p>${escapeHtml(product.description || "No description.")}</p>
           ${isDraft && product.draft_notes ? `<p class="draft-notes">${escapeHtml(product.draft_notes)}</p>` : ""}
+          ${isDraft && product.idle_drafted_at ? `<p class="draft-notes">Deleted automatically on ${new Date((Number(product.idle_drafted_at) + 15 * 86400) * 1000).toLocaleDateString()} unless published again.</p>` : ""}
           ${product.seller_name ? `<small>by ${escapeHtml(product.seller_name)}</small>` : ""}
         </div>
       </div>
@@ -418,6 +419,22 @@ function renderProductFilterCategories() {
   productFilterCategory.value = selected;
 }
 
+// admin.html?edit=<id>, from a product page's staff Edit button: open that listing in the editor once, and go back
+// to its product page after saving.
+let requestedEditId = new URLSearchParams(window.location.search).get("edit") || "";
+let returnToProductId = "";
+
+function openRequestedEdit() {
+  if (!requestedEditId) return;
+  const product = adminProducts.find((item) => String(item.id) === requestedEditId);
+  if (!product) showMessage(message, "That listing no longer exists, or you can't edit it.", true);
+  else {
+    startEditProduct(product);
+    returnToProductId = requestedEditId;
+  }
+  requestedEditId = "";
+}
+
 async function loadCurrentProducts(session) {
   const url = isStaffRole(session.role)
     ? `${API_BASE_URL}/products?include_drafts=1`
@@ -434,6 +451,7 @@ async function loadCurrentProducts(session) {
     renderProducts(session);
     renderBrandOptions(adminProducts);
     if (isStaffRole(session.role)) renderCjImported();
+    openRequestedEdit();
   } catch {
     currentProducts.innerHTML = "<p>Unable to load products. Make sure the backend is running.</p>";
   }
@@ -1052,6 +1070,10 @@ async function submitProduct(event) {
       showMessage(message, saved.brand_review
         ? `Saved as a draft: ${saved.brand} is a protected brand, so Lyrshop staff review it before it goes live.`
         : (editId ? "Product updated." : "Product listed successfully."));
+      if (editId && editId === returnToProductId) {
+        window.location.href = `product.html?id=${encodeURIComponent(editId)}`;
+        return;
+      }
       loadCurrentProducts(session);
       return;
     }

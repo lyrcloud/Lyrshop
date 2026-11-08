@@ -11979,3 +11979,27 @@ body.drawer-open {
   align-items: end;
   margin: 1rem 0;
 }
+
+/* Product page: staff Edit / Delete and the listing's 30-day idle clock. */
+.staff-tools {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: var(--surface-soft, #f8fafc);
+}
+.staff-tools-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.staff-tools-actions .button {
+  padding: 0.35rem 0.9rem;
+  min-height: 0;
+}
+.staff-tools-note {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted, #6b7280);
+}

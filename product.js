@@ -1124,6 +1124,60 @@ function renderLiveSignals(product) {
   list.hidden = !signals.length;
 }
 
+// ── Staff tools ────────────────────────────────────────────────────────────────
+// Signed in as staff, every product page has Edit (the admin editor, back here after saving) and Delete, and says
+// when the listing leaves the store on its own: 30 days after a shopper last opened it, it moves to drafts, and an
+// unpublished auto-draft is deleted 15 days later (backend/idle_core.py).
+const IDLE_DAYS = 30;
+const IDLE_DRAFT_DAYS = 15;
+const IDLE_TRACKING_SINCE = 1794182400;  // 2026-11-09, when views were first recorded.
+
+function staffViewer() {
+  const user = typeof getCurrentUser === "function" ? getCurrentUser() : null;
+  return Boolean(user && isStaffRole(user.role));
+}
+
+function idleNotice(product) {
+  const day = 86400;
+  const format = (seconds) => new Date(seconds * 1000).toLocaleDateString(navigator.language || "en-US", { month: "short", day: "numeric", year: "numeric" });
+  if (product.status === "draft") {
+    return product.idle_drafted_at
+      ? `Moved to drafts automatically. Publish it again before ${format(Number(product.idle_drafted_at) + IDLE_DRAFT_DAYS * day)} or it's deleted.`
+      : "Draft: hidden from the store.";
+  }
+  const viewed = Number(product.last_viewed_at) || 0;
+  const since = Math.max(viewed, Number(product.created_at) || 0, Number(product.active_since) || 0, IDLE_TRACKING_SINCE);
+  return `${viewed ? `A shopper last opened it on ${format(viewed)}.` : "No shopper has opened it yet."} `
+    + `Goes to drafts on ${format(since + IDLE_DAYS * day)} unless someone does.`;
+}
+
+function renderStaffTools(product) {
+  if (!staffViewer() || document.getElementById("staff-tools")) return;
+  const tools = document.createElement("div");
+  tools.id = "staff-tools";
+  tools.className = "staff-tools";
+  tools.innerHTML = `
+    <div class="staff-tools-actions">
+      <strong>Staff</strong>
+      <a class="button button-secondary" href="admin.html?edit=${encodeURIComponent(product.id)}">Edit</a>
+      <button type="button" class="button danger-button" id="staff-delete">Delete</button>
+    </div>
+    <p class="staff-tools-note">${escapeHtml(idleNotice(product))}</p>`;
+  document.getElementById("detail-title").before(tools);
+  document.getElementById("staff-delete").addEventListener("click", async (event) => {
+    if (!confirm(`Delete "${product.name}" permanently? This cannot be undone.`)) return;
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      await authApi(`/products/${encodeURIComponent(product.id)}`, { method: "DELETE" });
+      window.location.href = "index.html";
+    } catch (error) {
+      button.disabled = false;
+      alert(error.message || "Unable to delete this product.");
+    }
+  });
+}
+
 async function beatPresence(product) {
   const visitor = visitorId();
   if (!visitor || document.hidden) return;
@@ -1131,7 +1185,8 @@ async function beatPresence(product) {
     const response = await fetch(`${DETAIL_API_BASE_URL}/products/${encodeURIComponent(product.id)}/presence`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visitor, in_cart: cartProductIds().includes(String(product.id)) }),
+      // Staff checking a listing don't count as a shopper opening it (the 30-day idle clock, see renderStaffTools).
+      body: JSON.stringify({ visitor, in_cart: cartProductIds().includes(String(product.id)), staff: staffViewer() || undefined }),
     });
     if (!response.ok || !(response.headers.get("Content-Type") || "").includes("application/json")) return;
     liveCounts = await response.json();
@@ -1397,6 +1452,7 @@ async function initProductDetail() {
     return;
   }
   renderProduct(product);
+  renderStaffTools(product);
   bindActions(product);
   bindZoom();
   bindGalleryControls();
