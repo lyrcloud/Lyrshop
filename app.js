@@ -53,10 +53,15 @@ const localRank = (product) => Math.max(product.nearby, product.market_pick ? 3 
 // Best for the shopper's location: how near it is, how much shoppers there favour it (their sports, festivals, food,
 // climate and plugs: cricket in India and Australia, American football and basketball in North America, soccer in
 // Europe and Latin America, the same idea in every category) and how well its price suits their country.
-// A taste that isn't followed there (cricket in the US, NFL in India) weighs three times as much, so those listings
-// sink below everything but far-away items even when they're listed nearby; searching for them still finds them.
+// A taste that isn't followed there (cricket in the US, NFL in India) is left out of browsing altogether (see
+// shownWhileBrowsing); searching for it, or opening its own subcategory, still finds it, ranked by the same score.
 const localScore = (product) =>
   localRank(product) + product.local_fit * (product.local_fit < 0 ? 6 : 2) + product.price_fit;
+
+// Listings for a sport, festival or plug that isn't followed where the shopper is (local_fit -0.4) only appear when
+// they ask for them: a search, their own subcategory or the watchlist.
+// Out-of-season goods score a little less (-0.3, sandals in a northern winter) and stay, only lower down.
+const shownWhileBrowsing = (product) => product.local_fit > -0.35;
 
 const SORTS = {
   // Like a local marketplace: nearest first, then the prices that suit the shopper's country, then newest.
@@ -184,7 +189,7 @@ function renderStorefrontCategories() {
 
 // Categories without a stock photo show one of their own listings, or their icon until the catalog has one.
 function categoryPhoto(name) {
-  const product = allProducts.find((p) => p.category === name && p.image_url && p.image_url !== PLACEHOLDER_IMAGE_URL);
+  const product = allProducts.find((p) => p.category === name && shownWhileBrowsing(p) && p.image_url && p.image_url !== PLACEHOLDER_IMAGE_URL);
   return product ? product.image_url : "";
 }
 
@@ -238,6 +243,10 @@ function getFilteredProducts() {
   if (activeFormat) {
     filtered = filtered.filter((p) => activeFormat === "auction" ? auctionLive(p)
       : activeFormat === "offers" ? Boolean(p.best_offer?.enabled) : !isAuctionListing(p));
+  }
+
+  if (!searchQuery.trim() && !activeSubcategory && activeView !== "watchlist") {
+    filtered = filtered.filter(shownWhileBrowsing);
   }
 
   if (searchQuery.trim()) {
