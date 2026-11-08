@@ -7293,6 +7293,18 @@ iframe.skiptranslate,
   font-weight: 700;
 }
 
+/* A favourite where the shopper is (tastes_core): their sports, festivals, food, climate and plugs. */
+.local-badge {
+  display: inline-block;
+  margin: 0 0 0.4rem 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .product-location {
   margin: 0 0 0.4rem;
   font-size: 0.78rem;

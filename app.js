@@ -50,10 +50,14 @@ let searchBox = null;
 const byNewest = (a, b) => b.created_at - a.created_at;
 // Trending products picked for the shopper's country rank with items from that country, even when they ship from abroad.
 const localRank = (product) => Math.max(product.nearby, product.market_pick ? 3 : 0);
+// Best for the shopper's location: how near it is, how much shoppers there favour it (their sports, festivals, food,
+// climate and plugs: cricket in India and Australia, American football and basketball in North America, soccer in
+// Europe and Latin America, the same idea in every category) and how well its price suits their country.
+const localScore = (product) => localRank(product) + product.local_fit * 2 + product.price_fit;
 
 const SORTS = {
   // Like a local marketplace: nearest first, then the prices that suit the shopper's country, then newest.
-  nearby: { label: "Best for your location", compare: (a, b) => localRank(b) - localRank(a) || b.price_fit - a.price_fit || byNewest(a, b) },
+  nearby: { label: "Best for your location", compare: (a, b) => localScore(b) - localScore(a) || byNewest(a, b) },
   latest: { label: "Latest uploads", compare: byNewest },
   trending: { label: "Trending", compare: (a, b) => b.trending - a.trending || b.market_pick - a.market_pick || byNewest(a, b) },
   featured: { label: "Featured", compare: null },
@@ -750,6 +754,7 @@ function productCardHtml(product, index) {
         <p class="product-desc">${escapeHtml(product.description)}</p>
         ${isOnSale(product) && product.sale_event ? `<span class="sale-event-badge">${escapeHtml(product.sale_event)}</span>` : ""}
         ${product.wholesale_tiers?.length ? `<span class="bulk-badge" title="Wholesale prices for approved business accounts">Bulk pricing</span>` : ""}
+        ${product.local_label ? `<span class="local-badge" title="Shoppers where you are love this">${escapeHtml(product.local_label)}</span>` : ""}
         ${product.regional_factor ? `<span class="regional-badge" title="The seller lowered this price for shoppers in your country">Fair price for your country</span>` : ""}
         <p class="product-location${product.nearby >= 3 ? " is-local" : ""}" title="${escapeHtml(product.nearby_label || "Item location")}">&#128205; ${escapeHtml(itemLocationLabel(product))}</p>
         <div class="product-rating">${ratingStars(product.rating || 4)}</div>
@@ -938,6 +943,8 @@ function shopperProduct(p) {
     // How near the item is (0 abroad … 4 same city) and how well its price suits the shopper's country.
     nearby: Number(p.nearby) || 0,
     price_fit: Number(p.price_fit) || 0,
+    // How much shoppers in the shopper's place favour it, from -0.4 (not followed there) to 1 (a local favourite).
+    local_fit: Number(p.local_fit) || 0,
     // Picked for the shopper's country from CJ's trending products there.
     market_pick: p.market_pick ? 1 : 0,
     image_url: p.image_url || PLACEHOLDER_IMAGE_URL,
