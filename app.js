@@ -53,7 +53,10 @@ const localRank = (product) => Math.max(product.nearby, product.market_pick ? 3 
 // Best for the shopper's location: how near it is, how much shoppers there favour it (their sports, festivals, food,
 // climate and plugs: cricket in India and Australia, American football and basketball in North America, soccer in
 // Europe and Latin America, the same idea in every category) and how well its price suits their country.
-const localScore = (product) => localRank(product) + product.local_fit * 2 + product.price_fit;
+// A taste that isn't followed there (cricket in the US, NFL in India) weighs three times as much, so those listings
+// sink below everything but far-away items even when they're listed nearby; searching for them still finds them.
+const localScore = (product) =>
+  localRank(product) + product.local_fit * (product.local_fit < 0 ? 6 : 2) + product.price_fit;
 
 const SORTS = {
   // Like a local marketplace: nearest first, then the prices that suit the shopper's country, then newest.
