@@ -1899,6 +1899,7 @@ function renderRegions() {
         <label class="wide-field">Its own keywords<input type="text" data-store-field="keywords" value="${escapeHtml((store.keywords || []).join(", "))}" placeholder="Searched besides the region's" /></label>
         <label class="checkbox-row"><input type="checkbox" data-store-field="enabled" ${store.enabled !== false ? "checked" : ""} /> On</label>
         <label class="checkbox-row"><input type="checkbox" data-store-field="retailer" ${store.retailer ? "checked" : ""} /> Sells other brands</label>
+        <label class="checkbox-row" title="Skip the region's keywords: an everyday store (soap, vitamins) asked only for its own goods"><input type="checkbox" data-store-field="own_keywords_only" ${store.own_keywords_only ? "checked" : ""} /> Only its own keywords</label>
         <div class="region-store-actions">
           <button type="button" class="button button-secondary" data-region-action="check-store">Check store</button>
           <button type="button" class="button danger-button" data-region-action="remove-store">Remove</button>
