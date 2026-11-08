@@ -1126,9 +1126,9 @@ function renderLiveSignals(product) {
 
 // ── Staff tools ────────────────────────────────────────────────────────────────
 // Signed in as staff, every product page has Edit (the admin editor, back here after saving) and Delete, and says
-// when the listing leaves the store on its own: 30 days after a shopper last opened it, it moves to drafts, and an
-// unpublished auto-draft is deleted 15 days later (backend/idle_core.py).
-const IDLE_DAYS = 30;
+// when the listing leaves the store on its own: 60 days after a shopper last opened it, it moves to drafts, and an
+// unpublished auto-draft is deleted 15 days later (backend/idle_core.py). Listings that have sold never leave.
+const IDLE_DAYS = 60;
 const IDLE_DRAFT_DAYS = 15;
 const IDLE_TRACKING_SINCE = 1794182400;  // 2026-11-09, when views were first recorded.
 
@@ -1145,6 +1145,7 @@ function idleNotice(product) {
       ? `Moved to drafts automatically. Publish it again before ${format(Number(product.idle_drafted_at) + IDLE_DRAFT_DAYS * day)} or it's deleted.`
       : "Draft: hidden from the store.";
   }
+  if (product.has_sold) return "Has sold before, so it stays listed even if nobody opens it.";
   const viewed = Number(product.last_viewed_at) || 0;
   const since = Math.max(viewed, Number(product.created_at) || 0, Number(product.active_since) || 0, IDLE_TRACKING_SINCE);
   return `${viewed ? `A shopper last opened it on ${format(viewed)}.` : "No shopper has opened it yet."} `
@@ -1185,7 +1186,7 @@ async function beatPresence(product) {
     const response = await fetch(`${DETAIL_API_BASE_URL}/products/${encodeURIComponent(product.id)}/presence`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // Staff checking a listing don't count as a shopper opening it (the 30-day idle clock, see renderStaffTools).
+      // Staff checking a listing don't count as a shopper opening it (the 60-day idle clock, see renderStaffTools).
       body: JSON.stringify({ visitor, in_cart: cartProductIds().includes(String(product.id)), staff: staffViewer() || undefined }),
     });
     if (!response.ok || !(response.headers.get("Content-Type") || "").includes("application/json")) return;
