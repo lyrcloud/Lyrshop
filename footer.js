@@ -29,6 +29,7 @@ const FOOTER_GROUPS = [
     title: "Help",
     links: [
       ["Track an order", "dashboard.html#purchases"],
+      ["Get the app", "app.html"],
       ["Contact us", "mailto:support@lyrshop.com"],
       ["Privacy", "privacy.html"],
       ["Delete account", "privacy.html#delete-account"],
@@ -54,3 +55,39 @@ function renderSiteFooter(footer) {
 }
 
 document.querySelectorAll("footer[data-site-footer]").forEach(renderSiteFooter);
+
+// "Get the app" bar for shoppers on Android phone browsers (never inside the app itself, which tags its user agent
+// LyrshopApp). Closing it hides it for 30 days.
+const APP_BAR_KEY = "lyrshopAppBarClosed";
+const APP_BAR_DAYS = 30;
+
+function showAppBar() {
+  const ua = navigator.userAgent;
+  const inApp = /LyrshopApp/.test(ua);
+  if (inApp) {
+    document.querySelectorAll("[data-app-already]").forEach((el) => { el.hidden = false; });
+    return;
+  }
+  if (!/Android/i.test(ua) || location.pathname.endsWith("/app.html")) return;
+  try {
+    const closed = Number(localStorage.getItem(APP_BAR_KEY) || 0);
+    if (closed && Date.now() - closed < APP_BAR_DAYS * 86400000) return;
+  } catch (error) { /* storage blocked: show the bar */ }
+
+  const bar = document.createElement("div");
+  bar.className = "app-bar";
+  bar.setAttribute("role", "region");
+  bar.setAttribute("aria-label", "Lyrshop app");
+  bar.innerHTML = `
+    <button type="button" class="app-bar-close" aria-label="Close">&times;</button>
+    <img src="icon-192.png" alt="" width="40" height="40" />
+    <div class="app-bar-text"><strong>Lyrshop app</strong><span>Faster shopping on Android</span></div>
+    <a class="app-bar-get" href="app.html">Get</a>`;
+  bar.querySelector(".app-bar-close").addEventListener("click", () => {
+    bar.remove();
+    try { localStorage.setItem(APP_BAR_KEY, String(Date.now())); } catch (error) { /* ignore */ }
+  });
+  document.body.prepend(bar);
+}
+
+showAppBar();
