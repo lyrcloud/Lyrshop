@@ -12040,3 +12040,4 @@ body.drawer-open {
 .app-page li + li { margin-top: 0.4rem; }
 .app-download { display: inline-block; margin-top: 0.5rem; font-size: 1.05rem; padding: 0.8rem 1.6rem; }
 .app-meta { color: #707070; font-size: 0.85rem; margin-top: 0.5rem; }
+@media print { .app-bar { display: none; } }
