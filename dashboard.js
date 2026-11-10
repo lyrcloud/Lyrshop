@@ -473,6 +473,12 @@ function bindProfileForm() {
   profileForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const body = { name: profileNameInput.value };
+    const month = birthdayMonth.value, day = birthdayDay.value;
+    if (Boolean(month) !== Boolean(day)) {
+      setProfileMessage("Choose both the month and the day of your birthday.", true);
+      return;
+    }
+    body.birthday = month ? `${month}-${day}` : "";
     if (pendingPhoto !== null) body.photo_url = pendingPhoto;
     profileSave.disabled = true;
     setProfileMessage("Saving…");
@@ -496,7 +502,24 @@ function bindProfileForm() {
   });
 }
 
+// Birthday (optional): month and day only, saved as "MM-DD" for the birthday gift email.
+const birthdayMonth = document.getElementById("profile-birthday-month");
+const birthdayDay = document.getElementById("profile-birthday-day");
+if (birthdayMonth && birthdayDay) {
+  const monthNames = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleString(undefined, { month: "long" }));
+  monthNames.forEach((name, i) => birthdayMonth.add(new Option(name, String(i + 1).padStart(2, "0"))));
+  for (let day = 1; day <= 31; day += 1) birthdayDay.add(new Option(String(day), String(day).padStart(2, "0")));
+}
+
+function renderBirthday(account) {
+  if (!birthdayMonth || !birthdayDay) return;
+  const [month = "", day = ""] = String(account.birthday || "").split("-");
+  birthdayMonth.value = month;
+  birthdayDay.value = day;
+}
+
 function renderProfile(account) {
+  renderBirthday(account);
   const roleLabels = { superadmin: "Super admin", admin: "Admin", user: "Customer" };
   document.getElementById("my-heading-avatar").innerHTML = userAvatar(account, "user-avatar my-heading-avatar");
   if (document.activeElement !== profileNameInput) profileNameInput.value = account.name || "";

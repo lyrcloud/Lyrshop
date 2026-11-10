@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=20261108-3" />
+  <link rel="stylesheet" href="styles.css?v=20261109-1" />
 </head>
 <body>
   <header class="page-header compact-header">
@@ -182,6 +182,14 @@
               Display name
               <input type="text" id="profile-name-input" maxlength="60" autocomplete="name" required />
             </label>
+            <fieldset class="profile-name-field profile-birthday-field">
+              <legend>Birthday <small class="field-note">(optional)</small></legend>
+              <div class="profile-birthday-inputs">
+                <select id="profile-birthday-month" aria-label="Birthday month"><option value="">Month</option></select>
+                <select id="profile-birthday-day" aria-label="Birthday day"><option value="">Day</option></select>
+              </div>
+              <small class="field-note">On your birthday we'll email you a gift coupon: 10–30% or $10–30 off.</small>
+            </fieldset>
             <div class="profile-form-actions">
               <button type="submit" id="profile-save" class="button button-primary">Save changes</button>
               <span id="profile-message" class="profile-message" role="status"></span>
@@ -242,7 +250,7 @@
   <script src="auth.js?v=20261023-1"></script>
   <script src="locale.js?v=20261018-1"></script>
   <script src="ui.js?v=20261107-1"></script>
-  <script src="dashboard.js?v=20261025-4"></script>
+  <script src="dashboard.js?v=20261109-1"></script>
   <script src="footer.js?v=20261108-2"></script>
   <script src="lyrbot.js?v=20261107-1"></script>
 </body>
