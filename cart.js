@@ -54,6 +54,8 @@ const appliedCodes = { coupon: "", gift_card: "" };
 let usePoints = false;
 // The server's latest price check of this exact cart, shown in place of the browser's estimate.
 let serverQuote = null;
+// Whether Pay with Lyrpay is switched on (from the server's quote)
+let lyrpayLive = false;
 let quoteRequest = 0;
 let quoteTimer = null;
 const PLACEHOLDER_IMAGE_URL = "logo.svg";
@@ -550,6 +552,8 @@ async function fetchQuote() {
       return;
     }
     serverQuote = json;
+    lyrpayLive = Boolean(json.lyrpay);
+    renderLyrpay();
     if (json.errors?.quote) dropQuote();
     renderBusinessCheckout(json);
     renderDealNote(json);
@@ -738,7 +742,7 @@ function syncDeliveryFields() {
 
 Object.values(deliveryFields).forEach((input) => input.addEventListener("input", saveDeliveryDraft));
 
-async function checkout({ byInvoice = false } = {}) {
+async function checkout({ byInvoice = false, lyrpay = false } = {}) {
   if (!cart.length || checkoutInProgress) return;
   const user = getCurrentUser();
 
@@ -764,6 +768,7 @@ async function checkout({ byInvoice = false } = {}) {
       body: JSON.stringify({
         ...checkoutRequest(),
         ...(byInvoice ? { pay_by_invoice: true } : {}),
+        ...(lyrpay ? { payment_method: "lyrpay" } : {}),
         delivery_address: deliveryAddress(),
         display_currency: LyrLocale.currency(),
         success_url: `${window.location.origin}/dashboard.html`,
@@ -798,6 +803,11 @@ async function checkout({ byInvoice = false } = {}) {
   if (result.paid) {
     setCheckoutState("Order placed and paid with your gift card and points. Taking you to your orders...", true);
     setTimeout(() => { window.location.href = "dashboard.html"; }, 1500);
+    return;
+  }
+  if (result.lyrpay && result.checkout_url) {
+    setCheckoutState("Taking you to Lyrpay to pay from your balance...", true);
+    window.location.href = result.checkout_url;
     return;
   }
   if (result.stripe_configured && result.checkout_url) {
@@ -890,8 +900,8 @@ shippingCountrySelect.addEventListener("change", () => {
 });
 
 // Prices re-render when the visitor's currency is detected or changed.
-// Lyrpay, for shoppers whose currency Stripe can't take: one click joins its early access with their account (or
-// email), until Lyrpay checkout is live.
+// Pay with Lyrpay: once the server says Lyrpay is on (the quote's "lyrpay"), everyone can pay from their Lyrpay
+// balance on lyrpay.com. Until then, shoppers whose currency Stripe can't take can join its early access.
 const STRIPE_CURRENCIES = new Set(("USD AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL "
   + "BSD BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CVE CZK DJF DKK DOP DZD EGP ETB EUR FJD FKP GBP GEL GIP GMD GNF GTQ GYD "
   + "HKD HNL HTG HUF IDR ILS INR ISK JMD JOD JPY KES KGS KHR KMF KRW KWD KYD KZT LAK LBP LKR LRD LSL MAD MDL MGA MKD MMK "
@@ -904,6 +914,13 @@ const lyrpayStatus = document.getElementById("lyrpay-status");
 
 function renderLyrpay() {
   const currency = LyrLocale.currency();
+  if (lyrpayLive) {
+    lyrpayBox.hidden = !cart.length;
+    document.getElementById("lyrpay-note").textContent =
+      "Or pay from your Lyrpay balance: approve it in one tap on lyrpay.com, with no card fees. Refunds go straight back to your balance.";
+    lyrpayEmail.hidden = true;
+    return;
+  }
   lyrpayBox.hidden = STRIPE_CURRENCIES.has(currency);
   if (lyrpayBox.hidden) return;
   document.getElementById("lyrpay-note").textContent =
@@ -912,6 +929,10 @@ function renderLyrpay() {
 }
 
 document.getElementById("lyrpay-button").addEventListener("click", async (event) => {
+  if (lyrpayLive) {
+    checkout({ lyrpay: true });
+    return;
+  }
   const button = event.currentTarget;
   if (!getCurrentUser() && !lyrpayEmail.value.trim()) {
     lyrpayStatus.textContent = "Enter your email to join Lyrpay.";
